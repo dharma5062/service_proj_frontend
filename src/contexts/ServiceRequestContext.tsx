@@ -15,7 +15,7 @@ export interface ServiceRequest {
     serviceType: string;
     customer: Customer;
     device: string;
-    productCategory: 'electronics' | 'appliances' | 'furniture';
+    productCategory: string;
     productType: string;
     brand: string;
     model: string;

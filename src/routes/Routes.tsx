@@ -8,8 +8,8 @@ import ForgotPassword from '@/pages/auth/forgotPassword';
 import ResetPassword from '@/pages/auth/resetPassword';
 import DashboardLayout from '@/pages/layout/DashboardLayout';
 import ShopProfile from '@/pages/shop/ShopProfile';
-import ServicesPage from '@/pages/services/ServicesPage';
-import CreateServiceRequest from '@/pages/services/CreateServiceRequest';
+import ServicesPage from '@/pages/servicesrequest/ServicesPage';
+import CreateServiceRequest from '@/pages/servicesrequest/CreateServiceRequest';
 // import ViewServiceRequest from '@/pages/services/ViewServiceRequest';
 import Dashboard from '@/pages/dashboard/Dashboard';
 import InvoiceGenerator from '@/pages/invoice/InvoiceGenerator';
@@ -17,20 +17,28 @@ import StaffPage from '@/pages/staff/StaffPage';
 // import NotificationCenter from '@/pages/notifications/NotificationCenter';
 import ReportingPage from '@/pages/reporting/ReportingPage';
 import PromotionsPage from '@/pages/promotions/PromotionsPage';
+import ProductCategoriesPage from '@/pages/settings/ProductCategoriesPage';
+import CategoryFormsPage from '@/pages/settings/CategoryFormsPage';
+import BrandsPage from '@/pages/settings/BrandsPage';
+import ProductsPage from '@/pages/settings/ProductsPage';
+import CreateProductPage from '@/pages/settings/CreateProductPage';
+import PrivateRoute from '@/components/routes/PrivateRoute';
+import PublicRoute from '@/components/routes/PublicRoute';
 
 const RouterComponent: React.FC = () => {
     return (
         <BrowserRouter>
             <Routes>
+                {/* Public Routes */}
                 <Route path='/' element={<LandingPage />} />
-                <Route path='/register' element={<Register />} />
-                <Route path='/verify-otp' element={<VerifyOtp />} />
-                <Route path='/login' element={<Login />} />
-                <Route path='/forgot-password' element={<ForgotPassword />} />
-                <Route path='/reset-password' element={<ResetPassword />} />
+                <Route path='/register' element={<PublicRoute><Register /></PublicRoute>} />
+                <Route path='/verify-otp' element={<PublicRoute><VerifyOtp /></PublicRoute>} />
+                <Route path='/login' element={<PublicRoute><Login /></PublicRoute>} />
+                <Route path='/forgot-password' element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+                <Route path='/reset-password' element={<PublicRoute><ResetPassword /></PublicRoute>} />
 
                 {/* Protected Routes */}
-                <Route path='/dashboard' element={<DashboardLayout />}>
+                <Route path='/dashboard' element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
                     <Route index element={<Dashboard />} />
                     <Route path='profile' element={<ShopProfile />} />
                     <Route path='staff' element={<StaffPage />} />
@@ -43,6 +51,12 @@ const RouterComponent: React.FC = () => {
                     {/* <Route path='services/:id' element={<ViewServiceRequest />} /> */}
                     <Route path='invoice/create' element={<InvoiceGenerator />} />
                     <Route path='invoice/:id' element={<InvoiceGenerator />} />
+                    {/* Settings Routes */}
+                    <Route path='settings/categories' element={<ProductCategoriesPage />} />
+                    <Route path='settings/category-form' element={<CategoryFormsPage />} />
+                    <Route path='settings/brand' element={<BrandsPage />} />
+                    <Route path='settings/product' element={<ProductsPage />} />
+                    <Route path='settings/product/create' element={<CreateProductPage />} />
                     {/* Add other routes as they are created */}
                 </Route>
             </Routes>

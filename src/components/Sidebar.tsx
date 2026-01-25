@@ -1,9 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import {
     LayoutDashboard,
     Store,
     User,
-    // Settings,
+    Settings,
     LogOut,
     Users,
     Bell,
@@ -12,7 +13,12 @@ import {
     ChevronsUpDown,
     BadgeCheck,
     CreditCard,
-    Sparkles
+    Sparkles,
+    ChevronDown,
+    FolderTree,
+    FileEdit,
+    Package,
+    ShoppingBag
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -25,6 +31,11 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
     Sidebar as SidebarContainer,
     SidebarContent,
     SidebarFooter,
@@ -32,6 +43,9 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
     SidebarRail,
     useSidebar,
 } from '@/components/ui/sidebar';
@@ -40,6 +54,7 @@ const Sidebar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { isMobile } = useSidebar();
+    const [settingsOpen, setSettingsOpen] = useState(true);
 
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -49,7 +64,14 @@ const Sidebar = () => {
         { icon: BarChart3, label: 'Reporting', path: '/dashboard/reporting' },
         { icon: Tag, label: 'Promotions', path: '/dashboard/promotions' },
         // { icon: Bell, label: 'Notifications', path: '/dashboard/notifications' },
-        // { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
+    ];
+
+    const settingsItems = [
+        { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories' },
+        { icon: FileEdit, label: 'Category Form', path: '/dashboard/settings/category-form' },
+        { icon: Package, label: 'Brand', path: '/dashboard/settings/brand' },
+        { icon: ShoppingBag, label: 'Product', path: '/dashboard/settings/product' },
+        // { icon: Store, label: 'Shop', path: '/dashboard/settings/shop' },
     ];
 
     const user = {
@@ -102,6 +124,40 @@ const Sidebar = () => {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     ))}
+
+                    {/* Settings Dropdown */}
+                    <Collapsible
+                        open={settingsOpen}
+                        onOpenChange={setSettingsOpen}
+                        className="group/collapsible"
+                    >
+                        <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                                <SidebarMenuButton tooltip="Settings">
+                                    <Settings />
+                                    <span>Settings</span>
+                                    <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+                                </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <SidebarMenuSub>
+                                    {settingsItems.map((item) => (
+                                        <SidebarMenuSubItem key={item.path}>
+                                            <SidebarMenuSubButton
+                                                asChild
+                                                isActive={isActive(item.path)}
+                                            >
+                                                <Link to={item.path}>
+                                                    <item.icon />
+                                                    <span>{item.label}</span>
+                                                </Link>
+                                            </SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                    ))}
+                                </SidebarMenuSub>
+                            </CollapsibleContent>
+                        </SidebarMenuItem>
+                    </Collapsible>
                 </SidebarMenu>
             </SidebarContent>
 

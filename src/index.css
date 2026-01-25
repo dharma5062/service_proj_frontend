@@ -101,6 +101,5 @@
     @apply bg-background text-foreground;
     font-family: var(--app-font-family);
     font-size: var(--app-font-size);
-    overflow: hidden;
   }
 }
