@@ -45,6 +45,7 @@ export interface DataTableProps<T = any> {
     striped?: boolean;
     sticky?: boolean;
     searchable?: boolean;
+    searchKey?: string;
     title?: string;
     actions?: React.ReactNode;
     compact?: boolean;
@@ -92,6 +93,7 @@ export const DataTable = <T extends Record<string, any>>({
     striped = false,
     sticky = false,
     searchable = true,
+    searchKey,
     title,
     actions,
     compact = true,
@@ -257,22 +259,31 @@ export const DataTable = <T extends Record<string, any>>({
     );
 
 
+    const filteredData = React.useMemo(() => {
+        if (!searchKey || !searchQuery) return data;
+        return data.filter((item) => {
+            const value = item[searchKey];
+            if (value === null || value === undefined) return false;
+            return String(value).toLowerCase().includes(searchQuery.toLowerCase());
+        });
+    }, [data, searchKey, searchQuery]);
+
     const currentData = React.useMemo(() => {
-        if (!pagination) return data;
+        if (!pagination) return filteredData;
 
 
         // If data length is already within pageSize limit, assume server-side pagination
         // This means the API already returned only the current page's data
-        if (data.length <= pagination.pageSize) {
-            return data;
+        if (filteredData.length <= pagination.pageSize) {
+            return filteredData;
         }
 
 
         // Otherwise, do client-side pagination
         const start = (pagination.current - 1) * pagination.pageSize;
         const end = start + pagination.pageSize;
-        return data.slice(start, end);
-    }, [data, pagination]);
+        return filteredData.slice(start, end);
+    }, [filteredData, pagination]);
 
 
     // Selection handlers

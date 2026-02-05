@@ -8,6 +8,10 @@ export interface Customer {
     email: string;
     phone: string;
     address?: string;
+    customer_approved?: boolean;
+    invite_token?: string | null;
+    invite_token_expires_at?: string | null;
+    invited_at?: string | null;
     created_at?: string;
     updated_at?: string;
 }
@@ -30,21 +34,23 @@ export interface ApiResponse<T> {
 /**
  * Search customers by phone number
  * @param phone - Phone number to search for
+ * @param approvedOnly - If true, only return approved customers
  * @returns Promise<Customer[]> - Array of matching customers
  * @throws Error if the API request fails
  */
-export const searchCustomersByPhone = async (phone: string): Promise<Customer[]> => {
+export const searchCustomersByPhone = async (phone: string, approvedOnly?: boolean): Promise<Customer[]> => {
     try {
         const response = await axiosInstance.get<any>(
             '/customers-index',
             {
-                params: { phone }
+                params: {
+                    phone,
+                    ...(approvedOnly !== undefined && { approved_only: approvedOnly })
+                }
             }
         );
 
         const responseData = response.data;
-
-
 
         // Handle response with explicit 'customers' property
         if (responseData && Array.isArray(responseData.customers)) {
@@ -83,13 +89,19 @@ export const searchCustomersByPhone = async (phone: string): Promise<Customer[]>
 
 /**
  * Fetches all customers
+ * @param approvedOnly - If true, only return approved customers
  * @returns Promise<Customer[]> - Array of customers
  * @throws Error if the API request fails
  */
-export const fetchCustomers = async (): Promise<Customer[]> => {
+export const fetchCustomers = async (approvedOnly?: boolean): Promise<Customer[]> => {
     try {
         const response = await axiosInstance.get<any>(
-            '/customers-index'
+            '/customers-index',
+            {
+                params: {
+                    ...(approvedOnly !== undefined && { approved_only: approvedOnly })
+                }
+            }
         );
 
         const responseData = response.data;
@@ -200,6 +212,72 @@ export const fetchCustomerById = async (id: number): Promise<Customer> => {
             throw new Error(
                 error.response?.data?.message ||
                 `Failed to fetch customer: ${error.message}`
+            );
+        }
+
+        throw error;
+    }
+};
+
+/**
+ * Send invite to an existing customer by phone number
+ * @param phone - Phone number of the customer
+ * @returns Promise<ApiResponse<Customer>> - API response with updated customer
+ * @throws Error if the API request fails
+ */
+export const sendInvite = async (phone: string): Promise<ApiResponse<Customer>> => {
+    try {
+        const response = await axiosInstance.post<ApiResponse<Customer>>(
+            '/customers-send-invite',
+            { phone },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error('Error sending invite:', error);
+
+        if (error instanceof AxiosError) {
+            throw new Error(
+                error.response?.data?.message ||
+                `Failed to send invite: ${error.message}`
+            );
+        }
+
+        throw error;
+    }
+};
+
+/**
+ * Approve a customer using their invite token
+ * @param token - The invite token from the email link
+ * @returns Promise<ApiResponse<Customer>> - API response with approved customer
+ * @throws Error if the API request fails
+ */
+export const approveInvite = async (token: string): Promise<ApiResponse<Customer>> => {
+    try {
+        const response = await axiosInstance.post<ApiResponse<Customer>>(
+            '/customers-approve-invite',
+            { token },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error('Error approving invite:', error);
+
+        if (error instanceof AxiosError) {
+            throw new Error(
+                error.response?.data?.message ||
+                `Failed to approve invite: ${error.message}`
             );
         }
 

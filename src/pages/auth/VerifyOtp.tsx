@@ -20,7 +20,7 @@ interface VerifyState {
 
 export default function VerifyOTP() {
     const { toast } = useToast();
-    const { axiosInstance } = useAuth() || {};
+    const { axiosInstance, login } = useAuth() || {};
     const client = axiosInstance ?? axios.create({ baseURL: "http://localhost:8000/api" });
     const location = useLocation();
     const navigate = useNavigate();
@@ -60,6 +60,26 @@ export default function VerifyOTP() {
         }
     };
 
+    const handlePaste = (index: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        const pastedData = e.clipboardData.getData("text").replace(/[^0-9]/g, "");
+
+        if (pastedData.length > 0) {
+            const newOtpDigits = [...otpDigits];
+
+            // Distribute pasted digits across inputs starting from current index
+            for (let i = 0; i < pastedData.length && index + i < 6; i++) {
+                newOtpDigits[index + i] = pastedData[i];
+            }
+
+            setOtpDigits(newOtpDigits);
+
+            // Focus the last filled input or the last input if all are filled
+            const lastFilledIndex = Math.min(index + pastedData.length - 1, 5);
+            inputRefs.current[lastFilledIndex]?.focus();
+        }
+    };
+
     const verifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -93,6 +113,16 @@ export default function VerifyOTP() {
 
             // Success toast for 200/201 responses
             if (res.status === 200 || res.status === 201) {
+                const token = res.data.token || res.data.access_token || res.data?.data?.token;
+
+                if (token) {
+                    if (login) {
+                        login(token);
+                    } else {
+                        localStorage.setItem("token", token);
+                    }
+                }
+
                 toast({
                     title: "Verification Successful!",
                     description: res?.data?.message || "Your account has been verified successfully.",
@@ -102,7 +132,7 @@ export default function VerifyOTP() {
             localStorage.removeItem("registerEmail");
             localStorage.removeItem("registerPayload");
             localStorage.removeItem("otp_send");
-            setTimeout(() => navigate("/dashboard"), 800);
+            setTimeout(() => navigate("/onboarding/shop"), 800);
         } catch (err: any) {
             console.error("Verification error:", err);
 
@@ -163,6 +193,7 @@ export default function VerifyOTP() {
                                 value={digit}
                                 onChange={(e) => handleInputChange(index, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(index, e)}
+                                onPaste={(e) => handlePaste(index, e)}
                                 className="flex h-12 w-10 sm:h-14 sm:w-12 text-center text-lg sm:text-xl font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-slate-900 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50 transition-all"
                                 aria-label={`Digit ${index + 1}`}
                             />

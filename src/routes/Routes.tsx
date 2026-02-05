@@ -8,6 +8,7 @@ import ForgotPassword from '@/pages/auth/forgotPassword';
 import ResetPassword from '@/pages/auth/resetPassword';
 import DashboardLayout from '@/pages/layout/DashboardLayout';
 import ShopProfile from '@/pages/shop/ShopProfile';
+import ShopOnboarding from '@/pages/onboarding/ShopOnboarding';
 import ServicesPage from '@/pages/servicesrequest/ServicesPage';
 import CreateServiceRequest from '@/pages/servicesrequest/CreateServiceRequest';
 // import ViewServiceRequest from '@/pages/services/ViewServiceRequest';
@@ -22,6 +23,7 @@ import CategoryFormsPage from '@/pages/settings/CategoryFormsPage';
 import BrandsPage from '@/pages/settings/BrandsPage';
 import ProductsPage from '@/pages/settings/ProductsPage';
 import CreateProductPage from '@/pages/settings/CreateProductPage';
+// import ShopsPage from '@/pages/settings/ShopsPage';
 import PrivateRoute from '@/components/routes/PrivateRoute';
 import PublicRoute from '@/components/routes/PublicRoute';
 
@@ -57,8 +59,12 @@ const RouterComponent: React.FC = () => {
                     <Route path='settings/brand' element={<BrandsPage />} />
                     <Route path='settings/product' element={<ProductsPage />} />
                     <Route path='settings/product/create' element={<CreateProductPage />} />
+                    {/* <Route path='settings/shop' element={<ShopsPage />} /> */}
                     {/* Add other routes as they are created */}
                 </Route>
+
+                {/* Onboarding Routes - Standalone */}
+                <Route path='/onboarding/shop' element={<PrivateRoute><ShopOnboarding /></PrivateRoute>} />
             </Routes>
         </BrowserRouter>
     );

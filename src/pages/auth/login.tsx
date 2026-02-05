@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/AuthContext";
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -35,11 +37,11 @@ const Login: React.FC = () => {
         },
       });
       if (res?.data?.token) {
-        localStorage.setItem("token", res.data.token);
+        login(res.data.token);
       }
       setSuccessMessage(res?.data?.message || "Login successful!");
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/onboarding/shop");
       }, 800);
     } catch (err: any) {
       if (err?.response?.data?.errors) {

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import axios from "axios";
@@ -11,7 +10,6 @@ import { Form, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/AuthContext";
 
 const FormSchema = z
@@ -21,14 +19,14 @@ const FormSchema = z
             .string()
             .min(10, { message: "Phone number must be at least 10 characters" })
             .regex(/^[0-9]+$/, { message: "Phone number must contain only digits" }),
-        shop_name: z.string().min(2, { message: "Shop name must be at least 2 characters" }),
-        address: z.string().optional().or(z.literal("")),
+        // shop_name: z.string().min(2, { message: "Shop name must be at least 2 characters" }),
+        // address: z.string().optional().or(z.literal("")),
         email: z.string().email({ message: "Invalid email address" }),
         password: z.string().min(8, { message: "Password must be at least 8 characters" }),
         password_confirmation: z.string(),
-        terms: z.boolean().refine((val) => val === true, {
-            message: "You must accept the terms and conditions",
-        }),
+        // terms: z.boolean().refine((val) => val === true, {
+        //     message: "You must accept the terms and conditions",
+        // }),
     })
     .superRefine((data, ctx) => {
         if (data.password !== data.password_confirmation) {
@@ -54,12 +52,12 @@ export default function Register() {
         defaultValues: {
             name: "",
             phone: "",
-            shop_name: "",
-            address: "",
+            // shop_name: "",
+            // address: "",
             email: "",
             password: "",
             password_confirmation: "",
-            terms: false,
+            // terms: false,
         },
     });
 
@@ -70,8 +68,8 @@ export default function Register() {
             const payload = {
                 name: data.name.trim(),
                 phone: data.phone.replace(/\D/g, ""),
-                company_name: data.shop_name.trim(),
-                address: data.address?.trim() || undefined,
+                // company_name: data.shop_name.trim(),
+                // address: data.address?.trim() || undefined,
                 email: data.email.trim(),
                 password: data.password,
                 password_confirmation: data.password_confirmation,
@@ -143,18 +141,7 @@ export default function Register() {
                             ServiceManager
                         </h2>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm text-slate-600 dark:text-slate-400 hidden sm:inline">
-                            Already have an account?
-                        </span>
-                        <Button
-                            onClick={() => navigate("/login")}
-                            variant="secondary"
-                            className="h-10 px-4 bg-primary -text-slate-900 dark:text-slate-50"
-                        >
-                            Log In
-                        </Button>
-                    </div>
+
                 </header>
 
                 {/* Main Content */}
@@ -179,9 +166,9 @@ export default function Register() {
                         </div>
 
                         {/* Right Side - Form */}
-                        <div className="flex items-center justify-center p-3 sm:p-4 w-full bg-white dark:bg-slate-900 overflow-y-auto">
-                            <div className="max-w-4xl w-full mx-auto">
-                                <div className="flex flex-col gap-1 mb-4">
+                        <div className="flex items-center justify-center p-4 sm:p-6 lg:p-8 w-full bg-white dark:bg-slate-900">
+                            <div className="max-w-lg w-full mx-auto">
+                                <div className="flex flex-col gap-1 mb-3">
                                     <h1 className="text-slate-900 dark:text-slate-50 text-xl sm:text-2xl font-black leading-tight tracking-[-0.033em]">
                                         Create Your Shop Owner Account
                                     </h1>
@@ -196,8 +183,8 @@ export default function Register() {
                                         className="flex flex-col gap-3"
                                         noValidate
                                     >
-                                        {/* Two Column Grid for Main Fields */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {/* Single Column Layout for All Fields */}
+                                        <div className="flex flex-col gap-3">
                                             {/* Full Name */}
                                             <FormField
                                                 control={form.control}
@@ -240,7 +227,7 @@ export default function Register() {
                                             />
 
                                             {/* Shop Name */}
-                                            <FormField
+                                            {/* <FormField
                                                 control={form.control}
                                                 name="shop_name"
                                                 render={({ field }) => (
@@ -257,7 +244,7 @@ export default function Register() {
                                                         <FormMessage className="text-xs" />
                                                     </FormItem>
                                                 )}
-                                            />
+                                            /> */}
 
                                             {/* Email (Mandatory) */}
                                             <FormField
@@ -354,7 +341,7 @@ export default function Register() {
                                         </div>
 
                                         {/* Address - Full Width (Optional) */}
-                                        <FormField
+                                        {/* <FormField
                                             control={form.control}
                                             name="address"
                                             render={({ field }) => (
@@ -371,10 +358,10 @@ export default function Register() {
                                                     <FormMessage className="text-xs" />
                                                 </FormItem>
                                             )}
-                                        />
+                                        /> */}
 
                                         {/* Terms Checkbox */}
-                                        <FormField
+                                        {/* <FormField
                                             control={form.control}
                                             name="terms"
                                             render={({ field }) => (
@@ -412,12 +399,12 @@ export default function Register() {
                                                     <FormMessage className="text-xs ml-6" />
                                                 </FormItem>
                                             )}
-                                        />
+                                        /> */}
 
                                         {/* Submit Button */}
                                         <Button
                                             type="submit"
-                                            className="w-full mt-2 h-10  text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+                                            className="w-full mt-3 h-11 text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
                                             disabled={isSubmitting}
                                         >
                                             {isSubmitting ? (
@@ -448,6 +435,21 @@ export default function Register() {
                                                 "Create Account"
                                             )}
                                         </Button>
+
+                                        {/* Login Link - Below Create Account Button */}
+                                        <div className="flex items-center justify-center gap-2 mt-4">
+                                            <span className="text-sm text-slate-600 dark:text-slate-400">
+                                                Already have an account?
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                onClick={() => navigate("/login")}
+                                                variant="link"
+                                                className="h-auto p-0 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                            >
+                                                Log In
+                                            </Button>
+                                        </div>
                                     </form>
                                 </Form>
                             </div>

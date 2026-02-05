@@ -5,6 +5,9 @@ import {
     Plus,
     Trash2,
     CloudUpload,
+    Mail,
+    CheckCircle,
+    Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +35,7 @@ import { fetchBrands, Brand } from '@/pages/serviceAPI/BrandsAPI';
 import { fetchCategoryForms, CategoryForm } from '@/pages/serviceAPI/CategoryFormsAPI';
 import { fetchProductCategories, ProductCategory as APIProductCategory } from '@/pages/serviceAPI/ProductCategoriesAPI';
 import { fetchProducts, Product } from '@/pages/serviceAPI/ProductsAPI';
-import { searchCustomersByPhone, createCustomer, Customer } from '@/pages/serviceAPI/CustomersAPI';
+import { searchCustomersByPhone, createCustomer, sendInvite, Customer } from '@/pages/serviceAPI/CustomersAPI';
 
 
 
@@ -81,6 +84,7 @@ const CreateServiceRequest = () => {
     const [searchedCustomers, setSearchedCustomers] = useState<Customer[]>([]);
     const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
     const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+    const [isSendingInvite, setIsSendingInvite] = useState(false);
 
     // Customer form state
     const [newCustomerName, setNewCustomerName] = useState('');
@@ -411,7 +415,7 @@ const CreateServiceRequest = () => {
         toast.success('Image removed successfully');
     };
 
-    // Search customers by phone number
+    // Search customers by phone number - show all customers regardless of approval status
     useEffect(() => {
         const searchCustomers = async () => {
             if (!phoneSearchQuery.trim()) {
@@ -421,7 +425,8 @@ const CreateServiceRequest = () => {
 
             setIsSearchingCustomer(true);
             try {
-                const results = await searchCustomersByPhone(phoneSearchQuery);
+                // Search all customers (approved and non-approved)
+                const results = await searchCustomersByPhone(phoneSearchQuery, false);
                 setSearchedCustomers(results);
             } catch (error) {
                 console.error('Failed to search customers:', error);
@@ -544,6 +549,33 @@ const CreateServiceRequest = () => {
         }
     };
 
+    // Handle sending invite to an existing customer
+    const handleSendInvite = async (phone: string) => {
+        setIsSendingInvite(true);
+        try {
+            const response = await sendInvite(phone);
+
+            if (response.success) {
+                toast.success('Invite sent successfully! Customer will receive an email to approve.');
+
+                // Update the customer in the search results
+                setSearchedCustomers(prevCustomers =>
+                    prevCustomers.map(c =>
+                        c.phone === phone ? { ...c, ...response.data } : c
+                    )
+                );
+            } else {
+                toast.error(response.message || 'Failed to send invite');
+            }
+        } catch (error) {
+            console.error('Error sending invite:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to send invite';
+            toast.error(errorMessage);
+        } finally {
+            setIsSendingInvite(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50  flex-col">
             {/* Add Customer Modal */}
@@ -641,10 +673,18 @@ const CreateServiceRequest = () => {
                                             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
                                                 {selectedCustomer.name.charAt(0).toUpperCase()}
                                             </div>
-                                            <div>
-                                                <p className="font-medium text-gray-900 text-xs">
-                                                    {selectedCustomer.name}
-                                                </p>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-medium text-gray-900 text-xs">
+                                                        {selectedCustomer.name}
+                                                    </p>
+                                                    {selectedCustomer.customer_approved && (
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                                                            <CheckCircle className="h-3 w-3" />
+                                                            Approved
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-gray-500">
                                                     {selectedCustomer.phone}
                                                 </p>
@@ -678,23 +718,66 @@ const CreateServiceRequest = () => {
                                             Searching...
                                         </div>
                                     ) : searchedCustomers.length > 0 ? (
-                                        <div className="border border-gray-200 rounded-md max-h-40 overflow-y-auto bg-white">
+                                        <div className="space-y-2">
                                             {searchedCustomers.map((customer) => (
                                                 <div
                                                     key={customer.id}
-                                                    className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer border-b last:border-0"
-                                                    onClick={() => {
-                                                        setSelectedCustomer(customer);
-                                                        setPhoneSearchQuery(''); // Clear search after selection
-                                                        setSearchedCustomers([]);
-                                                    }}
+                                                    className="border border-gray-200 rounded-md p-2 bg-white hover:bg-gray-50 transition-colors"
                                                 >
-                                                    <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
-                                                        {customer.name.charAt(0).toUpperCase()}
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                                            {customer.name.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div className="flex-1 overflow-hidden">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="font-medium text-xs truncate">{customer.name}</p>
+                                                                {customer.customer_approved ? (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded shrink-0">
+                                                                        <CheckCircle className="h-3 w-3" />
+                                                                        Approved
+                                                                    </span>
+                                                                ) : customer.invite_token ? (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded shrink-0">
+                                                                        <Clock className="h-3 w-3" />
+                                                                        Pending
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded shrink-0">
+                                                                        <Clock className="h-3 w-3" />
+                                                                        New
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-gray-500 truncate">{customer.phone}</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="overflow-hidden">
-                                                        <p className="font-medium text-xs truncate">{customer.name}</p>
-                                                        <p className="text-xs text-gray-500 truncate">{customer.phone}</p>
+
+                                                    {/* Action buttons based on approval status */}
+                                                    <div className="flex gap-2 mt-2">
+                                                        {customer.customer_approved ? (
+                                                            <Button
+                                                                size="sm"
+                                                                className="w-full text-xs h-7"
+                                                                onClick={() => {
+                                                                    setSelectedCustomer(customer);
+                                                                    setPhoneSearchQuery('');
+                                                                    setSearchedCustomers([]);
+                                                                }}
+                                                            >
+                                                                Select Customer
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="w-full text-xs h-7 gap-1"
+                                                                onClick={() => handleSendInvite(customer.phone)}
+                                                                disabled={isSendingInvite || !!customer.invite_token}
+                                                            >
+                                                                <Mail className="h-3 w-3" />
+                                                                {customer.invite_token ? 'Invite Sent' : 'Send Invite'}
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}

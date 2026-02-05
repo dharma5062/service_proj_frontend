@@ -76,8 +76,12 @@ export { API_BASE_URL };
 export const createFormDataAxios = (): AxiosInstance => {
     const instance = createAxiosInstance();
 
-    // Override default Content-Type for multipart/form-data
-    instance.defaults.headers.common['Content-Type'] = 'multipart/form-data';
+    // Let the browser set the Content-Type with the boundary
+    delete instance.defaults.headers.common['Content-Type'];
+    delete instance.defaults.headers.post['Content-Type'];
+    delete instance.defaults.headers.put['Content-Type'];
+    delete instance.defaults.headers['Content-Type']; // Just in case it's on root
+
 
     return instance;
 };
