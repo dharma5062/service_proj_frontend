@@ -1,5 +1,7 @@
 import axiosInstance from '@/lib/axiosInstance';
 import { AxiosError } from 'axios';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/AuthContext';
 
 // Brand API Interfaces
 export interface Brand {
@@ -65,15 +67,7 @@ export const fetchBrands = async (): Promise<Brand[]> => {
         }
     } catch (error) {
         console.error('Error fetching brands:', error);
-
-        if (error instanceof AxiosError) {
-            throw new Error(
-                error.response?.data?.message ||
-                `Failed to fetch brands: ${error.message}`
-            );
-        }
-
-        throw error;
+        return []; // Return empty array on error to prevent crash
     }
 };
 
@@ -235,4 +229,101 @@ export const deleteBrand = async (id: number): Promise<ApiResponse<void>> => {
 
         throw error;
     }
+};
+
+// ─── TanStack Query Hook ───────────────────────────────────────────────────────
+
+export const useBrandsApi = () => {
+    const queryClient = useQueryClient();
+    const { shopId } = useAuth();
+
+    // ── Queries ──────────────────────────────────────────────────────────────
+
+    const useGetBrands = () =>
+        useQuery<Brand[], Error>({
+            queryKey: ['brands', shopId],
+            queryFn: fetchBrands,
+            staleTime: 30000,
+            refetchOnWindowFocus: false,
+            retry: 2,
+            refetchOnMount: true,
+            enabled: !!shopId,
+        });
+
+    const useGetBrandById = (id: number | null) =>
+        useQuery<Brand, Error>({
+            queryKey: ['brands', id],
+            queryFn: () => fetchBrandById(id!),
+            enabled: !!id,
+            staleTime: 30000,
+            refetchOnWindowFocus: false,
+            retry: 2,
+        });
+
+    // ── Mutations ─────────────────────────────────────────────────────────────
+
+    const useCreateBrand = () =>
+        useMutation<ApiResponse<Brand>, Error, CreateBrandPayload>({
+            mutationFn: createBrand,
+            onSuccess: (response) => {
+                queryClient.invalidateQueries({ queryKey: ['brands'], exact: false });
+
+                // Optimistically add to cache if the response contains brand data
+                const newBrand = response?.data;
+                if (newBrand) {
+                    queryClient.setQueryData<Brand[]>(['brands', shopId], (old) => {
+                        if (!old) return [newBrand];
+                        return [newBrand, ...old];
+                    });
+                }
+            },
+            onError: (error) => {
+                console.error('Create brand mutation failed:', error);
+            },
+        });
+
+    const useUpdateBrand = () =>
+        useMutation<ApiResponse<Brand>, Error, { id: number; payload: UpdateBrandPayload }>({
+            mutationFn: ({ id, payload }) => updateBrand(id, payload),
+            onSuccess: (response, { id }) => {
+                queryClient.invalidateQueries({ queryKey: ['brands'], exact: false });
+
+                // Optimistically update the cache
+                const updatedBrand = response?.data;
+                if (updatedBrand) {
+                    queryClient.setQueryData<Brand[]>(['brands'], (old) => {
+                        if (!old) return old;
+                        return old.map((b) => (b.id === id ? updatedBrand : b));
+                    });
+                }
+            },
+            onError: (error) => {
+                console.error('Update brand mutation failed:', error);
+            },
+        });
+
+    const useDeleteBrand = () =>
+        useMutation<ApiResponse<void>, Error, number>({
+            mutationFn: deleteBrand,
+            onSuccess: (_data, deletedId) => {
+                queryClient.invalidateQueries({ queryKey: ['brands'], exact: false });
+
+                // Optimistically remove from cache
+                queryClient.setQueryData<Brand[]>(['brands', shopId], (old) => {
+                    if (!old) return old;
+                    return old.filter((b) => b.id !== deletedId);
+                });
+            },
+            onError: (error) => {
+                console.error('Delete brand mutation failed:', error);
+            },
+        });
+
+    return {
+        useGetBrands,
+        useGetBrandById,
+        useCreateBrand,
+        useUpdateBrand,
+        useDeleteBrand,
+    };
 };

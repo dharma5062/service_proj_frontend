@@ -1,18 +1,15 @@
 import './App.css'
 import { AuthProvider } from './AuthContext'
 import RouterComponent from './routes/Routes'
-import { Toaster } from "@/components/ui/toaster"
-import { ServiceRequestProvider } from './contexts/ServiceRequestContext'
+import { Toaster as SonnerToaster } from "sonner"
 
 function App() {
 
 
   return (
     <AuthProvider>
-      <ServiceRequestProvider>
-        <RouterComponent />
-        <Toaster />
-      </ServiceRequestProvider>
+      <RouterComponent />
+      <SonnerToaster position="top-right" richColors />
     </AuthProvider>
 
   )

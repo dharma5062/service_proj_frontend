@@ -1,5 +1,6 @@
 import axiosInstance from '@/lib/axiosInstance';
 import { AxiosError } from 'axios';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Customer API Interfaces
 export interface Customer {
@@ -14,6 +15,11 @@ export interface Customer {
     invited_at?: string | null;
     created_at?: string;
     updated_at?: string;
+    
+    // New flags added for multi-branch logic
+    in_same_shop?: boolean;
+    in_current_branch?: boolean;
+    requires_invite?: boolean;
 }
 
 // Request payload for creating a customer
@@ -22,6 +28,8 @@ export interface CreateCustomerPayload {
     email: string;
     phone: string;
     address?: string;
+    shop_id?: number | null;
+    business_type_id?: number | null;
 }
 
 // API Response types
@@ -34,17 +42,19 @@ export interface ApiResponse<T> {
 /**
  * Search customers by phone number
  * @param phone - Phone number to search for
+ * @param shop_id - Shop ID
  * @param approvedOnly - If true, only return approved customers
  * @returns Promise<Customer[]> - Array of matching customers
  * @throws Error if the API request fails
  */
-export const searchCustomersByPhone = async (phone: string, approvedOnly?: boolean): Promise<Customer[]> => {
+export const searchCustomersByPhone = async (phone: string, shop_id?: number | null, approvedOnly?: boolean): Promise<Customer[]> => {
     try {
         const response = await axiosInstance.get<any>(
             '/customers-index',
             {
                 params: {
                     phone,
+                    ...(shop_id !== undefined && shop_id !== null && { shop_id }),
                     ...(approvedOnly !== undefined && { approved_only: approvedOnly })
                 }
             }
@@ -89,16 +99,18 @@ export const searchCustomersByPhone = async (phone: string, approvedOnly?: boole
 
 /**
  * Fetches all customers
+ * @param shop_id - Shop ID
  * @param approvedOnly - If true, only return approved customers
  * @returns Promise<Customer[]> - Array of customers
  * @throws Error if the API request fails
  */
-export const fetchCustomers = async (approvedOnly?: boolean): Promise<Customer[]> => {
+export const fetchCustomers = async (shop_id?: number | null, approvedOnly?: boolean): Promise<Customer[]> => {
     try {
         const response = await axiosInstance.get<any>(
             '/customers-index',
             {
                 params: {
+                    ...(shop_id !== undefined && shop_id !== null && { shop_id }),
                     ...(approvedOnly !== undefined && { approved_only: approvedOnly })
                 }
             }
@@ -151,7 +163,7 @@ export const createCustomer = async (
     payload: CreateCustomerPayload
 ): Promise<ApiResponse<Customer>> => {
     try {
-        const response = await axiosInstance.post<ApiResponse<Customer>>(
+        const response = await axiosInstance.post<any>(
             '/customers-create',
             payload,
             {
@@ -161,7 +173,18 @@ export const createCustomer = async (
             }
         );
 
-        return response.data;
+        const responseData = response.data;
+        
+        // Handle case where backend returns customer instead of data
+        if (responseData && responseData.customer) {
+            return {
+                ...responseData,
+                success: responseData.success ?? true,
+                data: responseData.customer
+            };
+        }
+
+        return responseData;
     } catch (error) {
         console.error('Error creating customer:', error);
 
@@ -222,14 +245,16 @@ export const fetchCustomerById = async (id: number): Promise<Customer> => {
 /**
  * Send invite to an existing customer by phone number
  * @param phone - Phone number of the customer
+ * @param shop_id - Shop ID
+ * @param business_type_id - Business type ID
  * @returns Promise<ApiResponse<Customer>> - API response with updated customer
  * @throws Error if the API request fails
  */
-export const sendInvite = async (phone: string): Promise<ApiResponse<Customer>> => {
+export const sendInvite = async (phone: string, shop_id?: number | null, business_type_id?: number | null): Promise<ApiResponse<Customer>> => {
     try {
         const response = await axiosInstance.post<ApiResponse<Customer>>(
             '/customers-send-invite',
-            { phone },
+            { phone, shop_id, business_type_id },
             {
                 headers: {
                     'Content-Type': 'application/json',
@@ -283,4 +308,63 @@ export const approveInvite = async (token: string): Promise<ApiResponse<Customer
 
         throw error;
     }
+};
+
+// ─── TanStack Query Hooks ─────────────────────────────────────────────────────
+
+export const useCustomersApi = () => {
+    const queryClient = useQueryClient();
+
+    const useGetCustomers = (shopId?: number | null, approvedOnly?: boolean) =>
+        useQuery<Customer[], Error>({
+            queryKey: ['customers', shopId, approvedOnly],
+            queryFn: () => fetchCustomers(shopId, approvedOnly),
+        });
+
+    const useGetCustomerById = (id: number | undefined) =>
+        useQuery<Customer, Error>({
+            queryKey: ['customers', id],
+            queryFn: () => fetchCustomerById(id!),
+            enabled: !!id,
+        });
+
+    const useSearchCustomers = (phone: string, shopId?: number | null, approvedOnly?: boolean) =>
+        useQuery<Customer[], Error>({
+            queryKey: ['customers', 'search', phone, shopId, approvedOnly],
+            queryFn: () => searchCustomersByPhone(phone, shopId, approvedOnly),
+            enabled: phone.length >= 3,
+        });
+
+    const useCreateCustomer = () =>
+        useMutation<ApiResponse<Customer>, Error, CreateCustomerPayload>({
+            mutationFn: (payload) => createCustomer(payload),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['customers'] });
+            },
+        });
+
+    const useSendInvite = () =>
+        useMutation<ApiResponse<Customer>, Error, { phone: string; shop_id?: number | null; business_type_id?: number | null }>({
+            mutationFn: ({ phone, shop_id, business_type_id }) => sendInvite(phone, shop_id, business_type_id),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['customers'] });
+            },
+        });
+
+    const useApproveInvite = () =>
+        useMutation<ApiResponse<Customer>, Error, string>({
+            mutationFn: (token) => approveInvite(token),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['customers'] });
+            },
+        });
+
+    return {
+        useGetCustomers,
+        useGetCustomerById,
+        useSearchCustomers,
+        useCreateCustomer,
+        useSendInvite,
+        useApproveInvite,
+    };
 };

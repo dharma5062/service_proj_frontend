@@ -11,7 +11,9 @@ interface PrivateRouteProps {
  * Redirects to login if user is not authenticated
  */
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
-    const { isAuthenticated, loading } = useAuth();
+    const { isAuthenticated, loading, user } = useAuth();
+    const isFirstLogin = user?.is_first_login;
+    const isAtForceChangePage = window.location.pathname === '/force-password-change';
 
     // Show loading state while checking authentication
     if (loading) {
@@ -25,6 +27,11 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
     // Redirect to login if not authenticated
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
+    }
+
+    // Force password change if is_first_login is true
+    if (isFirstLogin && !isAtForceChangePage) {
+        return <Navigate to="/force-password-change" replace />;
     }
 
     // Render children if authenticated

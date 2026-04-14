@@ -23,8 +23,12 @@ const PublicRoute = ({ children, redirectTo = '/dashboard' }: PublicRouteProps) 
         );
     }
 
-    // Redirect to dashboard if already authenticated
+    // Redirect if already authenticated
     if (isAuthenticated) {
+        const { user } = useAuth();
+        if (user?.is_first_login) {
+            return <Navigate to="/force-password-change" replace />;
+        }
         return <Navigate to={redirectTo} replace />;
     }
 

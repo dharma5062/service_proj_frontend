@@ -19,7 +19,7 @@ const FormSchema = z
             .string()
             .min(10, { message: "Phone number must be at least 10 characters" })
             .regex(/^[0-9]+$/, { message: "Phone number must contain only digits" }),
-        // shop_name: z.string().min(2, { message: "Shop name must be at least 2 characters" }),
+        company_name: z.string().optional().or(z.literal("")),
         // address: z.string().optional().or(z.literal("")),
         email: z.string().email({ message: "Invalid email address" }),
         password: z.string().min(8, { message: "Password must be at least 8 characters" }),
@@ -52,7 +52,7 @@ export default function Register() {
         defaultValues: {
             name: "",
             phone: "",
-            // shop_name: "",
+            company_name: "",
             // address: "",
             email: "",
             password: "",
@@ -68,7 +68,7 @@ export default function Register() {
             const payload = {
                 name: data.name.trim(),
                 phone: data.phone.replace(/\D/g, ""),
-                // company_name: data.shop_name.trim(),
+                company_name: data.company_name ? data.company_name.trim() : undefined,
                 // address: data.address?.trim() || undefined,
                 email: data.email.trim(),
                 password: data.password,
@@ -141,7 +141,6 @@ export default function Register() {
                             ServiceManager
                         </h2>
                     </div>
-
                 </header>
 
                 {/* Main Content */}
@@ -166,10 +165,10 @@ export default function Register() {
                         </div>
 
                         {/* Right Side - Form */}
-                        <div className="flex items-center justify-center p-4 sm:p-6 lg:p-8 w-full bg-white dark:bg-slate-900">
-                            <div className="max-w-lg w-full mx-auto">
-                                <div className="flex flex-col gap-1 mb-3">
-                                    <h1 className="text-slate-900 dark:text-slate-50 text-xl sm:text-2xl font-black leading-tight tracking-[-0.033em]">
+                        <div className="flex items-center justify-center p-4 sm:p-6 lg:p-4 w-full bg-white dark:bg-slate-900">
+                            <div className="max-w-lg w-full mx-auto -mt-8">
+                                <div className="flex flex-col gap-0 mb-2">
+                                    <h1 className="text-slate-900 dark:text-slate-50 text-xl font-black leading-tight tracking-[-0.033em]">
                                         Create Your Shop Owner Account
                                     </h1>
                                     <p className="text-slate-600 dark:text-slate-400 text-xs font-normal leading-normal">
@@ -180,11 +179,11 @@ export default function Register() {
                                 <Form {...form}>
                                     <form
                                         onSubmit={form.handleSubmit(handleSubmitData)}
-                                        className="flex flex-col gap-3"
+                                        className="flex flex-col gap-1.5"
                                         noValidate
                                     >
                                         {/* Single Column Layout for All Fields */}
-                                        <div className="flex flex-col gap-3">
+                                        <div className="flex flex-col gap-1.5">
                                             {/* Full Name */}
                                             <FormField
                                                 control={form.control}
@@ -197,7 +196,7 @@ export default function Register() {
                                                         <Input
                                                             {...field}
                                                             placeholder="Enter your full name"
-                                                            className="w-full h-9 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormMessage className="text-xs" />
@@ -218,7 +217,7 @@ export default function Register() {
                                                             {...field}
                                                             type="tel"
                                                             placeholder="Enter your mobile number"
-                                                            className="w-full h-9 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormMessage className="text-xs" />
@@ -227,24 +226,24 @@ export default function Register() {
                                             />
 
                                             {/* Shop Name */}
-                                            {/* <FormField
+                                            <FormField
                                                 control={form.control}
-                                                name="shop_name"
+                                                name="company_name"
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <Label className="text-slate-900 dark:text-slate-50 text-xs font-medium">
-                                                            Shop Name *
+                                                            Shop Name
                                                         </Label>
                                                         <Input
                                                             {...field}
-                                                            placeholder="Enter the name of your shop"
-                                                            className="w-full h-9 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                                            placeholder="Enter your shop name"
+                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormMessage className="text-xs" />
                                                     </FormItem>
                                                 )}
-                                            /> */}
+                                            />
 
                                             {/* Email (Mandatory) */}
                                             <FormField
@@ -259,7 +258,7 @@ export default function Register() {
                                                             {...field}
                                                             type="email"
                                                             placeholder="Enter your email address"
-                                                            className="w-full h-9 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormMessage className="text-xs" />
@@ -281,7 +280,7 @@ export default function Register() {
                                                                 {...field}
                                                                 type={showPassword ? "text" : "password"}
                                                                 placeholder="Create a password"
-                                                                className="w-full h-9 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-9"
+                                                                className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-9"
                                                                 disabled={isSubmitting}
                                                                 autoComplete="new-password"
                                                             />
@@ -317,7 +316,7 @@ export default function Register() {
                                                                 {...field}
                                                                 type={showConfirmPassword ? "text" : "password"}
                                                                 placeholder="Re-enter your password"
-                                                                className="w-full h-9 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-9"
+                                                                className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-9"
                                                                 disabled={isSubmitting}
                                                                 autoComplete="new-password"
                                                             />
@@ -404,7 +403,7 @@ export default function Register() {
                                         {/* Submit Button */}
                                         <Button
                                             type="submit"
-                                            className="w-full mt-3 h-11 text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+                                            className="w-full mt-2 h-10 text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
                                             disabled={isSubmitting}
                                         >
                                             {isSubmitting ? (
@@ -437,7 +436,7 @@ export default function Register() {
                                         </Button>
 
                                         {/* Login Link - Below Create Account Button */}
-                                        <div className="flex items-center justify-center gap-2 mt-4">
+                                        <div className="flex items-center justify-center gap-2 mt-2">
                                             <span className="text-sm text-slate-600 dark:text-slate-400">
                                                 Already have an account?
                                             </span>

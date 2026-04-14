@@ -40,8 +40,11 @@ const Login: React.FC = () => {
         login(res.data.token);
       }
       setSuccessMessage(res?.data?.message || "Login successful!");
+      
+      const targetPath = res?.data?.requires_password_change ? "/force-password-change" : "/dashboard";
+      
       setTimeout(() => {
-        navigate("/onboarding/shop");
+        navigate(targetPath);
       }, 800);
     } catch (err: any) {
       if (err?.response?.data?.errors) {

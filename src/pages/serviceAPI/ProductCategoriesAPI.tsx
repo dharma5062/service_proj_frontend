@@ -1,5 +1,7 @@
 import axiosInstance from '@/lib/axiosInstance';
 import { AxiosError } from 'axios';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/AuthContext';
 
 // Product Categories API Interfaces
 export interface ProductCategory {
@@ -79,7 +81,14 @@ export const fetchProductCategories = async (
         );
 
         // Handle paginated response - extract the actual data array
-        const categories = response.data.data;
+        let categories: ProductCategory[] = [];
+        const responseData = response.data;
+
+        if (responseData && responseData.data) {
+            categories = Array.isArray(responseData.data) ? responseData.data : [];
+        } else if (Array.isArray(responseData)) {
+            categories = responseData;
+        }
 
         // Map parent.name to parent_name for easier display
         const categoriesWithParentName = categories.map(category => ({
@@ -90,15 +99,7 @@ export const fetchProductCategories = async (
         return categoriesWithParentName;
     } catch (error) {
         console.error('Error fetching product categories:', error);
-
-        if (error instanceof AxiosError) {
-            throw new Error(
-                error.response?.data?.message ||
-                `Failed to fetch categories: ${error.message}`
-            );
-        }
-
-        throw error;
+        return []; // Return empty array on error to prevent crash
     }
 };
 
@@ -260,4 +261,83 @@ export const deleteProductCategory = async (id: number): Promise<ApiResponse<voi
 
         throw error;
     }
+};
+
+// ─── TanStack Query Hook ───────────────────────────────────────────────────────
+
+export const useProductCategoriesApi = () => {
+    const queryClient = useQueryClient();
+    const { shopId } = useAuth();
+
+    // ── Queries ──────────────────────────────────────────────────────────────
+
+    const useGetProductCategories = (parentId?: number) =>
+        useQuery<ProductCategory[], Error>({
+            queryKey: ['product-categories', shopId, parentId ?? null],
+            queryFn: () => fetchProductCategories(parentId),
+            staleTime: 30000,
+            refetchOnWindowFocus: false,
+            retry: 2,
+            refetchOnMount: true,
+            enabled: !!shopId,
+        });
+
+    const useGetProductCategoryById = (id: number | null) =>
+        useQuery<ProductCategory, Error>({
+            queryKey: ['product-categories', 'detail', id],
+            queryFn: () => fetchProductCategoryById(id!),
+            enabled: !!id,
+            staleTime: 30000,
+            refetchOnWindowFocus: false,
+            retry: 2,
+        });
+
+    // ── Mutations ─────────────────────────────────────────────────────────────
+
+    const useCreateProductCategory = () =>
+        useMutation<ApiResponse<ProductCategory>, Error, CreateCategoryPayload>({
+            mutationFn: createProductCategory,
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['product-categories'], exact: false });
+            },
+            onError: (error) => {
+                console.error('Create product category mutation failed:', error);
+            },
+        });
+
+    const useUpdateProductCategory = () =>
+        useMutation<ApiResponse<ProductCategory>, Error, { id: number; payload: UpdateCategoryPayload }>({
+            mutationFn: ({ id, payload }) => updateProductCategory(id, payload),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['product-categories'], exact: false });
+            },
+            onError: (error) => {
+                console.error('Update product category mutation failed:', error);
+            },
+        });
+
+    const useDeleteProductCategory = () =>
+        useMutation<ApiResponse<void>, Error, number>({
+            mutationFn: deleteProductCategory,
+            onSuccess: (_data, deletedId) => {
+                queryClient.invalidateQueries({ queryKey: ['product-categories'], exact: false });
+
+                // Optimistically remove from cache for current shop
+                queryClient.setQueryData<ProductCategory[]>(['product-categories', shopId, null], (old) => {
+                    if (!old) return old;
+                    return old.filter((cat) => cat.id !== deletedId);
+                });
+            },
+            onError: (error) => {
+                console.error('Delete product category mutation failed:', error);
+            },
+        });
+
+    return {
+        useGetProductCategories,
+        useGetProductCategoryById,
+        useCreateProductCategory,
+        useUpdateProductCategory,
+        useDeleteProductCategory,
+    };
 };

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Upload, Store, User, Phone, Mail, MapPin, FileText, ArrowRight, Briefca
 import { OnboardingData } from '../ShopOnboarding';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { fetchBusinessTypes, BusinessType } from '@/pages/serviceAPI/BusinessTypesAPI';
+import { useBusinessTypesApi } from '@/pages/serviceAPI/BusinessTypesAPI';
 
 interface ShopDetailsStepProps {
     data: OnboardingData;
@@ -19,24 +19,9 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [dragging, setDragging] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
-    const [loadingBusinessTypes, setLoadingBusinessTypes] = useState(true);
 
-    // Load business types on mount
-    useEffect(() => {
-        const loadBusinessTypes = async () => {
-            try {
-                const types = await fetchBusinessTypes();
-                setBusinessTypes(types);
-            } catch (error) {
-                console.error('Failed to load business types:', error);
-                toast.error('Failed to load business types');
-            } finally {
-                setLoadingBusinessTypes(false);
-            }
-        };
-        loadBusinessTypes();
-    }, []);
+    const { useGetBusinessTypes } = useBusinessTypesApi();
+    const { data: businessTypes = [], isLoading: loadingBusinessTypes } = useGetBusinessTypes();
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;

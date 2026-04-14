@@ -1,4 +1,5 @@
 import axiosInstance from '@/lib/axiosInstance';
+import { useQuery } from '@tanstack/react-query';
 
 // Business Type Interface
 export interface BusinessType {
@@ -47,4 +48,17 @@ export const fetchBusinessTypes = async (): Promise<BusinessType[]> => {
         console.error('Error fetching business types:', error);
         throw error;
     }
+};
+
+// ─── TanStack Query Hooks ─────────────────────────────────────────────────────
+
+export const useBusinessTypesApi = () => {
+    const useGetBusinessTypes = () =>
+        useQuery<BusinessType[], Error>({
+            queryKey: ['business-types'],
+            queryFn: () => fetchBusinessTypes(),
+            staleTime: 5 * 60 * 1000, // 5 minutes – business types rarely change
+        });
+
+    return { useGetBusinessTypes };
 };

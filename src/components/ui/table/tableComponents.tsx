@@ -11,7 +11,6 @@ import { ScrollArea } from "../scroll-area";
 import { CustomCard, CustomCardBody, CustomCardHeader, CustomCardTitle } from "./customCard";
 import { CustomTable, CustomTableBody, CustomTableCell, CustomTableHead, CustomTableHeader, CustomTableRow } from "./customTable";
 
-
 export interface Column<T = any> {
     key: string;
     title: string;
@@ -24,7 +23,6 @@ export interface Column<T = any> {
     className?: string;
     filterOptions?: Array<{ label: string; value: string }>;
 }
-
 
 export interface DataTableProps<T = any> {
     columns: Column<T>[];
@@ -60,6 +58,7 @@ export interface DataTableProps<T = any> {
     onEdit?: (record: T) => void;
     onDelete?: (record: T) => void;
     onRevoke?: (record: T) => void;
+    onSearch?: (value: string) => void;
     // Selection props
     rowSelection?: boolean;
     selectedRowKeys?: (string | number)[];
@@ -72,12 +71,10 @@ export interface DataTableProps<T = any> {
     shouldShowRevoke?: (record: T) => boolean;
 }
 
-
 interface SortState {
     key: string | null;
     direction: 'asc' | 'desc' | null;
 }
-
 
 export const DataTable = <T extends Record<string, any>>({
     columns,
@@ -108,6 +105,7 @@ export const DataTable = <T extends Record<string, any>>({
     onEdit,
     onDelete,
     onRevoke,
+    onSearch,
     rowSelection = false,
     selectedRowKeys = [],
     onSelectionChange,
@@ -122,7 +120,6 @@ export const DataTable = <T extends Record<string, any>>({
         direction: null,
     });
 
-
     const [filters, setFilters] = React.useState<Record<string, string>>({});
     const [searchQuery, setSearchQuery] = React.useState('');
     const [activeFilters, setActiveFilters] = React.useState<Record<string, string>>({});
@@ -134,11 +131,7 @@ export const DataTable = <T extends Record<string, any>>({
 
 
     const handleSort = (columnKey: string) => {
-        if (!onSort) return;
-
-
         let newDirection: 'asc' | 'desc' | null = 'asc';
-
 
         if (sortState.key === columnKey) {
             if (sortState.direction === 'asc') {
@@ -148,9 +141,8 @@ export const DataTable = <T extends Record<string, any>>({
             }
         }
 
-
         setSortState({ key: columnKey, direction: newDirection });
-        onSort(columnKey, newDirection);
+        onSort?.(columnKey, newDirection);
     };
 
 
@@ -184,6 +176,7 @@ export const DataTable = <T extends Record<string, any>>({
 
         setActiveFilters(newFilters);
         onFilter?.(newFilters);
+        onSearch?.(e.target.value);
     };
 
 
@@ -259,27 +252,71 @@ export const DataTable = <T extends Record<string, any>>({
     );
 
 
+    // ── Client-side filtering: search + column filters ────────────────────────
     const filteredData = React.useMemo(() => {
-        if (!searchKey || !searchQuery) return data;
-        return data.filter((item) => {
-            const value = item[searchKey];
-            if (value === null || value === undefined) return false;
-            return String(value).toLowerCase().includes(searchQuery.toLowerCase());
-        });
-    }, [data, searchKey, searchQuery]);
+        let result = Array.isArray(data) ? [...data] : [];
+
+        // 1. Global search across all visible columns
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter((item) => {
+                // If a specific searchKey is provided, only search that field
+                if (searchKey) {
+                    const value = item[searchKey];
+                    return value != null && String(value).toLowerCase().includes(q);
+                }
+                // Otherwise search across all columns with a dataIndex
+                return columns.some((col) => {
+                    if (!col.dataIndex) return false;
+                    const value = item[col.dataIndex];
+                    if (value == null) return false;
+                    // Handle nested objects (e.g., customer.name, brand.name)
+                    if (typeof value === 'object') {
+                        return Object.values(value).some(
+                            (v) => v != null && String(v).toLowerCase().includes(q)
+                        );
+                    }
+                    return String(value).toLowerCase().includes(q);
+                });
+            });
+        }
+
+        // 2. Column-level filters (from filter dropdowns)
+        const columnFilters = Object.entries(activeFilters).filter(([k]) => k !== '_search');
+        if (columnFilters.length > 0) {
+            result = result.filter((item) => {
+                return columnFilters.every(([colKey, filterValue]) => {
+                    const col = columns.find((c) => c.key === colKey);
+                    const dataKey = col?.dataIndex || colKey;
+                    const cellValue = item[dataKey];
+                    if (cellValue == null) return false;
+                    return String(cellValue).toLowerCase() === filterValue.toLowerCase();
+                });
+            });
+        }
+
+        // 3. Client-side sorting
+        if (sortState.key && sortState.direction) {
+            const col = columns.find((c) => c.key === sortState.key);
+            const dataKey = col?.dataIndex || sortState.key;
+            result.sort((a, b) => {
+                const aVal = a[dataKey];
+                const bVal = b[dataKey];
+                if (aVal == null && bVal == null) return 0;
+                if (aVal == null) return 1;
+                if (bVal == null) return -1;
+                const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
+                return sortState.direction === 'asc' ? comparison : -comparison;
+            });
+        }
+
+        return result;
+    }, [data, searchQuery, searchKey, activeFilters, sortState, columns]);
 
     const currentData = React.useMemo(() => {
         if (!pagination) return filteredData;
 
-
-        // If data length is already within pageSize limit, assume server-side pagination
-        // This means the API already returned only the current page's data
-        if (filteredData.length <= pagination.pageSize) {
-            return filteredData;
-        }
-
-
-        // Otherwise, do client-side pagination
+        // Client-side pagination
         const start = (pagination.current - 1) * pagination.pageSize;
         const end = start + pagination.pageSize;
         return filteredData.slice(start, end);
@@ -768,66 +805,68 @@ export const DataTable = <T extends Record<string, any>>({
 
 
             {
-                pagination && (
-                    <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-muted/20">
-                        <div className="flex items-center gap-4">
-                            <div className="text-xs text-muted-foreground">
-                                Showing {Math.min((pagination.current - 1) * pagination.pageSize + 1, pagination.total)} to{' '}
-                                {Math.min(pagination.current * pagination.pageSize, pagination.total)} of{' '}
-                                {pagination.total} entries
+                pagination && (() => {
+                    const total = filteredData.length;
+                    const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize));
+                    return (
+                        <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-muted/20">
+                            <div className="flex items-center gap-4">
+                                <div className="text-xs text-muted-foreground">
+                                    Showing {total === 0 ? 0 : Math.min((pagination.current - 1) * pagination.pageSize + 1, total)} to{' '}
+                                    {Math.min(pagination.current * pagination.pageSize, total)} of{' '}
+                                    {total} entries
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground">Show:</span>
+                                    <Select
+                                        value={pagination.pageSize.toString()}
+                                        onValueChange={(value) => {
+                                            pagination.onChange(1, parseInt(value));
+                                        }}
+                                    >
+                                        <SelectTrigger className="h-6 w-16 text-xs">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10</SelectItem>
+                                            <SelectItem value="15">15</SelectItem>
+                                            <SelectItem value="20">20</SelectItem>
+                                            <SelectItem value="30">30</SelectItem>
+                                            <SelectItem value="40">40</SelectItem>
+                                            <SelectItem value="50">50</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <span className="text-xs text-muted-foreground">entries</span>
+                                </div>
                             </div>
 
-
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">Show:</span>
-                                <Select
-                                    value={pagination.pageSize.toString()}
-                                    onValueChange={(value) => {
-                                        pagination.onChange(1, parseInt(value));
-                                    }}
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => pagination.onChange(pagination.current - 1, pagination.pageSize)}
+                                    disabled={pagination.current <= 1}
+                                    className="h-6 px-2 text-xs"
                                 >
-                                    <SelectTrigger className="h-6 w-16 text-xs">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="10">10</SelectItem>
-                                        <SelectItem value="15">15</SelectItem>
-                                        <SelectItem value="20">20</SelectItem>
-                                        <SelectItem value="30">30</SelectItem>
-                                        <SelectItem value="40">40</SelectItem>
-                                        <SelectItem value="50">50</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <span className="text-xs text-muted-foreground">entries</span>
+                                    Previous
+                                </Button>
+                                <div className="text-xs text-muted-foreground px-2">
+                                    Page {pagination.current} of {totalPages}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => pagination.onChange(pagination.current + 1, pagination.pageSize)}
+                                    disabled={pagination.current >= totalPages}
+                                    className="h-6 px-2 text-xs"
+                                >
+                                    Next
+                                </Button>
                             </div>
                         </div>
-
-
-                        <div className="flex items-center gap-1">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => pagination.onChange(pagination.current - 1, pagination.pageSize)}
-                                disabled={pagination.current <= 1}
-                                className="h-6 px-2 text-xs"
-                            >
-                                Previous
-                            </Button>
-                            <div className="text-xs text-muted-foreground px-2">
-                                Page {pagination.current} of {Math.ceil(pagination.total / pagination.pageSize)}
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => pagination.onChange(pagination.current + 1, pagination.pageSize)}
-                                disabled={pagination.current >= Math.ceil(pagination.total / pagination.pageSize)}
-                                className="h-6 px-2 text-xs"
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
-                )
+                    );
+                })()
             }
         </CustomCard >
     );

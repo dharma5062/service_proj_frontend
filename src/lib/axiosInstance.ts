@@ -27,6 +27,40 @@ const createAxiosInstance = (): AxiosInstance => {
                 config.headers.Authorization = `Bearer ${token}`;
             }
 
+            // Automatically inject shop_id if available
+            const shopId = localStorage.getItem('selected_shop_id');
+            if (shopId) {
+                const method = config.method?.toUpperCase();
+                
+                // For GET requests, append to query params
+                if (method === 'GET') {
+                    config.params = { ...config.params, shop_id: shopId };
+                } 
+                // For data-bearing requests, append to body
+                else if (['POST', 'PUT', 'PATCH'].includes(method || '')) {
+                    if (config.data instanceof FormData) {
+                        if (!config.data.has('shop_id')) {
+                            config.data.append('shop_id', shopId);
+                        }
+                    } else {
+                        // Parse existing JSON string if it was stringified early, or handle object
+                        let dataObj = config.data || {};
+                        if (typeof dataObj === 'string') {
+                            try {
+                                dataObj = JSON.parse(dataObj);
+                            } catch (e) {
+                                // If it's a string, but not json, leave it alone.
+                            }
+                        }
+                        
+                        // Append to JSON object body
+                        if (typeof dataObj === 'object' && !Array.isArray(dataObj)) {
+                            config.data = { ...dataObj, shop_id: shopId };
+                        }
+                    }
+                }
+            }
+
             return config;
         },
         (error: AxiosError) => {
@@ -76,12 +110,15 @@ export { API_BASE_URL };
 export const createFormDataAxios = (): AxiosInstance => {
     const instance = createAxiosInstance();
 
-    // Let the browser set the Content-Type with the boundary
-    delete instance.defaults.headers.common['Content-Type'];
-    delete instance.defaults.headers.post['Content-Type'];
-    delete instance.defaults.headers.put['Content-Type'];
-    delete instance.defaults.headers['Content-Type']; // Just in case it's on root
-
+    // Use a request interceptor to remove Content-Type so the browser
+    // can set it to multipart/form-data with the correct boundary.
+    instance.interceptors.request.use((config) => {
+        if (config.data instanceof FormData) {
+            // Delete any Content-Type header so axios/browser sets it automatically
+            delete config.headers['Content-Type'];
+        }
+        return config;
+    });
 
     return instance;
 };

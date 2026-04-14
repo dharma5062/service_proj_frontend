@@ -4,7 +4,8 @@ import { useAuth } from "@/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Lock } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+
 
 interface VerifyState {
     email?: string;
@@ -19,7 +20,7 @@ interface VerifyState {
 }
 
 export default function VerifyOTP() {
-    const { toast } = useToast();
+
     const { axiosInstance, login } = useAuth() || {};
     const client = axiosInstance ?? axios.create({ baseURL: "http://localhost:8000/api" });
     const location = useLocation();
@@ -86,9 +87,7 @@ export default function VerifyOTP() {
         const otpValue = otpDigits.join("");
 
         if (otpValue.length !== 6) {
-            toast({
-                variant: "destructive",
-                title: "Invalid OTP",
+            toast.error("Invalid OTP", {
                 description: "Please enter the complete 6-digit code",
             });
             return;
@@ -123,8 +122,7 @@ export default function VerifyOTP() {
                     }
                 }
 
-                toast({
-                    title: "Verification Successful!",
+                toast.success("Verification Successful!", {
                     description: res?.data?.message || "Your account has been verified successfully.",
                 });
             }
@@ -140,15 +138,11 @@ export default function VerifyOTP() {
             if (err?.response?.data?.errors) {
                 const backend = err.response.data.errors;
                 const errorMessages = Object.values(backend).flat();
-                toast({
-                    variant: "destructive",
-                    title: "Verification Failed",
+                toast.error("Verification Failed", {
                     description: errorMessages[0] as string || "Please check your OTP and try again.",
                 });
             } else {
-                toast({
-                    variant: "destructive",
-                    title: "Verification Failed",
+                toast.error("Verification Failed", {
                     description: err?.response?.data?.message || "Verification failed. Please try again.",
                 });
             }

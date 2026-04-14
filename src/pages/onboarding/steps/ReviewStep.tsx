@@ -5,8 +5,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Check, Store, Clock, LayoutGrid } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { createShop, CreateShopPayload } from '@/pages/serviceAPI/ShopsAPI';
-import { fetchProductCategories, ProductCategory } from '@/pages/serviceAPI/ProductCategoriesAPI';
+import { CreateShopPayload, useShopsApi } from '@/pages/serviceAPI/ShopsAPI';
+import { useProductCategoriesApi, ProductCategory } from '@/pages/serviceAPI/ProductCategoriesAPI';
 import { User } from '@/AuthContext';
 
 interface ReviewStepProps {
@@ -24,25 +24,19 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedCategories, setSelectedCategories] = useState<ProductCategory[]>([]);
 
-    // Fetch category details for selected IDs
+    const { useGetProductCategories } = useProductCategoriesApi();
+    const { useCreateShop } = useShopsApi();
+    const { data: allCategories = [] } = useGetProductCategories();
+    const createShopMutation = useCreateShop();
+
+    // Derive selected category details from cached categories
     useEffect(() => {
-        const loadCategoryDetails = async () => {
-            if (data.selectedCategories.length === 0) return;
-
-            try {
-                const allCategories = await fetchProductCategories();
-                const categoryDetails = data.selectedCategories.map(id => {
-                    const category = findCategoryById(allCategories, id);
-                    return category;
-                }).filter(cat => cat !== null) as ProductCategory[];
-                setSelectedCategories(categoryDetails);
-            } catch (error) {
-                console.error('Failed to load category details:', error);
-            }
-        };
-
-        loadCategoryDetails();
-    }, [data.selectedCategories]);
+        if (data.selectedCategories.length === 0 || allCategories.length === 0) return;
+        const categoryDetails = data.selectedCategories
+            .map(id => findCategoryById(allCategories, id))
+            .filter((cat): cat is ProductCategory => cat !== null);
+        setSelectedCategories(categoryDetails);
+    }, [data.selectedCategories, allCategories]);
 
     const findCategoryById = (categoryList: ProductCategory[], id: number): ProductCategory | null => {
         for (const category of categoryList) {
@@ -66,21 +60,15 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
             return;
         }
 
-        // Handle nested user object structure: {user: {id: 1, ...}}
         const userId = (user as any).user?.id || user.id;
 
         if (!userId) {
-            console.error('User object:', user);
             toast.error('User ID is missing. Please log in again.');
             return;
         }
 
-        console.log('User object:', user);
-        console.log('User ID:', userId);
-
         setIsSubmitting(true);
         try {
-            // Build description object with metadata
             const descriptionData = {
                 tagline: data.tagline || '',
                 owner_name: data.shopOwnerName,
@@ -90,27 +78,23 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
                 gst_number: data.gstNumber || '',
                 working_hours: data.workingHours,
                 business_type_id: data.businessTypeId,
-                category_ids: data.selectedCategories, // Store categories in description since API doesn't support it directly
+                category_ids: data.selectedCategories,
             };
 
-            // Map onboarding data to API payload
             const payload: CreateShopPayload = {
                 name: data.shopName,
-                description: descriptionData, // Will be stringified in the API layer
-                shop_owner_id: userId, // From authenticated user
+                description: descriptionData,
+                shop_owner_id: userId,
                 active: true,
                 image: data.shopLogo,
                 business_type_id: data.businessTypeId,
                 category_ids: data.selectedCategories
             };
 
-            console.log('Payload being sent:', payload);
-            console.log('shop_owner_id in payload:', payload.shop_owner_id);
-
-            await createShop(payload);
+            await createShopMutation.mutateAsync(payload);
 
             toast.success('Shop setup completed successfully!');
-            navigate('/dashboard'); // Navigate to main dashboard
+            navigate('/dashboard');
         } catch (error) {
             console.error('Failed to create shop', error);
             toast.error('Failed to create shop. Please try again.');

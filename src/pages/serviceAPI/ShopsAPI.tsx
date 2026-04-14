@@ -1,5 +1,6 @@
 import axiosInstance, { createFormDataAxios } from '@/lib/axiosInstance';
 import { AxiosError } from 'axios';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Interface for Shop
 export interface Shop {
@@ -8,6 +9,7 @@ export interface Shop {
     description: string | Record<string, any>; // Can be string or JSON object with metadata
     active: boolean;
     shop_owner_id: number | null;
+    business_type_id?: number | null;
     image: string | null;
     image_url: string | null;
     created_at?: string;
@@ -162,4 +164,55 @@ export const deleteShop = async (id: number): Promise<void> => {
         }
         throw error;
     }
+};
+
+// ─── TanStack Query Hooks ─────────────────────────────────────────────────────
+
+export const useShopsApi = () => {
+    const queryClient = useQueryClient();
+
+    const useGetShops = (params?: { page?: number; per_page?: number; search?: string; active?: number }) =>
+        useQuery<any, Error>({
+            queryKey: ['shops', params],
+            queryFn: () => fetchShops(params),
+        });
+
+    const useGetShopById = (id: number | undefined) =>
+        useQuery<Shop, Error>({
+            queryKey: ['shops', id],
+            queryFn: () => fetchShopById(id!),
+            enabled: !!id,
+        });
+
+    const useCreateShop = () =>
+        useMutation<ApiResponse<Shop>, Error, CreateShopPayload>({
+            mutationFn: (payload) => createShop(payload),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['shops'] });
+            },
+        });
+
+    const useUpdateShop = () =>
+        useMutation<ApiResponse<Shop>, Error, { id: number; payload: UpdateShopPayload }>({
+            mutationFn: ({ id, payload }) => updateShop(id, payload),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['shops'] });
+            },
+        });
+
+    const useDeleteShop = () =>
+        useMutation<void, Error, number>({
+            mutationFn: (id) => deleteShop(id),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['shops'] });
+            },
+        });
+
+    return {
+        useGetShops,
+        useGetShopById,
+        useCreateShop,
+        useUpdateShop,
+        useDeleteShop,
+    };
 };

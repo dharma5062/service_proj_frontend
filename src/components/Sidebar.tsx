@@ -3,28 +3,25 @@ import { useState } from 'react';
 import {
     LayoutDashboard,
     Store,
-    User,
     Settings,
     LogOut,
     Users,
-    Bell,
     BarChart3,
     Tag,
     ChevronsUpDown,
-    BadgeCheck,
-    CreditCard,
-    Sparkles,
     ChevronDown,
     FolderTree,
     FileEdit,
     Package,
-    ShoppingBag
+    ShoppingBag,
+    Check,
+    Plus,
+    IndianRupee
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -49,6 +46,15 @@ import {
     SidebarRail,
     useSidebar,
 } from '@/components/ui/sidebar';
+import { useAuth } from '@/AuthContext';
+
+// Helper: derive initials from a name string
+const getInitials = (name?: string | null): string => {
+    if (!name) return '??';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 const Sidebar = () => {
     const location = useLocation();
@@ -56,53 +62,90 @@ const Sidebar = () => {
     const { isMobile } = useSidebar();
     const [settingsOpen, setSettingsOpen] = useState(true);
 
+    // ── Auth context ──────────────────────────────────────────────────────────
+    const { user, shop, shops, setShop, logout } = useAuth();
+
+    const displayName = shop?.name || user?.name || 'My Shop';
+    const displayEmail = user?.email || '';
+    const displayInitials = getInitials(shop?.name || user?.name);
+
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         { icon: Store, label: 'Services', path: '/dashboard/services' },
         { icon: Users, label: 'Staff', path: '/dashboard/staff' },
-        { icon: User, label: 'Profile', path: '/dashboard/profile' },
         { icon: BarChart3, label: 'Reporting', path: '/dashboard/reporting' },
         { icon: Tag, label: 'Promotions', path: '/dashboard/promotions' },
-        // { icon: Bell, label: 'Notifications', path: '/dashboard/notifications' },
     ];
 
     const settingsItems = [
         { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories' },
-        { icon: FileEdit, label: 'Category Form', path: '/dashboard/settings/category-form' },
+        { icon: FileEdit, label: 'Defect Form Builder', path: '/dashboard/settings/category-form' },
         { icon: Package, label: 'Brand', path: '/dashboard/settings/brand' },
         { icon: ShoppingBag, label: 'Product', path: '/dashboard/settings/product' },
+        { icon: IndianRupee, label: 'Service Charges', path: '/dashboard/settings/service-charges' },
         // { icon: Store, label: 'Shop', path: '/dashboard/settings/shop' },
     ];
-
-    const user = {
-        name: "The Corner Store",
-        email: "dave@cornerstore.com",
-        avatar: "",
-        initials: "CS"
-    };
 
     const isActive = (path: string) => location.pathname === path;
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
+        logout();
         navigate('/login');
     };
 
     return (
         <SidebarContainer collapsible="icon">
-            {/* Header with User Profile */}
+            {/* Header with Shop / User Info */}
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <div className="flex items-center gap-2">
-                            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                                <Store className="size-4" />
-                            </div>
-                            <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-semibold">{user.name}</span>
-                                <span className="truncate text-xs text-blue-600">{user.email}</span>
-                            </div>
-                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <SidebarMenuButton
+                                    size="lg"
+                                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                                >
+                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
+                                        CO
+                                    </div>
+                                    <div className="grid flex-1 text-left text-sm leading-tight">
+                                        <span className="truncate font-semibold">{shop?.shop_owner?.company_name || 'Company Name'}</span>
+                                        <span className="truncate text-xs text-muted-foreground">{shop?.name || 'Select Branch'}</span>
+                                    </div>
+                                    <ChevronsUpDown className="ml-auto size-4" />
+                                </SidebarMenuButton>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                                align="start"
+                                side={isMobile ? "bottom" : "right"}
+                                sideOffset={4}
+                            >
+                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                                    Branches
+                                </DropdownMenuLabel>
+                                {shops?.map((s) => (
+                                    <DropdownMenuItem key={s.id} onClick={() => setShop(s)} className="gap-2 p-2 cursor-pointer">
+                                        <div className="flex size-6 items-center justify-center rounded-sm border">
+                                            <Store className="size-4 shrink-0" />
+                                        </div>
+                                        {s.name}
+                                        {shop?.id === s.id && <Check className="ml-auto size-4" />}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </SidebarMenuItem>
+
+                    {/* Create Shop minimal button */}
+                    <SidebarMenuItem className="mt-1">
+                        <SidebarMenuButton 
+                            onClick={() => navigate('/onboarding/shop')}
+                            className="text-primary hover:text-primary hover:bg-primary/10 font-medium cursor-pointer"
+                        >
+                            <Plus className="size-4" />
+                            <span>Create Shop</span>
+                        </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
@@ -172,14 +215,14 @@ const Sidebar = () => {
                                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                                 >
                                     <Avatar className="h-8 w-8 rounded-lg">
-                                        <AvatarImage src={user.avatar} alt={user.name} />
-                                        <AvatarFallback className="rounded-lg bg-orange-100 text-orange-600">
-                                            {user.initials}
+                                        <AvatarImage src="" alt={displayName} />
+                                        <AvatarFallback className="rounded-lg bg-primary/20 text-primary">
+                                            {displayInitials}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="grid flex-1 text-left text-sm leading-tight">
-                                        <span className="truncate font-semibold">{user.name}</span>
-                                        <span className="truncate text-xs">{user.email}</span>
+                                        <span className="truncate font-semibold">{displayName}</span>
+                                        <span className="truncate text-xs">{displayEmail}</span>
                                     </div>
                                     <ChevronsUpDown className="ml-auto size-4" />
                                 </SidebarMenuButton>
@@ -193,39 +236,17 @@ const Sidebar = () => {
                                 <DropdownMenuLabel className="p-0 font-normal">
                                     <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                                         <Avatar className="h-8 w-8 rounded-lg">
-                                            <AvatarImage src={user.avatar} alt={user.name} />
-                                            <AvatarFallback className="rounded-lg bg-orange-100 text-orange-600">
-                                                {user.initials}
+                                            <AvatarImage src="" alt={displayName} />
+                                            <AvatarFallback className="rounded-lg bg-primary/20 text-primary">
+                                                {displayInitials}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="grid flex-1 text-left text-sm leading-tight">
-                                            <span className="truncate font-semibold">{user.name}</span>
-                                            <span className="truncate text-xs">{user.email}</span>
+                                            <span className="truncate font-semibold">{displayName}</span>
+                                            <span className="truncate text-xs">{displayEmail}</span>
                                         </div>
                                     </div>
                                 </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuGroup>
-                                    <DropdownMenuItem>
-                                        <Sparkles />
-                                        Upgrade to Pro
-                                    </DropdownMenuItem>
-                                </DropdownMenuGroup>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuGroup>
-                                    <DropdownMenuItem onClick={() => navigate('/dashboard/profile')}>
-                                        <BadgeCheck />
-                                        Account
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                        <CreditCard />
-                                        Billing
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => navigate('/dashboard/notifications')}>
-                                        <Bell />
-                                        Notifications
-                                    </DropdownMenuItem>
-                                </DropdownMenuGroup>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={handleLogout}>
                                     <LogOut />

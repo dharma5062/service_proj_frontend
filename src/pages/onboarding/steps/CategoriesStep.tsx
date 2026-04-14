@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { fetchProductCategories, ProductCategory } from '@/pages/serviceAPI/ProductCategoriesAPI';
-import { fetchBusinessTypes, BusinessType } from '@/pages/serviceAPI/BusinessTypesAPI';
+import { useProductCategoriesApi, ProductCategory } from '@/pages/serviceAPI/ProductCategoriesAPI';
+import { useBusinessTypesApi, BusinessType } from '@/pages/serviceAPI/BusinessTypesAPI';
 
 interface CategoriesStepProps {
     data: OnboardingData;
@@ -20,67 +20,39 @@ interface BreadcrumbItem {
 }
 
 const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNext, onBack }) => {
-    const [categories, setCategories] = useState<ProductCategory[]>([]);
     const [currentCategories, setCurrentCategories] = useState<ProductCategory[]>([]);
     const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: 'All Categories' }]);
-    const [loading, setLoading] = useState(true);
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(data.selectedCategories);
     const [businessType, setBusinessType] = useState<BusinessType | null>(null);
 
-    // Load business type and categories on mount
+    const { useGetProductCategories } = useProductCategoriesApi();
+    const { useGetBusinessTypes } = useBusinessTypesApi();
+    const { data: allCategories = [], isLoading: categoriesLoading } = useGetProductCategories();
+    const { data: businessTypes = [], isLoading: businessTypesLoading } = useGetBusinessTypes();
+    const loading = categoriesLoading || businessTypesLoading;
+
+    // Derive business type and filtered categories whenever query data or businessTypeId changes
     useEffect(() => {
-        loadBusinessTypeAndCategories();
-    }, [data.businessTypeId]);
+        if (!data.businessTypeId || businessTypes.length === 0 || allCategories.length === 0) return;
 
-    const loadBusinessTypeAndCategories = async () => {
-        setLoading(true);
-        try {
-            // First, fetch the business type to get category_id
-            if (!data.businessTypeId) {
-                toast.error('Please select a business type first');
-                return;
-            }
-
-            const businessTypes = await fetchBusinessTypes();
-            const selectedBT = businessTypes.find(bt => bt.id === data.businessTypeId);
-
-            if (!selectedBT) {
-                toast.error('Business type not found');
-                return;
-            }
-
-            setBusinessType(selectedBT);
-
-            // Fetch all categories
-            const fetchedCategories = await fetchProductCategories();
-
-            // Filter to only show categories that match the business type's category_id
-            // This includes the parent category and all its children
-            const filteredCategories = filterCategoriesByBusinessType(fetchedCategories, selectedBT.category_id);
-
-            setCategories(filteredCategories);
-
-            // Show root level of filtered categories
-            const rootCategories = filteredCategories.filter(cat => cat.parent_id === null || cat.id === selectedBT.category_id);
-            setCurrentCategories(rootCategories);
-
-        } catch (error) {
-            console.error('Failed to load categories:', error);
-            toast.error('Failed to load categories');
-        } finally {
-            setLoading(false);
+        const selectedBT = businessTypes.find(bt => bt.id === data.businessTypeId);
+        if (!selectedBT) {
+            toast.error('Business type not found');
+            return;
         }
-    };
+        setBusinessType(selectedBT);
+
+        const filteredCategories = filterCategoriesByBusinessType(allCategories, selectedBT.category_id);
+        const rootCategories = filteredCategories.filter(cat => cat.parent_id === null || cat.id === selectedBT.category_id);
+        setCurrentCategories(rootCategories);
+    }, [data.businessTypeId, businessTypes, allCategories]);
 
     // Filter categories to only include the business type's category and its children
-    const filterCategoriesByBusinessType = (allCategories: ProductCategory[], categoryId: number): ProductCategory[] => {
-        const targetCategory = findCategoryById(allCategories, categoryId);
+    const filterCategoriesByBusinessType = (allCats: ProductCategory[], categoryId: number): ProductCategory[] => {
+        const targetCategory = findCategoryById(allCats, categoryId);
         if (!targetCategory) return [];
-
-        // Return the target category and all its descendants
         return [targetCategory];
     };
-
 
     const findCategoryById = (categoryList: ProductCategory[], id: number): ProductCategory | null => {
         for (const category of categoryList) {
@@ -121,12 +93,14 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
         setBreadcrumb(newBreadcrumb);
 
         if (targetId === null) {
-            // Back to root
-            const parentCategories = categories.filter(cat => cat.parent_id === null);
-            setCurrentCategories(parentCategories);
+            // Back to root – re-derive from query data
+            if (businessType) {
+                const filteredCategories = filterCategoriesByBusinessType(allCategories, businessType.category_id);
+                const rootCategories = filteredCategories.filter(cat => cat.parent_id === null || cat.id === businessType.category_id);
+                setCurrentCategories(rootCategories);
+            }
         } else {
-            // Navigate to specific category
-            const targetCategory = findCategoryById(categories, targetId);
+            const targetCategory = findCategoryById(allCategories, targetId);
             if (targetCategory && targetCategory.children) {
                 setCurrentCategories(targetCategory.children);
             }

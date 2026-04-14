@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/AuthContext';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -41,11 +42,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ImageIcon, Upload, X, Edit, Trash2, Plus } from 'lucide-react';
 import {
     ProductCategory,
-    fetchProductCategories,
-    createProductCategory,
-    updateProductCategory,
-    deleteProductCategory,
     CreateCategoryPayload,
+    useProductCategoriesApi,
 } from '@/pages/serviceAPI/ProductCategoriesAPI';
 
 interface CategoryFormData {
@@ -57,8 +55,20 @@ interface CategoryFormData {
 }
 
 const ProductCategoriesPage = () => {
-    const [categories, setCategories] = useState<ProductCategory[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { shopId } = useAuth();
+    const { useGetProductCategories, useCreateProductCategory, useUpdateProductCategory, useDeleteProductCategory } = useProductCategoriesApi();
+    const { data: categories = [], isLoading: loading } = useGetProductCategories();
+
+    const createMutation = useCreateProductCategory();
+    const updateMutation = useUpdateProductCategory();
+    const deleteMutation = useDeleteProductCategory();
+
+    // Reset UI state when branch changes
+    useEffect(() => {
+        setFormDialogOpen(false);
+        setDeleteDialogOpen(false);
+    }, [shopId]);
+
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
     const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -73,28 +83,6 @@ const ProductCategoriesPage = () => {
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
-
-    // Fetch categories on mount
-    useEffect(() => {
-        loadCategories();
-    }, []);
-
-    const loadCategories = async () => {
-        try {
-            setLoading(true);
-            const data = await fetchProductCategories();
-            console.log('📦 Fetched Categories:', data);
-            console.log('📊 Category Hierarchy:', JSON.stringify(data, null, 2));
-            setCategories(data);
-        } catch (error) {
-            console.error('❌ Error loading categories:', error);
-            toast.error('Failed to load categories', {
-                description: error instanceof Error ? error.message : 'Unknown error',
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
 
 
     const handleEdit = (category: ProductCategory) => {
@@ -121,9 +109,8 @@ const ProductCategoriesPage = () => {
     const confirmDelete = async () => {
         if (selectedCategoryId) {
             try {
-                await deleteProductCategory(selectedCategoryId);
+                await deleteMutation.mutateAsync(selectedCategoryId);
                 toast.success('Category deleted successfully');
-                loadCategories();
             } catch (error) {
                 toast.error('Failed to delete category', {
                     description: error instanceof Error ? error.message : 'Unknown error',
@@ -300,17 +287,14 @@ const ProductCategoriesPage = () => {
             });
 
             if (isEditMode && selectedCategoryId) {
-                const response = await updateProductCategory(selectedCategoryId, payload);
-                console.log('✅ Category updated:', response);
+                await updateMutation.mutateAsync({ id: selectedCategoryId, payload });
                 toast.success('Category updated successfully');
             } else {
-                const response = await createProductCategory(payload);
-                console.log('✅ Category created:', response);
+                await createMutation.mutateAsync(payload);
                 toast.success('Category created successfully');
             }
 
             setFormDialogOpen(false);
-            loadCategories();
         } catch (error) {
             console.error('❌ Error submitting category:', error);
             toast.error(`Failed to ${isEditMode ? 'update' : 'create'} category`, {
@@ -339,12 +323,9 @@ const ProductCategoriesPage = () => {
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <span className="font-medium text-xs truncate">{category.name}</span>
-                                <Badge
-                                    variant={category.active ? "default" : "secondary"}
-                                    className={`text-[10px] px-1 py-0 ${category.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
-                                >
+                                <span className={`text-[10px] font-bold px-1.5 py-0 rounded-full ${category.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                     {category.active ? 'Active' : 'Inactive'}
-                                </Badge>
+                                </span>
                             </div>
                         </div>
                         <div className="flex items-center gap-0.5">
@@ -395,12 +376,9 @@ const ProductCategoriesPage = () => {
                                 <div className="flex-1 min-w-0 text-left">
                                     <div className="flex items-center gap-1.5">
                                         <span className="font-medium text-xs">{category.name}</span>
-                                        <Badge
-                                            variant={category.active ? "default" : "secondary"}
-                                            className={`text-[10px] px-1 py-0 ${category.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
-                                        >
+                                        <span className={`text-[10px] font-bold px-1.5 py-0 rounded-full ${category.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                             {category.active ? 'Active' : 'Inactive'}
-                                        </Badge>
+                                        </span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-0.5 mr-1" onClick={(e) => e.stopPropagation()}>
@@ -446,95 +424,93 @@ const ProductCategoriesPage = () => {
     return (
         <div className="p-0">
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Category Management</h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage your product categories hierarchy</p>
+                    <h1 className="text-lg font-bold text-gray-900 tracking-tight">Category Management</h1>
+                    <p className="text-xs sm:text-sm mt-0.5 text-blue-600">Manage your product categories hierarchy</p>
                 </div>
-                <Button onClick={handleAddNew} className="gap-2">
-                    <Plus className="h-4 w-4" />
+                <Button size="sm" onClick={handleAddNew} className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
                     Add Category
                 </Button>
             </div>
 
             {/* Categories Grid */}
             {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-gray-500">Loading categories...</div>
+                <div className="flex items-center justify-center py-8">
+                    <div className="text-sm text-gray-500">Loading categories...</div>
                 </div>
             ) : categories.length === 0 ? (
                 <Card>
-                    <CardContent className="py-12 text-center">
-                        <ImageIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">No categories found. Create your first category to get started.</p>
+                    <CardContent className="py-8 text-center">
+                        <ImageIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">No categories found. Create your first category to get started.</p>
                     </CardContent>
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {categories
                         .filter(cat => !cat.parent_id)
                         .map(category => (
                             <Card key={category.id} className="overflow-hidden">
-                                <CardContent className="p-4">
+                                <CardContent className="p-3">
                                     {/* Parent Category Header */}
-                                    <div className="flex items-start gap-3 mb-3">
-                                        <div className="flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                                    <div className="flex items-start gap-2.5 mb-2">
+                                        <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                                             {category.image_url ? (
                                                 <img src={category.image_url} alt={category.name} className="w-full h-full object-cover" />
                                             ) : (
-                                                <ImageIcon className="w-7 h-7 text-gray-400" />
+                                                <ImageIcon className="w-5 h-5 text-gray-400" />
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-base mb-1 truncate">{category.name}</h3>
-                                            <Badge
-                                                variant={category.active ? "default" : "secondary"}
-                                                className={`text-xs ${category.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
-                                            >
+                                            <h3 className="font-bold text-sm mb-0.5 truncate">{category.name}</h3>
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${category.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                 {category.active ? 'Active' : 'Inactive'}
-                                            </Badge>
+                                            </span>
                                         </div>
                                     </div>
 
                                     {category.description && (
-                                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{category.description}</p>
+                                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">{category.description}</p>
                                     )}
 
                                     {/* Action Buttons */}
-                                    <div className="flex items-center gap-2 mb-3">
+                                    <div className="flex items-center gap-1.5 mb-2">
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="flex-1 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                            className="flex-1 h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
                                             onClick={() => handleAddSubcategory(category)}
                                         >
-                                            <Plus className="h-3.5 w-3.5 mr-1.5" />
-                                            Add Subcategory
+                                            <Plus className="h-3 w-3 mr-1" />
+                                            Add Sub
                                         </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
+                                            className="h-7 w-7 p-0"
                                             onClick={() => handleEdit(category)}
                                         >
-                                            <Edit className="h-3.5 w-3.5" />
+                                            <Edit className="h-3 w-3" />
                                         </Button>
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                             onClick={() => handleDeleteClick(category)}
                                         >
-                                            <Trash2 className="h-3.5 w-3.5" />
+                                            <Trash2 className="h-3 w-3" />
                                         </Button>
                                     </div>
 
                                     {/* Subcategories */}
                                     {category.children && category.children.length > 0 && (
-                                        <div className="border-t pt-3">
-                                            <p className="text-xs font-medium text-gray-600 mb-2">
+                                        <div className="border-t pt-2">
+                                            <p className="text-[11px] font-medium text-gray-500 mb-1.5">
                                                 Subcategories ({category.children.length})
                                             </p>
-                                            <div className="space-y-2">
+                                            <div className="space-y-1.5">
                                                 {category.children.map(child => renderSubcategory(child, 0))}
                                             </div>
                                         </div>
@@ -547,9 +523,9 @@ const ProductCategoriesPage = () => {
 
             {/* Create/Edit Form Dialog */}
             <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="text-base font-bold">
+                <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+                    <DialogHeader className="pb-2">
+                        <DialogTitle className="text-sm font-bold">
                             {isEditMode ? 'Edit Category' : 'Create New Category'}
                         </DialogTitle>
                         <DialogDescription className="text-xs text-gray-500">
@@ -557,27 +533,52 @@ const ProductCategoriesPage = () => {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-2">
-                        {/* Category Name */}
-                        <div className="space-y-2">
-                            <Label htmlFor="name" className="text-sm font-medium">
-                                Category Name <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                                id="name"
-                                placeholder="e.g., Electronics, Furniture"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className={formErrors.name ? 'border-red-500' : ''}
-                            />
-                            {formErrors.name && (
-                                <p className="text-xs text-red-500">{formErrors.name}</p>
-                            )}
+                    <div className="space-y-3">
+                        {/* Name & Parent — side by side */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                                <Label htmlFor="name" className="text-xs font-medium">
+                                    Category Name <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    id="name"
+                                    placeholder="e.g., Electronics"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className={`h-9 ${formErrors.name ? 'border-red-500' : ''}`}
+                                />
+                                {formErrors.name && (
+                                    <p className="text-xs text-red-500">{formErrors.name}</p>
+                                )}
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="parent_id" className="text-xs font-medium">
+                                    Parent Category
+                                </Label>
+                                <Select
+                                    value={formData.parent_id?.toString() || 'none'}
+                                    onValueChange={(value) =>
+                                        setFormData({ ...formData, parent_id: value === 'none' ? null : parseInt(value) })
+                                    }
+                                >
+                                    <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="None (Main)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">None (Main Category)</SelectItem>
+                                        {getParentCategoriesForLevel().map((cat) => (
+                                            <SelectItem key={cat.id} value={cat.id.toString()}>
+                                                {cat.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         {/* Description */}
-                        <div className="space-y-2">
-                            <Label htmlFor="description" className="text-sm font-medium">
+                        <div className="space-y-1">
+                            <Label htmlFor="description" className="text-xs font-medium">
                                 Description
                             </Label>
                             <Textarea
@@ -585,106 +586,79 @@ const ProductCategoriesPage = () => {
                                 placeholder="Brief description of the category"
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                rows={3}
+                                rows={2}
+                                className="resize-none"
                             />
                         </div>
 
-                        {/* Parent Category */}
-                        <div className="space-y-2">
-                            <Label htmlFor="parent_id" className="text-sm font-medium">
-                                Parent Category
-                            </Label>
-                            <Select
-                                value={formData.parent_id?.toString() || 'none'}
-                                onValueChange={(value) =>
-                                    setFormData({ ...formData, parent_id: value === 'none' ? null : parseInt(value) })
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select parent category (optional)" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">None (Main Category)</SelectItem>
-                                    {getParentCategoriesForLevel().map((cat) => (
-                                        <SelectItem key={cat.id} value={cat.id.toString()}>
-                                            {cat.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-xs text-gray-500">Leave empty to create a main category</p>
-                        </div>
-
-                        {/* Image Upload */}
-                        <div className="space-y-2">
-                            <Label htmlFor="image" className="text-sm font-medium">
-                                Category Image
-                            </Label>
-
-                            {imagePreview ? (
-                                <div className="relative inline-block">
-                                    <img
-                                        src={imagePreview}
-                                        alt="Preview"
-                                        className="w-32 h-32 object-cover rounded border"
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="destructive"
-                                        size="icon"
-                                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                                        onClick={removeImage}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => document.getElementById('image')?.click()}
-                                    >
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        Upload Image
-                                    </Button>
-                                    <Input
-                                        id="image"
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleImageChange}
-                                    />
-                                </div>
-                            )}
-                            {formErrors.image && (
-                                <p className="text-xs text-red-500">{formErrors.image}</p>
-                            )}
-                            <p className="text-xs text-gray-500">Max size: 5MB. Formats: JPG, PNG, GIF</p>
-                        </div>
-
-                        {/* Active Status */}
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label htmlFor="active" className="text-sm font-medium">
-                                    Active Status
+                        {/* Image Upload & Active Status — side by side */}
+                        <div className="flex items-start gap-3">
+                            <div className="flex-1 space-y-1">
+                                <Label htmlFor="image" className="text-xs font-medium">
+                                    Category Image
                                 </Label>
-                                <p className="text-xs text-gray-500">Enable this category for use</p>
+                                {imagePreview ? (
+                                    <div className="relative inline-block">
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
+                                            className="w-20 h-20 object-cover rounded border"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="icon"
+                                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full"
+                                            onClick={removeImage}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8"
+                                            onClick={() => document.getElementById('image')?.click()}
+                                        >
+                                            <Upload className="mr-1.5 h-3.5 w-3.5" />
+                                            Upload
+                                        </Button>
+                                        <Input
+                                            id="image"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleImageChange}
+                                        />
+                                    </div>
+                                )}
+                                {formErrors.image && (
+                                    <p className="text-xs text-red-500">{formErrors.image}</p>
+                                )}
+                                <p className="text-[11px] text-gray-400">Max 5MB · JPG, PNG, GIF</p>
                             </div>
-                            <Switch
-                                id="active"
-                                checked={formData.active}
-                                onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
-                            />
+                            <div className="flex items-center gap-2 pt-5">
+                                <Switch
+                                    id="active"
+                                    checked={formData.active}
+                                    onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+                                />
+                                <Label htmlFor="active" className="text-xs font-medium cursor-pointer">
+                                    Active
+                                </Label>
+                            </div>
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setFormDialogOpen(false)} disabled={submitting}>
+                    <DialogFooter className="pt-2">
+                        <Button variant="outline" size="sm" onClick={() => setFormDialogOpen(false)} disabled={submitting}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSubmit} disabled={submitting}>
-                            {submitting ? 'Saving...' : isEditMode ? 'Update Category' : 'Create Category'}
+                        <Button size="sm" onClick={handleSubmit} disabled={submitting}>
+                            {submitting ? 'Saving...' : isEditMode ? 'Update' : 'Create'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

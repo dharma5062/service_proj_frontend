@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,12 +28,9 @@ import { DataTable, Column } from '@/components/ui/table/tableComponents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Brand,
-    fetchBrands,
     fetchBrandById,
-    createBrand,
-    updateBrand,
-    deleteBrand,
     CreateBrandPayload,
+    useBrandsApi
 } from '@/pages/serviceAPI/BrandsAPI';
 import { ImageIcon } from 'lucide-react';
 
@@ -43,10 +41,24 @@ interface BrandFormData {
 }
 
 const BrandsPage = () => {
-    const [brands, setBrands] = useState<Brand[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { shopId } = useAuth();
+    const { useGetBrands, useCreateBrand, useUpdateBrand, useDeleteBrand } = useBrandsApi();
+    const { data: brands = [], isLoading: loading } = useGetBrands();
+
+    const createMutation = useCreateBrand();
+    const updateMutation = useUpdateBrand();
+    const deleteMutation = useDeleteBrand();
+
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
+
+    // Reset pagination when branch changes
+    useEffect(() => {
+        setCurrentPage(1);
+        setFormDialogOpen(false);
+        setViewDialogOpen(false);
+    }, [shopId]);
+
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null);
     const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -61,28 +73,6 @@ const BrandsPage = () => {
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
-
-    // Fetch brands on mount
-    useEffect(() => {
-        loadBrands();
-    }, []);
-
-    const loadBrands = async () => {
-        try {
-            setLoading(true);
-            const data = await fetchBrands();
-            // Ensure data is always an array
-            setBrands(Array.isArray(data) ? data : []);
-        } catch (error) {
-            toast.error('Failed to load brands', {
-                description: error instanceof Error ? error.message : 'Unknown error',
-            });
-            // Set empty array on error
-            setBrands([]);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const columns: Column<Brand>[] = [
         {
@@ -104,7 +94,7 @@ const BrandsPage = () => {
                             <ImageIcon className="w-5 h-5 text-gray-400" />
                         </div>
                     )}
-                    <span className="font-medium text-gray-900">{value}</span>
+                    <span className="font-bold text-gray-900 text-xs">{value}</span>
                 </div>
             ),
         },
@@ -119,9 +109,9 @@ const BrandsPage = () => {
                 { label: 'Inactive', value: '0' },
             ],
             render: (value) => (
-                <Badge className={value ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${value ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                     {value ? 'Active' : 'Inactive'}
-                </Badge>
+                </span>
             ),
         },
     ];
@@ -157,9 +147,8 @@ const BrandsPage = () => {
     const confirmDelete = async () => {
         if (selectedBrandId) {
             try {
-                await deleteBrand(selectedBrandId);
+                await deleteMutation.mutateAsync(selectedBrandId);
                 toast.success('Brand deleted successfully');
-                loadBrands();
             } catch (error) {
                 toast.error('Failed to delete brand', {
                     description: error instanceof Error ? error.message : 'Unknown error',
@@ -233,15 +222,14 @@ const BrandsPage = () => {
             };
 
             if (isEditMode && selectedBrandId) {
-                await updateBrand(selectedBrandId, payload);
+                await updateMutation.mutateAsync({ id: selectedBrandId, payload });
                 toast.success('Brand updated successfully');
             } else {
-                await createBrand(payload);
+                await createMutation.mutateAsync(payload);
                 toast.success('Brand created successfully');
             }
 
             setFormDialogOpen(false);
-            loadBrands();
         } catch (error) {
             toast.error(`Failed to ${isEditMode ? 'update' : 'create'} brand`, {
                 description: error instanceof Error ? error.message : 'Unknown error',

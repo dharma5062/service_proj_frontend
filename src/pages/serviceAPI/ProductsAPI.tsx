@@ -1,5 +1,7 @@
 import axiosInstance from '@/lib/axiosInstance';
 import { AxiosError } from 'axios';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/AuthContext';
 
 // Product API Interfaces
 export interface Product {
@@ -7,6 +9,9 @@ export interface Product {
     name: string;
     description?: string;
     price?: number;
+    tax_name?: string;
+    tax_percentage?: number;
+    tax_type?: 'inclusive' | 'exclusive' | string;
     active: boolean | number;
     image?: string | null;
     image_url?: string;
@@ -48,6 +53,9 @@ export interface CreateProductPayload {
     name: string;
     description?: string;
     price?: number;
+    tax_name?: string;
+    tax_percentage?: number;
+    tax_type?: 'inclusive' | 'exclusive' | string;
     active: boolean | number;
     image?: File | null;
     category_id?: number | null;
@@ -59,6 +67,9 @@ export interface UpdateProductPayload {
     name: string;
     description?: string;
     price?: number;
+    tax_name?: string;
+    tax_percentage?: number;
+    tax_type?: 'inclusive' | 'exclusive' | string;
     active: boolean | number;
     image?: File | null;
     category_id?: number | null;
@@ -195,6 +206,18 @@ export const createProduct = async (
             formData.append('brand_id', payload.brand_id.toString());
         }
 
+        if (payload.tax_name) {
+            formData.append('tax_name', payload.tax_name);
+        }
+
+        if (payload.tax_percentage !== undefined && payload.tax_percentage !== null) {
+            formData.append('tax_percentage', payload.tax_percentage.toString());
+        }
+
+        if (payload.tax_type) {
+            formData.append('tax_type', payload.tax_type);
+        }
+
         const response = await axiosInstance.post<ApiResponse<Product>>(
             '/products-store',
             formData,
@@ -257,6 +280,18 @@ export const updateProduct = async (
             formData.append('brand_id', payload.brand_id.toString());
         }
 
+        if (payload.tax_name) {
+            formData.append('tax_name', payload.tax_name);
+        }
+
+        if (payload.tax_percentage !== undefined && payload.tax_percentage !== null) {
+            formData.append('tax_percentage', payload.tax_percentage.toString());
+        }
+
+        if (payload.tax_type) {
+            formData.append('tax_type', payload.tax_type);
+        }
+
         const response = await axiosInstance.post<ApiResponse<Product>>(
             `/products-update/${id}`,
             formData,
@@ -307,4 +342,57 @@ export const deleteProduct = async (id: number): Promise<ApiResponse<void>> => {
 
         throw error;
     }
+};
+
+// ─── TanStack Query Hooks ─────────────────────────────────────────────────────
+
+export const useProductsApi = () => {
+    const queryClient = useQueryClient();
+    const { shopId } = useAuth();
+
+    const useGetProducts = () =>
+        useQuery<Product[], Error>({
+            queryKey: ['products', shopId],
+            queryFn: () => fetchProducts(),
+            enabled: !!shopId,
+        });
+
+    const useGetProductById = (id: number | undefined) =>
+        useQuery<Product, Error>({
+            queryKey: ['products', id],
+            queryFn: () => fetchProductById(id!),
+            enabled: !!id,
+        });
+
+    const useCreateProduct = () =>
+        useMutation<ApiResponse<Product>, Error, CreateProductPayload>({
+            mutationFn: (payload) => createProduct(payload),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+            },
+        });
+
+    const useUpdateProduct = () =>
+        useMutation<ApiResponse<Product>, Error, { id: number; payload: UpdateProductPayload }>({
+            mutationFn: ({ id, payload }) => updateProduct(id, payload),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+            },
+        });
+
+    const useDeleteProduct = () =>
+        useMutation<ApiResponse<void>, Error, number>({
+            mutationFn: (id) => deleteProduct(id),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['products'], exact: false });
+            },
+        });
+
+    return {
+        useGetProducts,
+        useGetProductById,
+        useCreateProduct,
+        useUpdateProduct,
+        useDeleteProduct,
+    };
 };

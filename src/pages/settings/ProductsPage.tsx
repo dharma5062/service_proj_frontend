@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { useAuth } from '@/AuthContext';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -12,157 +11,138 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { DataTable, Column } from '@/components/ui/table/tableComponents';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Product,
-    fetchProducts,
-    fetchProductById,
-    createProduct,
-    updateProduct,
-    deleteProduct,
-    CreateProductPayload,
-} from '@/pages/serviceAPI/ProductsAPI';
-import { fetchProductCategories, ProductCategory } from '@/pages/serviceAPI/ProductCategoriesAPI';
-import { fetchBrands, Brand } from '@/pages/serviceAPI/BrandsAPI';
-
-interface ProductFormData {
-    name: string;
-    description: string;
-    price: number | null;
-    active: boolean;
-    category_id: number | null;
-    brand_id: number | null;
-    image: File | null;
-}
+import { Product, useProductsApi } from '@/pages/serviceAPI/ProductsAPI';
 
 const ProductsPage = () => {
     const navigate = useNavigate();
-    const [products, setProducts] = useState<Product[]>([]);
-    const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
-    const [brands, setBrands] = useState<Brand[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { shopId } = useAuth();
+    const { useGetProducts, useDeleteProduct } = useProductsApi();
+    const { data: products = [], isLoading: loading } = useGetProducts();
+    const deleteProductMutation = useDeleteProduct();
+
+    // Reset pagination when branch changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [shopId]);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-    const [viewDialogOpen, setViewDialogOpen] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-    const [formDialogOpen, setFormDialogOpen] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [formData, setFormData] = useState<ProductFormData>({
-        name: '',
-        description: '',
-        price: null,
-        active: true,
-        category_id: null,
-        brand_id: null,
-        image: null,
-    });
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-    const [submitting, setSubmitting] = useState(false);
 
     /**
-     * Build category hierarchy path (parent → child → subchild)
-     * @param category - ProductCategory object with parent relationships
-     * @returns String representation of the category hierarchy
+     * Extract plain description text from the description field.
+     * The backend may store description as a JSON object: { text: '...', taxes: [...] }
+     * or as a plain string.
      */
-    const buildCategoryHierarchy = (category: ProductCategory): string => {
-        const parts: string[] = [];
-
-        // Recursively build hierarchy from root to current
-        const buildPath = (cat: ProductCategory): void => {
-            if (cat.parent) {
-                buildPath(cat.parent);
+    /**
+     * Deeply parse a value that may be multi-level stringified JSON.
+     * Returns the final parsed object or string.
+     */
+    const deepParse = (value: any): any => {
+        let parsed = value;
+        // Keep parsing while it's a string that looks like JSON
+        while (typeof parsed === 'string') {
+            try {
+                const next = JSON.parse(parsed);
+                if (next === parsed) break; // avoid infinite loop on plain strings that parse to themselves
+                parsed = next;
+            } catch {
+                break;
             }
-            parts.push(cat.name);
-        };
+        }
+        return parsed;
+    };
 
-        buildPath(category);
-        return parts.join(' → ');
+    const getDescriptionText = (description: any): string => {
+        if (!description) return '';
+
+        let parsed = deepParse(description);
+
+        if (typeof parsed === 'object' && parsed !== null) {
+            if ('text' in parsed) {
+                // The text field itself may be a JSON string containing the actual text
+                const innerText = deepParse(parsed.text);
+                if (typeof innerText === 'object' && innerText !== null && 'text' in innerText) {
+                    return innerText.text || '';
+                }
+                return typeof innerText === 'string' ? innerText : (parsed.text || '');
+            }
+            if ('taxes' in parsed) {
+                return '';
+            }
+        }
+
+        return typeof description === 'string' ? description : String(description);
     };
 
     /**
-     * Flatten category tree to include all categories (parent, child, subchild)
-     * @param categories - Array of ProductCategory objects
-     * @returns Flattened array of all categories
+     * Extract cost_price from the description field.
+     * The cost_price may be nested inside a JSON-encoded text field.
      */
-    const flattenCategories = (categories: ProductCategory[]): ProductCategory[] => {
-        const result: ProductCategory[] = [];
+    const getCostPrice = (description: any): number | null => {
+        if (!description) return null;
 
-        const flatten = (cat: ProductCategory) => {
-            result.push(cat);
-            if (cat.children && cat.children.length > 0) {
-                cat.children.forEach(child => flatten(child));
+        let parsed = deepParse(description);
+
+        if (typeof parsed === 'object' && parsed !== null) {
+            // Check if cost_price is at top level
+            if (parsed.cost_price !== undefined) return parsed.cost_price;
+
+            // Check inside the text field (which may be a JSON string)
+            if ('text' in parsed) {
+                const innerText = deepParse(parsed.text);
+                if (typeof innerText === 'object' && innerText !== null && innerText.cost_price !== undefined) {
+                    return innerText.cost_price;
+                }
             }
-        };
+        }
 
-        categories.forEach(cat => flatten(cat));
-        return result;
+        return null;
     };
 
-    // Fetch products, categories, and brands on mount
-    useEffect(() => {
-        loadProducts();
-        loadProductCategories();
-        loadBrands();
-    }, []);
-
-    const loadProducts = async () => {
-        try {
-            setLoading(true);
-            const data = await fetchProducts();
-            setProducts(data);
-        } catch (error) {
-            toast.error('Failed to load products', {
-                description: error instanceof Error ? error.message : 'Unknown error',
-            });
-        } finally {
-            setLoading(false);
+    /**
+     * Extract tax info from the description field.
+     * Returns { tax_name, tax_percentage } or null if no tax data exists.
+     */
+    const getTaxInfo = (product: Product): { tax_name: string; tax_percentage: number; tax_type?: string } | null => {
+        // First check top-level tax fields
+        if (product.tax_name || product.tax_percentage || product.tax_type) {
+            return {
+                tax_name: product.tax_name || '',
+                tax_percentage: product.tax_percentage || 0,
+                tax_type: product.tax_type || 'exclusive',
+            };
         }
-    };
 
-    const loadProductCategories = async () => {
-        try {
-            const data = await fetchProductCategories();
-            setProductCategories(data);
-        } catch (error) {
-            toast.error('Failed to load categories', {
-                description: error instanceof Error ? error.message : 'Unknown error',
-            });
-        }
-    };
+        // Fallback: check if tax is embedded in description JSON
+        const desc = product.description;
+        let parsed = desc;
 
-    const loadBrands = async () => {
-        try {
-            const data = await fetchBrands();
-            setBrands(data);
-        } catch (error) {
-            toast.error('Failed to load brands', {
-                description: error instanceof Error ? error.message : 'Unknown error',
-            });
+        if (typeof parsed === 'string') {
+            try {
+                parsed = JSON.parse(parsed);
+                if (typeof parsed === 'string') {
+                    parsed = JSON.parse(parsed);
+                }
+            } catch {
+                // Not JSON
+            }
         }
+
+        if (typeof parsed === 'object' && parsed !== null) {
+            const descObj = parsed as any;
+            if (descObj.taxes && Array.isArray(descObj.taxes) && descObj.taxes.length > 0) {
+                return {
+                    tax_name: descObj.taxes[0].tax_name || '',
+                    tax_percentage: descObj.taxes[0].tax_percentage || 0,
+                    tax_type: descObj.taxes[0].tax_type || 'exclusive',
+                };
+            }
+        }
+
+        return null;
     };
 
     const columns: Column<Product>[] = [
@@ -175,11 +155,13 @@ const ProductsPage = () => {
                     <img
                         src={value}
                         alt="Product"
-                        className="w-12 h-12 object-cover rounded-md border border-gray-200"
+                        className="w-10 h-10 object-cover rounded-md border border-gray-200"
                     />
                 ) : (
-                    <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center border border-gray-200">
-                        <span className="text-xs text-gray-400">No image</span>
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-50 to-gray-100 rounded-md flex items-center justify-center border border-gray-200">
+                        <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                        </svg>
                     </div>
                 )
             ),
@@ -190,28 +172,47 @@ const ProductsPage = () => {
             dataIndex: 'name',
             sortable: true,
             filterable: true,
-            render: (value) => <span className="font-medium text-gray-900">{value}</span>,
+            render: (value) => <span className="text-xs font-semibold text-gray-900">{value}</span>,
         },
         {
             key: 'description',
             title: 'Description',
             dataIndex: 'description',
-            render: (value) => (
-                <span className="text-sm text-gray-600 line-clamp-2">
-                    {value || '-'}
-                </span>
-            ),
+            render: (value) => {
+                const text = getDescriptionText(value);
+                return (
+                    <span className="text-xs text-gray-500 line-clamp-2 max-w-[140px] inline-block">
+                        {text || '-'}
+                    </span>
+                );
+            },
+        },
+        {
+            key: 'cost_price',
+            title: 'Cost Price',
+            dataIndex: 'description',
+            render: (value) => {
+                const costPrice = getCostPrice(value);
+                if (costPrice === null) return <span className="text-xs text-gray-400">-</span>;
+                return (
+                    <span className="text-xs font-semibold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                        ₹{Number(costPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                );
+            },
         },
         {
             key: 'price',
-            title: 'Price',
+            title: 'Selling Price',
             dataIndex: 'price',
             sortable: true,
             filterable: true,
             render: (value) => (
-                <span className="text-sm font-medium text-gray-900">
-                    {value ? `$${Number(value).toFixed(2)}` : '-'}
-                </span>
+                value ? (
+                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                        ₹{Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                ) : <span className="text-xs text-gray-400">-</span>
             ),
         },
         {
@@ -221,7 +222,7 @@ const ProductsPage = () => {
             sortable: true,
             filterable: true,
             render: (value) => {
-                if (!value) return <span className="text-sm text-gray-600">-</span>;
+                if (!value) return <span className="text-xs text-gray-400">-</span>;
 
                 // Build hierarchy path if parent exists
                 const hierarchy: string[] = [];
@@ -235,8 +236,50 @@ const ProductsPage = () => {
                 hierarchy.push(value.name);
 
                 return (
-                    <span className="text-sm text-gray-600">
+                    <span className="text-xs text-gray-600">
                         {hierarchy.join(' → ')}
+                    </span>
+                );
+            },
+        },
+        {
+            key: 'tax',
+            title: 'Tax',
+            dataIndex: 'id',
+            render: (_value, record) => {
+                const taxInfo = record ? getTaxInfo(record) : null;
+                if (!taxInfo || (!taxInfo.tax_name && !taxInfo.tax_percentage)) {
+                    return <span className="text-xs text-gray-400">-</span>;
+                }
+                return (
+                    <div className="text-xs whitespace-nowrap">
+                        <span className="font-medium text-gray-700">{taxInfo.tax_name || 'Tax'}</span>
+                        <span className="text-gray-500 ml-0.5">
+                            ({taxInfo.tax_percentage}% {taxInfo.tax_type === 'inclusive' ? 'Incl.' : 'Excl.'})
+                        </span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'total_price',
+            title: 'Total Price',
+            dataIndex: 'id',
+            render: (_value, record) => {
+                if (!record || !record.price) return <span className="text-xs text-gray-400">-</span>;
+                const price = Number(record.price);
+                const taxInfo = record ? getTaxInfo(record) : null;
+                let total = price;
+                if (taxInfo && taxInfo.tax_percentage) {
+                    if (taxInfo.tax_type === 'inclusive') {
+                        total = price;
+                    } else {
+                        total = price + (price * taxInfo.tax_percentage / 100);
+                    }
+                }
+                return (
+                    <span className="text-xs font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                        ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 );
             },
@@ -248,56 +291,19 @@ const ProductsPage = () => {
             sortable: true,
             filterable: true,
             render: (value) => (
-                <span className="text-sm text-gray-600">
+                <span className="text-xs text-gray-600 font-medium">
                     {value?.name || '-'}
                 </span>
             ),
         },
-        {
-            key: 'active',
-            title: 'Status',
-            dataIndex: 'active',
-            sortable: true,
-            filterable: true,
-            filterOptions: [
-                { label: 'Active', value: '1' },
-                { label: 'Inactive', value: '0' },
-            ],
-            render: (value) => (
-                <Badge className={value ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}>
-                    {value ? 'Active' : 'Inactive'}
-                </Badge>
-            ),
-        },
     ];
 
-    const handleView = async (record: Product) => {
-        try {
-            const product = await fetchProductById(record.id);
-            setSelectedProduct(product);
-            setViewDialogOpen(true);
-        } catch (error) {
-            toast.error('Failed to load product details');
-        }
+    const handleView = (record: Product) => {
+        navigate(`/dashboard/settings/product/view/${record.id}`);
     };
 
     const handleEdit = (record: Product) => {
-        setIsEditMode(true);
-        setSelectedProductId(record.id);
-        setFormData({
-            name: record.name,
-            description: record.description || '',
-            price: record.price || null,
-            active: Boolean(record.active),
-            category_id: record.category_id || null,
-            brand_id: record.brand_id || null,
-            image: null,
-        });
-        // Set image preview if exists
-        if (record.image_url) {
-            setImagePreview(record.image_url);
-        }
-        setFormDialogOpen(true);
+        navigate(`/dashboard/settings/product/edit/${record.id}`);
     };
 
     const handleDeleteClick = (record: Product) => {
@@ -308,9 +314,8 @@ const ProductsPage = () => {
     const confirmDelete = async () => {
         if (selectedProductId) {
             try {
-                await deleteProduct(selectedProductId);
+                await deleteProductMutation.mutateAsync(selectedProductId);
                 toast.success('Product deleted successfully');
-                loadProducts();
             } catch (error) {
                 toast.error('Failed to delete product', {
                     description: error instanceof Error ? error.message : 'Unknown error',
@@ -323,87 +328,6 @@ const ProductsPage = () => {
 
     const handleAddNew = () => {
         navigate('/dashboard/settings/product/create');
-    };
-
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            // Validate file type
-            if (!file.type.startsWith('image/')) {
-                toast.error('Please select a valid image file');
-                return;
-            }
-
-            // Validate file size (max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error('Image size should not exceed 5MB');
-                return;
-            }
-
-            setFormData({ ...formData, image: file });
-
-            // Create preview
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const validateForm = (): boolean => {
-        const errors: Record<string, string> = {};
-
-        if (!formData.name.trim()) {
-            errors.name = 'Name is required';
-        }
-
-        if (!formData.category_id) {
-            errors.category_id = 'Category is required';
-        }
-
-        if (!formData.brand_id) {
-            errors.brand_id = 'Brand is required';
-        }
-
-        setFormErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    const handleSubmit = async () => {
-        if (!validateForm()) {
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            const payload: CreateProductPayload = {
-                name: formData.name,
-                description: formData.description,
-                price: formData.price || undefined,
-                active: formData.active ? 1 : 0,
-                category_id: formData.category_id,
-                brand_id: formData.brand_id,
-                image: formData.image,
-            };
-
-            if (isEditMode && selectedProductId) {
-                await updateProduct(selectedProductId, payload);
-                toast.success('Product updated successfully');
-            } else {
-                await createProduct(payload);
-                toast.success('Product created successfully');
-            }
-
-            setFormDialogOpen(false);
-            loadProducts();
-        } catch (error) {
-            toast.error(`Failed to ${isEditMode ? 'update' : 'create'} product`, {
-                description: error instanceof Error ? error.message : 'Unknown error',
-            });
-        } finally {
-            setSubmitting(false);
-        }
     };
 
     return (
@@ -443,259 +367,6 @@ const ProductsPage = () => {
                 loading={loading}
             />
 
-            {/* View Product Dialog */}
-            <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="text-base font-bold">Product Details</DialogTitle>
-                        <DialogDescription className="text-xs text-gray-500">
-                            View product information
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selectedProduct && (
-                        <div className="space-y-3">
-                            {/* Product Image */}
-                            {selectedProduct.image_url && (
-                                <Card>
-                                    <CardHeader className="pb-2 pt-3 px-3">
-                                        <CardTitle className="text-xs font-bold">Product Image</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="px-3 pb-3">
-                                        <img
-                                            src={selectedProduct.image_url}
-                                            alt={selectedProduct.name}
-                                            className="w-full max-h-64 object-contain rounded-md border border-gray-200"
-                                        />
-                                    </CardContent>
-                                </Card>
-                            )}
-
-                            {/* Basic Info */}
-                            <Card>
-                                <CardHeader className="pb-2 pt-3 px-3">
-                                    <CardTitle className="text-xs font-bold">Basic Information</CardTitle>
-                                </CardHeader>
-                                <CardContent className="px-3 pb-3">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <p className="text-xs text-gray-500">Name</p>
-                                            <p className="text-sm font-medium">{selectedProduct.name}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-gray-500">Status</p>
-                                            <Badge className={selectedProduct.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
-                                                {selectedProduct.active ? 'Active' : 'Inactive'}
-                                            </Badge>
-                                        </div>
-                                        {selectedProduct.price && (
-                                            <div>
-                                                <p className="text-xs text-gray-500">Price</p>
-                                                <p className="text-sm font-medium">${Number(selectedProduct.price).toFixed(2)}</p>
-                                            </div>
-                                        )}
-                                        {selectedProduct.category && (() => {
-                                            const hierarchy: string[] = [];
-                                            if (selectedProduct.category.parent) {
-                                                if (selectedProduct.category.parent.parent) {
-                                                    hierarchy.push(selectedProduct.category.parent.parent.name);
-                                                }
-                                                hierarchy.push(selectedProduct.category.parent.name);
-                                            }
-                                            hierarchy.push(selectedProduct.category.name);
-
-                                            return (
-                                                <div>
-                                                    <p className="text-xs text-gray-500">Category</p>
-                                                    <p className="text-sm font-medium">{hierarchy.join(' → ')}</p>
-                                                </div>
-                                            );
-                                        })()}
-                                        {selectedProduct.brand && (
-                                            <div>
-                                                <p className="text-xs text-gray-500">Brand</p>
-                                                <p className="text-sm font-medium">{selectedProduct.brand.name}</p>
-                                            </div>
-                                        )}
-                                        {selectedProduct.description && (
-                                            <div className="col-span-2">
-                                                <p className="text-xs text-gray-500">Description</p>
-                                                <p className="text-sm text-gray-700">{selectedProduct.description}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-            {/* Create/Edit Form Dialog */}
-            <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="text-base font-bold">
-                            {isEditMode ? 'Edit Product' : 'Create New Product'}
-                        </DialogTitle>
-                        <DialogDescription className="text-xs text-gray-500">
-                            {isEditMode ? 'Update product information' : 'Add a new product'}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4 py-2">
-                        {/* Name */}
-                        <div className="space-y-2">
-                            <Label htmlFor="name" className="text-sm font-medium">
-                                Name <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                                id="name"
-                                placeholder="e.g., iPhone 15 Pro, Samsung Galaxy S24"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className={formErrors.name ? 'border-red-500' : ''}
-                            />
-                            {formErrors.name && (
-                                <p className="text-xs text-red-500">{formErrors.name}</p>
-                            )}
-                        </div>
-
-                        {/* Description */}
-                        <div className="space-y-2">
-                            <Label htmlFor="description" className="text-sm font-medium">
-                                Description
-                            </Label>
-                            <Textarea
-                                id="description"
-                                placeholder="Brief description of the product"
-                                value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                rows={3}
-                            />
-                        </div>
-
-                        {/* Price */}
-                        <div className="space-y-2">
-                            <Label htmlFor="price" className="text-sm font-medium">
-                                Price
-                            </Label>
-                            <Input
-                                id="price"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                placeholder="e.g., 999.99"
-                                value={formData.price || ''}
-                                onChange={(e) => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : null })}
-                            />
-                        </div>
-
-                        {/* Category */}
-                        <div className="space-y-2">
-                            <Label htmlFor="category_id" className="text-sm font-medium">
-                                Category <span className="text-red-500">*</span>
-                            </Label>
-                            <Select
-                                value={formData.category_id?.toString() || ''}
-                                onValueChange={(value) =>
-                                    setFormData({ ...formData, category_id: parseInt(value) })
-                                }
-                            >
-                                <SelectTrigger className={formErrors.category_id ? 'border-red-500' : ''}>
-                                    <SelectValue placeholder="Select category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {flattenCategories(productCategories).map((cat) => (
-                                        <SelectItem key={cat.id} value={cat.id.toString()}>
-                                            {buildCategoryHierarchy(cat)}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {formErrors.category_id && (
-                                <p className="text-xs text-red-500">{formErrors.category_id}</p>
-                            )}
-                        </div>
-
-                        {/* Brand */}
-                        <div className="space-y-2">
-                            <Label htmlFor="brand_id" className="text-sm font-medium">
-                                Brand <span className="text-red-500">*</span>
-                            </Label>
-                            <Select
-                                value={formData.brand_id?.toString() || ''}
-                                onValueChange={(value) =>
-                                    setFormData({ ...formData, brand_id: parseInt(value) })
-                                }
-                            >
-                                <SelectTrigger className={formErrors.brand_id ? 'border-red-500' : ''}>
-                                    <SelectValue placeholder="Select brand" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {brands.map((brand) => (
-                                        <SelectItem key={brand.id} value={brand.id.toString()}>
-                                            {brand.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {formErrors.brand_id && (
-                                <p className="text-xs text-red-500">{formErrors.brand_id}</p>
-                            )}
-                        </div>
-
-                        {/* Image Upload */}
-                        <div className="space-y-2">
-                            <Label htmlFor="image" className="text-sm font-medium">
-                                Product Image
-                            </Label>
-                            <Input
-                                id="image"
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageChange}
-                            />
-                            <p className="text-xs text-gray-500">Max size: 5MB. Supported formats: JPG, PNG, GIF</p>
-
-                            {/* Image Preview */}
-                            {imagePreview && (
-                                <div className="mt-2">
-                                    <img
-                                        src={imagePreview}
-                                        alt="Preview"
-                                        className="w-32 h-32 object-cover rounded-md border border-gray-200"
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Active Status */}
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label htmlFor="active" className="text-sm font-medium">
-                                    Active Status
-                                </Label>
-                                <p className="text-xs text-gray-500">Enable this product for sale</p>
-                            </div>
-                            <Switch
-                                id="active"
-                                checked={formData.active}
-                                onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setFormDialogOpen(false)} disabled={submitting}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSubmit} disabled={submitting}>
-                            {submitting ? 'Saving...' : isEditMode ? 'Update Product' : 'Create Product'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             {/* Delete Confirmation Dialog */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
