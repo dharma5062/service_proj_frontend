@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/AuthContext';
 import {
@@ -55,7 +54,7 @@ interface CategoryFormData {
 }
 
 const ProductCategoriesPage = () => {
-    const { shopId } = useAuth();
+    const { shopId, hasPermission } = useAuth();
     const { useGetProductCategories, useCreateProductCategory, useUpdateProductCategory, useDeleteProductCategory } = useProductCategoriesApi();
     const { data: categories = [], isLoading: loading } = useGetProductCategories();
 
@@ -329,31 +328,37 @@ const ProductCategoriesPage = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-0.5">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                onClick={() => handleAddSubcategory(category)}
-                                title="Add Subcategory"
-                            >
-                                <Plus className="h-3 w-3" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => handleEdit(category)}
-                            >
-                                <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleDeleteClick(category)}
-                            >
-                                <Trash2 className="h-3 w-3" />
-                            </Button>
+                            {hasPermission('category.create') && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    onClick={() => handleAddSubcategory(category)}
+                                    title="Add Subcategory"
+                                >
+                                    <Plus className="h-3 w-3" />
+                                </Button>
+                            )}
+                            {hasPermission('category.update') && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => handleEdit(category)}
+                                >
+                                    <Edit className="h-3 w-3" />
+                                </Button>
+                            )}
+                            {hasPermission('category.delete') && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => handleDeleteClick(category)}
+                                >
+                                    <Trash2 className="h-3 w-3" />
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -382,31 +387,37 @@ const ProductCategoriesPage = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-0.5 mr-1" onClick={(e) => e.stopPropagation()}>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                        onClick={() => handleAddSubcategory(category)}
-                                        title="Add Subcategory"
-                                    >
-                                        <Plus className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={() => handleEdit(category)}
-                                    >
-                                        <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        onClick={() => handleDeleteClick(category)}
-                                    >
-                                        <Trash2 className="h-3 w-3" />
-                                    </Button>
+                                    {hasPermission('category.create') && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                            onClick={() => handleAddSubcategory(category)}
+                                            title="Add Subcategory"
+                                        >
+                                            <Plus className="h-3 w-3" />
+                                        </Button>
+                                    )}
+                                    {hasPermission('category.update') && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => handleEdit(category)}
+                                        >
+                                            <Edit className="h-3 w-3" />
+                                        </Button>
+                                    )}
+                                    {hasPermission('category.delete') && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            onClick={() => handleDeleteClick(category)}
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </AccordionTrigger>
@@ -429,10 +440,12 @@ const ProductCategoriesPage = () => {
                     <h1 className="text-lg font-bold text-gray-900 tracking-tight">Category Management</h1>
                     <p className="text-xs sm:text-sm mt-0.5 text-blue-600">Manage your product categories hierarchy</p>
                 </div>
-                <Button size="sm" onClick={handleAddNew} className="gap-1.5">
-                    <Plus className="h-3.5 w-3.5" />
-                    Add Category
-                </Button>
+                {hasPermission('category.create') && (
+                    <Button size="sm" onClick={handleAddNew} className="gap-1.5">
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Category
+                    </Button>
+                )}
             </div>
 
             {/* Categories Grid */}
@@ -477,31 +490,37 @@ const ProductCategoriesPage = () => {
 
                                     {/* Action Buttons */}
                                     <div className="flex items-center gap-1.5 mb-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1 h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
-                                            onClick={() => handleAddSubcategory(category)}
-                                        >
-                                            <Plus className="h-3 w-3 mr-1" />
-                                            Add Sub
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-7 w-7 p-0"
-                                            onClick={() => handleEdit(category)}
-                                        >
-                                            <Edit className="h-3 w-3" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            onClick={() => handleDeleteClick(category)}
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
+                                        {hasPermission('category.create') && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="flex-1 h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                onClick={() => handleAddSubcategory(category)}
+                                            >
+                                                <Plus className="h-3 w-3 mr-1" />
+                                                Add Sub
+                                            </Button>
+                                        )}
+                                        {hasPermission('category.update') && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 w-7 p-0"
+                                                onClick={() => handleEdit(category)}
+                                            >
+                                                <Edit className="h-3 w-3" />
+                                            </Button>
+                                        )}
+                                        {hasPermission('category.delete') && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => handleDeleteClick(category)}
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        )}
                                     </div>
 
                                     {/* Subcategories */}

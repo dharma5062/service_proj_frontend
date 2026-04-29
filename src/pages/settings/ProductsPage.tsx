@@ -17,7 +17,7 @@ import { Product, useProductsApi } from '@/pages/serviceAPI/ProductsAPI';
 
 const ProductsPage = () => {
     const navigate = useNavigate();
-    const { shopId } = useAuth();
+    const { shopId, hasPermission } = useAuth();
     const { useGetProducts, useDeleteProduct } = useProductsApi();
     const { data: products = [], isLoading: loading } = useGetProducts();
     const deleteProductMutation = useDeleteProduct();
@@ -155,7 +155,7 @@ const ProductsPage = () => {
                     <img
                         src={value}
                         alt="Product"
-                        className="w-10 h-10 object-cover rounded-md border border-gray-200"
+                        className="w-10 h-10 object-cover rounded-md border border-gray-100 shadow-sm"
                     />
                 ) : (
                     <div className="w-10 h-10 bg-gradient-to-br from-gray-50 to-gray-100 rounded-md flex items-center justify-center border border-gray-200">
@@ -168,24 +168,20 @@ const ProductsPage = () => {
         },
         {
             key: 'name',
-            title: 'Name',
+            title: 'Product Name',
             dataIndex: 'name',
             sortable: true,
             filterable: true,
-            render: (value) => <span className="text-xs font-semibold text-gray-900">{value}</span>,
-        },
-        {
-            key: 'description',
-            title: 'Description',
-            dataIndex: 'description',
-            render: (value) => {
-                const text = getDescriptionText(value);
-                return (
-                    <span className="text-xs text-gray-500 line-clamp-2 max-w-[140px] inline-block">
-                        {text || '-'}
+            render: (value, record) => (
+                <div className="flex flex-col">
+                    <span className="text-xs font-bold text-gray-900 leading-tight">
+                        {value.charAt(0).toUpperCase() + value.slice(1)}
                     </span>
-                );
-            },
+                    <span className="text-[10px] text-gray-500 font-medium mt-0.5 line-clamp-1 max-w-[150px]">
+                        {getDescriptionText(record.description) || 'No description'}
+                    </span>
+                </div>
+            ),
         },
         {
             key: 'cost_price',
@@ -195,7 +191,7 @@ const ProductsPage = () => {
                 const costPrice = getCostPrice(value);
                 if (costPrice === null) return <span className="text-xs text-gray-400">-</span>;
                 return (
-                    <span className="text-xs font-semibold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    <span className="text-xs font-bold text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-100 whitespace-nowrap">
                         ₹{Number(costPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 );
@@ -209,7 +205,7 @@ const ProductsPage = () => {
             filterable: true,
             render: (value) => (
                 value ? (
-                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    <span className="text-xs font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100 whitespace-nowrap">
                         ₹{Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 ) : <span className="text-xs text-gray-400">-</span>
@@ -227,24 +223,40 @@ const ProductsPage = () => {
                 // Build hierarchy path if parent exists
                 const hierarchy: string[] = [];
                 if (value.parent) {
-                    // Check if there's a grandparent
                     if (value.parent.parent) {
                         hierarchy.push(value.parent.parent.name);
                     }
                     hierarchy.push(value.parent.name);
                 }
-                hierarchy.push(value.name);
+                const currentName = value.name.charAt(0).toUpperCase() + value.name.slice(1);
 
                 return (
-                    <span className="text-xs text-gray-600">
-                        {hierarchy.join(' → ')}
-                    </span>
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-800">{currentName}</span>
+                        {hierarchy.length > 0 && (
+                            <span className="text-[10px] text-gray-400 font-medium">
+                                {hierarchy.join(' → ')}
+                            </span>
+                        )}
+                    </div>
                 );
             },
         },
         {
+            key: 'brand',
+            title: 'Brand',
+            dataIndex: 'brand',
+            sortable: true,
+            filterable: true,
+            render: (value) => (
+                <span className="text-xs font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100">
+                    {value?.name.charAt(0).toUpperCase() + value?.name.slice(1) || '-'}
+                </span>
+            ),
+        },
+        {
             key: 'tax',
-            title: 'Tax',
+            title: 'Tax Rate',
             dataIndex: 'id',
             render: (_value, record) => {
                 const taxInfo = record ? getTaxInfo(record) : null;
@@ -252,10 +264,10 @@ const ProductsPage = () => {
                     return <span className="text-xs text-gray-400">-</span>;
                 }
                 return (
-                    <div className="text-xs whitespace-nowrap">
-                        <span className="font-medium text-gray-700">{taxInfo.tax_name || 'Tax'}</span>
-                        <span className="text-gray-500 ml-0.5">
-                            ({taxInfo.tax_percentage}% {taxInfo.tax_type === 'inclusive' ? 'Incl.' : 'Excl.'})
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-800">{taxInfo.tax_name || 'GST'}</span>
+                        <span className="text-[10px] font-semibold text-gray-500">
+                            {taxInfo.tax_percentage}% {taxInfo.tax_type === 'inclusive' ? '(Incl.)' : '(Excl.)'}
                         </span>
                     </div>
                 );
@@ -263,7 +275,7 @@ const ProductsPage = () => {
         },
         {
             key: 'total_price',
-            title: 'Total Price',
+            title: 'Total Amount',
             dataIndex: 'id',
             render: (_value, record) => {
                 if (!record || !record.price) return <span className="text-xs text-gray-400">-</span>;
@@ -278,23 +290,11 @@ const ProductsPage = () => {
                     }
                 }
                 return (
-                    <span className="text-xs font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded-full border border-green-100 whitespace-nowrap shadow-sm">
                         ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 );
             },
-        },
-        {
-            key: 'brand',
-            title: 'Brand',
-            dataIndex: 'brand',
-            sortable: true,
-            filterable: true,
-            render: (value) => (
-                <span className="text-xs text-gray-600 font-medium">
-                    {value?.name || '-'}
-                </span>
-            ),
         },
     ];
 
@@ -347,12 +347,12 @@ const ProductsPage = () => {
                 title="Product List"
                 searchable={true}
                 showActions={true}
-                showAdd={true}
+                showAdd={hasPermission('product.create')}
                 showExport={true}
-                onAdd={handleAddNew}
+                onAdd={hasPermission('product.create') ? handleAddNew : undefined}
                 onView={handleView}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
+                onEdit={hasPermission('product.update') ? handleEdit : undefined}
+                onDelete={hasPermission('product.delete') ? handleDeleteClick : undefined}
                 pagination={{
                     current: currentPage,
                     pageSize: pageSize,

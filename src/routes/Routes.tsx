@@ -28,6 +28,8 @@ import ProductsPage from '@/pages/settings/ProductsPage';
 import CreateProductPage from '@/pages/settings/CreateProductPage';
 import ViewProductPage from '@/pages/settings/ViewProductPage';
 import ServiceChargesPage from '@/pages/settings/ServiceChargesPage';
+import RolesPermissionsPage from '@/pages/settings/RolesPermissionsPage';
+import CreateRolePage from '@/pages/settings/CreateRolePage';
 // import ShopsPage from '@/pages/settings/ShopsPage';
 import PrivateRoute from '@/components/routes/PrivateRoute';
 import PublicRoute from '@/components/routes/PublicRoute';
@@ -72,6 +74,9 @@ const RouterComponent: React.FC = () => {
                     <Route path='settings/product/edit/:id' element={<CreateProductPage />} />
                     <Route path='settings/product/view/:id' element={<ViewProductPage />} />
                     <Route path='settings/service-charges' element={<ServiceChargesPage />} />
+                    <Route path='settings/roles' element={<RolesPermissionsPage />} />
+                    <Route path='settings/roles/create' element={<CreateRolePage />} />
+                    <Route path='settings/roles/edit/:id' element={<CreateRolePage />} />
                     {/* <Route path='settings/shop' element={<ShopsPage />} /> */}
                     {/* Add other routes as they are created */}
                 </Route>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,6 +25,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useShopEmployeesApi, ShopEmployee, ShopEmployeePayload } from '@/pages/serviceAPI/ShopEmployeesAPI';
+import { useAuth } from '@/AuthContext';
+import { useRolesPermissionsApi } from '@/pages/serviceAPI/RolesPermissionsAPI';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Performance interface used in dashboard/reporting
 interface Performance {
@@ -58,6 +61,8 @@ const StaffPage = () => {
     const [pageSize, setPageSize] = useState(10);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [customRoleName, setCustomRoleName] = useState('');
+    const [editCustomRoleName, setEditCustomRoleName] = useState('');
 
     // Form state for new employee
     const [newEmployee, setNewEmployee] = useState<ShopEmployeePayload>({
@@ -65,9 +70,14 @@ const StaffPage = () => {
         email: '',
         phone: '',
         password: '',
-        role: 'Technician',
+        role: '',
         address: '',
     });
+
+    const { axiosInstance, shopId, hasPermission } = useAuth();
+    const queryClient = useQueryClient();
+    const { useGetRoles } = useRolesPermissionsApi();
+    const { data: rolesList = [] } = useGetRoles();
 
     const { 
         useGetShopEmployees, 
@@ -84,7 +94,7 @@ const StaffPage = () => {
         name: '',
         email: '',
         phone: '',
-        role: 'Technician',
+        role: '',
         address: '',
     });
 
@@ -161,7 +171,9 @@ const StaffPage = () => {
                             {record.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
-                    <span className="text-xs font-semibold text-gray-900">{value}</span>
+                    <span className="text-xs font-bold text-gray-900">
+                        {value ? value.charAt(0).toUpperCase() + value.slice(1) : '-'}
+                    </span>
                 </div>
             ),
         },
@@ -173,8 +185,8 @@ const StaffPage = () => {
             filterable: true,
             render: (value, record) => (
                 <div className="flex flex-col">
-                    <span className="text-gray-900 font-semibold text-xs">{value}</span>
-                    <span className="text-gray-500 text-[10px]">{record.phone}</span>
+                    <span className="text-gray-900 font-bold text-xs">{value}</span>
+                    <span className="text-gray-500 font-medium text-[10px]">{record.phone}</span>
                 </div>
             ),
         },
@@ -184,27 +196,15 @@ const StaffPage = () => {
             dataIndex: 'role',
             sortable: true,
             filterable: true,
-            render: (value) => <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded capitalize">{value}</span>,
-        },
-        {
-            key: 'status',
-            title: 'Status',
-            dataIndex: 'status',
-            sortable: true,
-            filterable: true,
-            render: (value) => (
-                <Badge
-                    variant="secondary"
-                    className={cn(
-                        "text-[10px] px-1.5 py-0 font-medium",
-                        value === 'Active'
-                            ? 'bg-green-100 text-green-700 hover:bg-green-100'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
-                    )}
-                >
-                    {value || 'Active'}
-                </Badge>
-            ),
+            render: (value) => {
+                const matched = rolesList.find(r => r.id.toString() === value?.toString());
+                const displayName = matched ? matched.name : (value || '—');
+                return (
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 capitalize">
+                        {displayName}
+                    </span>
+                );
+            },
         },
     ];
 
@@ -341,11 +341,58 @@ const StaffPage = () => {
         setIsAddModalOpen(true);
     };
 
-    const handleCreateEmployee = async (e: React.FormEvent) => {
+    const handleCreateEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSubmitting(true);
         try {
-            await createEmployeeMutation.mutateAsync(newEmployee);
+            let finalRoleId = newEmployee.role;
+
+            // Handle custom role creation
+            if (newEmployee.role === 'other') {
+                if (!customRoleName.trim()) {
+                    toast.error('Please enter a custom role name');
+                    setIsSubmitting(false);
+                    return;
+                }
+                let fallbackPermId = 1;
+                try {
+                    const permsRes = await axiosInstance.get('/permissions');
+                    const permsData = permsRes.data?.data || permsRes.data;
+                    if (permsData && typeof permsData === 'object') {
+                        const firstModule = Object.values(permsData)[0] as any[];
+                        if (firstModule && firstModule.length > 0) {
+                            fallbackPermId = firstModule[0].id;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch fallback permission", e);
+                }
+
+                const roleRes = await axiosInstance.post('/roles-store', {
+                    shop_id: shopId,
+                    name: customRoleName,
+                    permissions: [fallbackPermId]
+                });
+                const createdRole = roleRes.data?.data || roleRes.data;
+                finalRoleId = createdRole.id.toString();
+                // Invalidate roles cache so React Query re-fetches fresh list
+                queryClient.invalidateQueries({ queryKey: ['roles'] });
+            }
+
+            const payload = { ...newEmployee, role: finalRoleId };
+            const res = await createEmployeeMutation.mutateAsync(payload);
+            
+            // Extract created user id. Backend likely returns it in res.data?.id or res.id
+            const newUserId = res.data?.id || (res as any).id;
+            
+            // If they picked a numeric custom role id
+            if (newUserId && !isNaN(Number(finalRoleId))) {
+                await axiosInstance.post('/roles-assign', {
+                    user_id: newUserId,
+                    role_id: Number(finalRoleId)
+                });
+            }
+
             toast.success('Staff member added successfully');
             setIsAddModalOpen(false);
             setNewEmployee({
@@ -353,9 +400,10 @@ const StaffPage = () => {
                 email: '',
                 phone: '',
                 password: '',
-                role: 'Technician',
+                role: '',
                 address: '',
             });
+            setCustomRoleName('');
         } catch (error: any) {
             toast.error(error.message || 'Failed to add staff member');
         } finally {
@@ -370,28 +418,81 @@ const StaffPage = () => {
 
     const handleEditStaff = (record: ShopEmployee) => {
         setSelectedEmployee(record);
+        
+        // Find the role ID from the name to populate the select input correctly
+        const matchedRole = rolesList.find(r => r.name === record.role || r.id.toString() === record.role?.toString());
+
         setEditForm({
             name: record.name,
             email: record.email,
             phone: record.phone,
-            role: record.role,
+            role: matchedRole ? matchedRole.id.toString() : (record.role || ''),
             address: record.address || '',
         });
         setIsEditModalOpen(true);
     };
 
-    const handleUpdateEmployee = async (e: React.FormEvent) => {
+    const handleUpdateEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!selectedEmployee) return;
         
         setIsSubmitting(true);
         try {
+            let finalRoleId = editForm.role;
+
+            // Handle custom role creation in edit modal
+            if (editForm.role === 'other') {
+                if (!editCustomRoleName.trim()) {
+                    toast.error('Please enter a custom role name');
+                    setIsSubmitting(false);
+                    return;
+                }
+                let fallbackPermId = 1;
+                try {
+                    const permsRes = await axiosInstance.get('/permissions');
+                    const permsData = permsRes.data?.data || permsRes.data;
+                    if (permsData && typeof permsData === 'object') {
+                        const firstModule = Object.values(permsData)[0] as any[];
+                        if (firstModule && firstModule.length > 0) {
+                            fallbackPermId = firstModule[0].id;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch fallback permission", e);
+                }
+
+                const roleRes = await axiosInstance.post('/roles-store', {
+                    shop_id: shopId,
+                    name: editCustomRoleName,
+                    permissions: [fallbackPermId]
+                });
+                const createdRole = roleRes.data?.data || roleRes.data;
+                finalRoleId = createdRole.id.toString();
+                // Invalidate roles cache so React Query re-fetches fresh list
+                queryClient.invalidateQueries({ queryKey: ['roles'] });
+            }
+
+            const payload = { ...editForm, role: finalRoleId };
             await updateEmployeeMutation.mutateAsync({ 
                 id: selectedEmployee.id, 
-                payload: editForm 
+                payload 
             });
+
+            // Assign role
+            if (!isNaN(Number(finalRoleId))) {
+                try {
+                    await axiosInstance.post('/roles-assign', {
+                        user_id: selectedEmployee.id,
+                        role_id: Number(finalRoleId)
+                    });
+                } catch (rErr) {
+                    console.error("Role assignment failed", rErr);
+                }
+            }
+
             toast.success('Staff member updated successfully');
             setIsEditModalOpen(false);
+            setEditCustomRoleName('');
         } catch (error: any) {
             toast.error(error.message || 'Failed to update staff member');
         } finally {
@@ -455,12 +556,12 @@ const StaffPage = () => {
                         searchable={true}
                         rowSelection={false}
                         showActions={true}
-                        showAdd={true}
+                        showAdd={hasPermission('employee.create')}
                         showExport={true}
-                        onAdd={handleAddStaff}
+                        onAdd={hasPermission('employee.create') ? handleAddStaff : undefined}
                         onView={handleViewStaff}
-                        onEdit={handleEditStaff}
-                        onDelete={handleDeleteStaff}
+                        onEdit={hasPermission('employee.update') ? handleEditStaff : undefined}
+                        onDelete={hasPermission('employee.delete') ? handleDeleteStaff : undefined}
                         loading={isLoading}
                         pagination={{
                             current: currentPage,
@@ -642,13 +743,21 @@ const StaffPage = () => {
                                         <SelectValue placeholder="Select role" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Admin">Admin</SelectItem>
-                                        <SelectItem value="Technician">Technician</SelectItem>
-                                        <SelectItem value="Lead Technician">Lead Technician</SelectItem>
-                                        <SelectItem value="Junior Mechanic">Junior Mechanic</SelectItem>
-                                        <SelectItem value="Front Desk">Front Desk</SelectItem>
+                                        {rolesList.map(r => (
+                                            <SelectItem key={r.id} value={r.id.toString()}>{r.name}</SelectItem>
+                                        ))}
+                                        <SelectItem value="other">Other (Manual)</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {newEmployee.role === 'other' && (
+                                    <Input
+                                        className="mt-2"
+                                        placeholder="Enter custom role name"
+                                        value={customRoleName}
+                                        onChange={(e) => setCustomRoleName(e.target.value)}
+                                        required
+                                    />
+                                )}
                             </div>
                         </div>
                         <div className="space-y-2">
@@ -700,7 +809,10 @@ const StaffPage = () => {
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900">{selectedEmployee.name}</h3>
                                     <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 mt-1">
-                                        {selectedEmployee.role}
+                                        {(() => {
+                                            const matched = rolesList.find(r => r.id.toString() === selectedEmployee.role?.toString());
+                                            return matched ? matched.name : (selectedEmployee.role || 'No Role');
+                                        })()}
                                     </Badge>
                                 </div>
                             </div>
@@ -819,13 +931,21 @@ const StaffPage = () => {
                                         <SelectValue placeholder="Select role" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Admin">Admin</SelectItem>
-                                        <SelectItem value="Technician">Technician</SelectItem>
-                                        <SelectItem value="Lead Technician">Lead Technician</SelectItem>
-                                        <SelectItem value="Junior Mechanic">Junior Mechanic</SelectItem>
-                                        <SelectItem value="Front Desk">Front Desk</SelectItem>
+                                        {rolesList.map(r => (
+                                            <SelectItem key={r.id} value={r.id.toString()}>{r.name}</SelectItem>
+                                        ))}
+                                        <SelectItem value="other">Other (Manual)</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {editForm.role === 'other' && (
+                                    <Input
+                                        className="mt-2"
+                                        placeholder="Enter custom role name"
+                                        value={editCustomRoleName}
+                                        onChange={(e) => setEditCustomRoleName(e.target.value)}
+                                        required
+                                    />
+                                )}
                             </div>
                         </div>
                         <div className="space-y-2">

@@ -32,7 +32,7 @@ import {
 import { Type, ChevronDown, ToggleLeft, CheckSquare, AlignLeft, Calendar, Camera, Lock } from 'lucide-react';
 const ShopCategoryFormsPage = () => {
     const navigate = useNavigate();
-    const { shopId } = useAuth();
+    const { shopId, hasPermission } = useAuth();
     const { useGetCategoryForms, useDeleteCategoryForm } = useShopCategoryFormsApi();
     const { data: categoryForms = [], isLoading: loading } = useGetCategoryForms();
     const deleteCategoryFormMutation = useDeleteCategoryForm();
@@ -48,31 +48,32 @@ const ShopCategoryFormsPage = () => {
     const [viewDialogOpen, setViewDialogOpen] = useState(false);
     const [selectedForm, setSelectedForm] = useState<CategoryForm | null>(null);
 
-
-
     const columns: Column<CategoryForm>[] = [
         {
             key: 'name',
-            title: 'Name',
+            title: 'Form Name',
             dataIndex: 'name',
             sortable: true,
             filterable: true,
-            render: (value) => <span className="font-medium text-gray-900">{value}</span>,
+            render: (value) => (
+                <span className="text-xs font-bold text-gray-900 leading-tight">
+                    {value ? value.charAt(0).toUpperCase() + value.slice(1) : '-'}
+                </span>
+            ),
         },
-        // Category Type column removed as per request
         {
             key: 'description',
             title: 'Description',
             dataIndex: 'description',
             render: (value) => {
-                if (!value) return <span className="text-sm text-gray-600">-</span>;
+                if (!value) return <span className="text-[10px] text-gray-500 font-medium">-</span>;
 
                 // Check if it's JSON form data
                 if (isJsonFormData(value)) {
                     const formData = deserializeDefectFormData(value);
                     if (formData) {
                         return (
-                            <span className="text-sm text-gray-600">
+                            <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
                                 Defect Form ({formData.fields.length} fields)
                             </span>
                         );
@@ -80,9 +81,10 @@ const ShopCategoryFormsPage = () => {
                 }
 
                 // Render as plain text
+                const text = typeof value === 'string' ? value : '-';
                 return (
-                    <span className="text-sm text-gray-600 line-clamp-2">
-                        {typeof value === 'string' ? value : '-'}
+                    <span className="text-[10px] text-gray-500 font-medium line-clamp-2 max-w-[250px]">
+                        {text !== '-' ? text.charAt(0).toUpperCase() + text.slice(1) : text}
                     </span>
                 );
             },
@@ -96,18 +98,15 @@ const ShopCategoryFormsPage = () => {
             render: (value: any, record: CategoryForm) => {
                 // Try the categories array first (many-to-many)
                 if (Array.isArray(value) && value.length > 0) {
-                    // Filter: Only show "leaf" categories (those that are not parents of any other selected category)
-                    const leafCategories = value.filter(cat => 
+                    const leafCategories = value.filter(cat =>
                         !value.some(otherCat => otherCat.parent_id === cat.id)
                     );
-
-                    // If for some reason all were parents (unlikely but safe fallback), show all
                     const displayCategories = leafCategories.length > 0 ? leafCategories : value;
 
                     return (
                         <div className="flex flex-wrap gap-1">
                             {displayCategories.map((cat: any) => (
-                                <Badge key={cat.id} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                <Badge key={cat.id} variant="outline" className="text-[10px] font-bold bg-blue-50 text-blue-700 border-blue-200 px-1.5 py-0 shadow-sm">
                                     {cat.name}
                                 </Badge>
                             ))}
@@ -117,29 +116,13 @@ const ShopCategoryFormsPage = () => {
                 // Fallback to legacy single category object
                 if (record.category?.name) {
                     return (
-                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                        <Badge variant="outline" className="text-[10px] font-bold bg-blue-50 text-blue-700 border-blue-200 px-1.5 py-0 shadow-sm">
                             {record.category.name}
                         </Badge>
                     );
                 }
-                return <span className="text-sm text-gray-600">-</span>;
+                return <span className="text-[10px] text-gray-500 font-medium">-</span>;
             },
-        },
-        {
-            key: 'active',
-            title: 'Status',
-            dataIndex: 'active',
-            sortable: true,
-            filterable: true,
-            filterOptions: [
-                { label: 'Active', value: '1' },
-                { label: 'Inactive', value: '0' },
-            ],
-            render: (value) => (
-                <Badge className={value ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}>
-                    {value ? 'Active' : 'Inactive'}
-                </Badge>
-            ),
         },
     ];
 
@@ -212,12 +195,12 @@ const ShopCategoryFormsPage = () => {
                 title="Defect Form Builders List"
                 searchable={true}
                 showActions={true}
-                showAdd={true}
+                showAdd={hasPermission('form.create')}
                 showExport={true}
-                onAdd={handleAddNew}
+                onAdd={hasPermission('form.create') ? handleAddNew : undefined}
                 onView={handleView}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
+                onEdit={hasPermission('form.update') ? handleEdit : undefined}
+                onDelete={hasPermission('form.delete') ? handleDeleteClick : undefined}
                 pagination={{
                     current: currentPage,
                     pageSize: pageSize,
@@ -268,11 +251,11 @@ const ShopCategoryFormsPage = () => {
                                                 <p className="text-xs text-gray-500">Categories</p>
                                                 <div className="flex flex-wrap gap-1 mt-1">
                                                     {(() => {
-                                                        const leafCats = selectedForm.categories.filter(cat => 
+                                                        const leafCats = selectedForm.categories.filter(cat =>
                                                             !selectedForm.categories!.some(otherCat => otherCat.parent_id === cat.id)
                                                         );
                                                         const displayCats = leafCats.length > 0 ? leafCats : selectedForm.categories;
-                                                        
+
                                                         return displayCats.map((cat) => (
                                                             <Badge key={cat.id} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                                                                 {cat.name}

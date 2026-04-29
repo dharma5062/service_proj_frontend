@@ -63,28 +63,41 @@ const Sidebar = () => {
     const [settingsOpen, setSettingsOpen] = useState(true);
 
     // ── Auth context ──────────────────────────────────────────────────────────
-    const { user, shop, shops, setShop, logout } = useAuth();
+    const { user, shop, shops, setShop, logout, hasPermission, isSuperAdmin, isShopOwner } = useAuth();
 
     const displayName = shop?.name || user?.name || 'My Shop';
     const displayEmail = user?.email || '';
     const displayInitials = getInitials(shop?.name || user?.name);
 
     const navItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-        { icon: Store, label: 'Services', path: '/dashboard/services' },
-        { icon: Users, label: 'Staff', path: '/dashboard/staff' },
-        { icon: BarChart3, label: 'Reporting', path: '/dashboard/reporting' },
-        { icon: Tag, label: 'Promotions', path: '/dashboard/promotions' },
+        { icon: LayoutDashboard, label: 'Dashboard',  path: '/dashboard',             reqPerm: null },
+        { icon: Store,           label: 'Services',   path: '/dashboard/services',    reqPerm: 'service.view' },
+        { icon: Users,           label: 'Staff',      path: '/dashboard/staff',       reqPerm: 'employee.view' },
+        // Reporting & Promotions are owner/admin level; employees need no special permission guard here
+        // but we restrict them to sa/so only via the isAdminOrOwner flag
+        { icon: BarChart3,       label: 'Reporting',  path: '/dashboard/reporting',   reqPerm: null, adminOnly: true },
+        { icon: Tag,             label: 'Promotions', path: '/dashboard/promotions',  reqPerm: null, adminOnly: true },
     ];
 
     const settingsItems = [
-        { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories' },
-        { icon: FileEdit, label: 'Defect Form Builder', path: '/dashboard/settings/category-form' },
-        { icon: Package, label: 'Brand', path: '/dashboard/settings/brand' },
-        { icon: ShoppingBag, label: 'Product', path: '/dashboard/settings/product' },
-        { icon: IndianRupee, label: 'Service Charges', path: '/dashboard/settings/service-charges' },
-        // { icon: Store, label: 'Shop', path: '/dashboard/settings/shop' },
+        { icon: FolderTree,    label: 'Categories',       path: '/dashboard/settings/categories',     reqPerm: 'category.view' },
+        { icon: FileEdit,      label: 'Defect Form',      path: '/dashboard/settings/category-form',  reqPerm: null, adminOnly: true },
+        { icon: Package,       label: 'Brand',            path: '/dashboard/settings/brand',          reqPerm: 'brand.view' },
+        { icon: ShoppingBag,   label: 'Product',          path: '/dashboard/settings/product',        reqPerm: 'product.view' },
+        { icon: IndianRupee,   label: 'Service Charges',  path: '/dashboard/settings/service-charges', reqPerm: 'service_charge.view' },
+        { icon: Users,         label: 'Roles & Privileges', path: '/dashboard/settings/roles',        reqPerm: 'role.view' },
     ];
+
+    // Determines if a nav/settings item should be visible for the current user
+    const isItemVisible = (item: { reqPerm: string | null; adminOnly?: boolean }) => {
+        // adminOnly items are only shown to sa / so
+        if (item.adminOnly && !isSuperAdmin && !isShopOwner) return false;
+        // reqPerm: null means always visible (already passed adminOnly check)
+        if (!item.reqPerm) return true;
+        return hasPermission(item.reqPerm);
+    };
+
+    const visibleSettingsItems = settingsItems.filter(isItemVisible);
 
     const isActive = (path: string) => location.pathname === path;
 
@@ -138,22 +151,24 @@ const Sidebar = () => {
                     </SidebarMenuItem>
 
                     {/* Create Shop minimal button */}
-                    <SidebarMenuItem className="mt-1">
-                        <SidebarMenuButton 
-                            onClick={() => navigate('/onboarding/shop')}
-                            className="text-primary hover:text-primary hover:bg-primary/10 font-medium cursor-pointer"
-                        >
-                            <Plus className="size-4" />
-                            <span>Create Shop</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    {(isSuperAdmin || isShopOwner) && (
+                        <SidebarMenuItem className="mt-1">
+                            <SidebarMenuButton 
+                                onClick={() => navigate('/onboarding/shop')}
+                                className="text-primary hover:text-primary hover:bg-primary/10 font-medium cursor-pointer"
+                            >
+                                <Plus className="size-4" />
+                                <span>Create Shop</span>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
                 </SidebarMenu>
             </SidebarHeader>
 
             {/* Navigation Content */}
             <SidebarContent>
                 <SidebarMenu>
-                    {navItems.map((item) => (
+                    {navItems.filter(isItemVisible).map((item) => (
                         <SidebarMenuItem key={item.path}>
                             <SidebarMenuButton
                                 asChild
@@ -168,39 +183,41 @@ const Sidebar = () => {
                         </SidebarMenuItem>
                     ))}
 
-                    {/* Settings Dropdown */}
-                    <Collapsible
-                        open={settingsOpen}
-                        onOpenChange={setSettingsOpen}
-                        className="group/collapsible"
-                    >
-                        <SidebarMenuItem>
-                            <CollapsibleTrigger asChild>
-                                <SidebarMenuButton tooltip="Settings">
-                                    <Settings />
-                                    <span>Settings</span>
-                                    <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
-                                </SidebarMenuButton>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                                <SidebarMenuSub>
-                                    {settingsItems.map((item) => (
-                                        <SidebarMenuSubItem key={item.path}>
-                                            <SidebarMenuSubButton
-                                                asChild
-                                                isActive={isActive(item.path)}
-                                            >
-                                                <Link to={item.path}>
-                                                    <item.icon />
-                                                    <span>{item.label}</span>
-                                                </Link>
-                                            </SidebarMenuSubButton>
-                                        </SidebarMenuSubItem>
-                                    ))}
-                                </SidebarMenuSub>
-                            </CollapsibleContent>
-                        </SidebarMenuItem>
-                    </Collapsible>
+                    {/* Settings Dropdown — only shown when the user has at least one visible settings item */}
+                    {visibleSettingsItems.length > 0 && (
+                        <Collapsible
+                            open={settingsOpen}
+                            onOpenChange={setSettingsOpen}
+                            className="group/collapsible"
+                        >
+                            <SidebarMenuItem>
+                                <CollapsibleTrigger asChild>
+                                    <SidebarMenuButton tooltip="Settings">
+                                        <Settings />
+                                        <span>Settings</span>
+                                        <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+                                    </SidebarMenuButton>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <SidebarMenuSub>
+                                        {visibleSettingsItems.map((item) => (
+                                            <SidebarMenuSubItem key={item.path}>
+                                                <SidebarMenuSubButton
+                                                    asChild
+                                                    isActive={isActive(item.path)}
+                                                >
+                                                    <Link to={item.path}>
+                                                        <item.icon />
+                                                        <span>{item.label}</span>
+                                                    </Link>
+                                                </SidebarMenuSubButton>
+                                            </SidebarMenuSubItem>
+                                        ))}
+                                    </SidebarMenuSub>
+                                </CollapsibleContent>
+                            </SidebarMenuItem>
+                        </Collapsible>
+                    )}
                 </SidebarMenu>
             </SidebarContent>
 

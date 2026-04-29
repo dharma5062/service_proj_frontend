@@ -10,6 +10,9 @@ export interface User {
     email: string;
     user_type: 'sa' | 'so' | 'se' | 'us' | 'cu';
     is_first_login?: boolean;
+    // Backend returns flat array of permission name strings for 'se',
+    // or ['*'] for 'sa'/'so' as a wildcard indicator.
+    permissions?: string[];
 }
 
 export interface Shop {
@@ -98,6 +101,7 @@ interface AuthContextType {
     isShopOwner: boolean;
     isShopEmployee: boolean;
     isUser: boolean;
+    hasPermission: (permission: string) => boolean;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -133,6 +137,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const isShopOwner = useMemo(() => user?.user_type === 'so', [user?.user_type]);
     const isShopEmployee = useMemo(() => user?.user_type === 'se', [user?.user_type]);
     const isUser = useMemo(() => user?.user_type === 'us', [user?.user_type]);
+
+    const hasPermission = useCallback(
+        (permission: string) => {
+            if (!user) return false;
+            // Super Admin and Shop Owner have unrestricted access
+            if (user.user_type === 'sa' || user.user_type === 'so') {
+                return true;
+            }
+            // Safety net: backend may return ['*'] as a wildcard
+            if (user.permissions?.includes('*')) return true;
+            // For Shop Employees, check their flat permissions array
+            return user.permissions ? user.permissions.includes(permission) : false;
+        },
+        [user]
+    );
 
     // ── Computed shopId ───────────────────────────────────────────────────────
     const shopId = useMemo(() => shop?.id ?? null, [shop]);
@@ -330,6 +349,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 isShopOwner,
                 isShopEmployee,
                 isUser,
+                hasPermission,
             }}
         >
             {children}

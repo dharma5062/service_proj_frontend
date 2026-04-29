@@ -87,7 +87,7 @@ const DashboardLayout = () => {
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => navigate('/dashboard/settings/categories')}>
+                                <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                                     <svg
                                         className="mr-2 h-4 w-4"
                                         fill="none"

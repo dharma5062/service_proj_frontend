@@ -538,11 +538,19 @@ const CreateServiceRequest = () => {
         if (sr.data) {
             const data = typeof sr.data === 'string' ? JSON.parse(sr.data) : sr.data;
             if (data.defectFormValues) setDefectFormValues(data.defectFormValues);
-            if (data.tags) setTags(data.tags);
+            if (data.tags) setTags(data.tags || '');
             if (data.parts && Array.isArray(data.parts)) setParts(data.parts);
             if (data.images && Array.isArray(data.images) && data.images.length > 0) {
                 setUploadedImages(data.images);
             }
+
+            // Load service charges and GST info
+            if (data.selectedServiceCharges && Array.isArray(data.selectedServiceCharges)) {
+                setSelectedServiceCharges(data.selectedServiceCharges);
+            }
+            if (data.serviceDiscount !== undefined) setServiceDiscount(Number(data.serviceDiscount));
+            if (data.gstType) setGstType(data.gstType);
+            if (data.gstPercentage !== undefined) setGstPercentage(Number(data.gstPercentage));
         }
 
         if (sr.service_details) {
@@ -868,7 +876,7 @@ const CreateServiceRequest = () => {
             if (isEditMode && id) {
                 await updateServiceRequestMutation.mutateAsync({ id, payload });
                 toast.success('Service request updated successfully');
-                navigate(`/dashboard/services/view/${id}`);
+                navigate(`/dashboard/services/assign-technician/${id}`);
             } else {
                 const response = await createServiceRequestMutation.mutateAsync(payload);
                 toast.success('Service request created successfully');

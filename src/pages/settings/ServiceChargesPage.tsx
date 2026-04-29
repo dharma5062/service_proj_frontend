@@ -40,7 +40,7 @@ interface ServiceChargeFormData {
 }
 
 const ServiceChargesPage = () => {
-    const { shopId, user } = useAuth();
+    const { shopId, user, hasPermission } = useAuth();
     const { 
         useGetServiceCharges, 
         useCreateServiceCharge, 
@@ -87,7 +87,9 @@ const ServiceChargesPage = () => {
             sortable: true,
             filterable: true,
             render: (value) => (
-                <span className="font-medium text-gray-900">{value}</span>
+                <span className="text-xs font-bold text-gray-900 leading-tight">
+                    {value ? value.charAt(0).toUpperCase() + value.slice(1) : '-'}
+                </span>
             ),
         },
         {
@@ -95,19 +97,21 @@ const ServiceChargesPage = () => {
             title: 'Description',
             dataIndex: 'description',
             render: (value) => (
-                <span className="text-gray-500 text-sm line-clamp-1">{value || '-'}</span>
+                <span className="text-[10px] text-gray-500 font-medium line-clamp-1 max-w-[300px]">
+                    {value ? value.charAt(0).toUpperCase() + value.slice(1) : 'No description provided'}
+                </span>
             ),
         },
         {
             key: 'amount',
-            title: 'Amount',
+            title: 'Charge Amount',
             dataIndex: 'amount',
             sortable: true,
             render: (value) => (
-                <div className="flex items-center font-medium text-gray-900">
-                    <IndianRupee className="w-3 h-3 mr-0.5 mt-0.5 text-gray-400" />
+                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 whitespace-nowrap shadow-sm inline-flex items-center">
+                    <IndianRupee className="w-3 h-3 mr-0.5" />
                     {Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
+                </span>
             ),
         },
     ];
@@ -237,12 +241,12 @@ const ServiceChargesPage = () => {
                 title="Service Charges List"
                 searchable={true}
                 showActions={true}
-                showAdd={true}
+                showAdd={hasPermission('service_charge.create')}
                 showExport={true}
-                onAdd={handleAddNew}
+                onAdd={hasPermission('service_charge.create') ? handleAddNew : undefined}
                 onView={handleView}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
+                onEdit={hasPermission('service_charge.update') ? handleEdit : undefined}
+                onDelete={hasPermission('service_charge.delete') ? handleDeleteClick : undefined}
                 pagination={{
                     current: currentPage,
                     pageSize: pageSize,

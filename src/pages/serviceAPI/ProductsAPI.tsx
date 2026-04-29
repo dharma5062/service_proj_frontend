@@ -58,6 +58,7 @@ export interface CreateProductPayload {
     tax_type?: 'inclusive' | 'exclusive' | string;
     active: boolean | number;
     image?: File | null;
+    remove_image?: boolean | number;
     category_id?: number | null;
     brand_id?: number | null;
 }
@@ -72,6 +73,7 @@ export interface UpdateProductPayload {
     tax_type?: 'inclusive' | 'exclusive' | string;
     active: boolean | number;
     image?: File | null;
+    remove_image?: boolean | number;
     category_id?: number | null;
     brand_id?: number | null;
 }
@@ -198,6 +200,10 @@ export const createProduct = async (
             formData.append('image', payload.image);
         }
 
+        if (payload.remove_image) {
+            formData.append('remove_image', '1');
+        }
+
         if (payload.category_id !== undefined && payload.category_id !== null) {
             formData.append('category_id', payload.category_id.toString());
         }
@@ -270,6 +276,10 @@ export const updateProduct = async (
 
         if (payload.image) {
             formData.append('image', payload.image);
+        }
+
+        if (payload.remove_image) {
+            formData.append('remove_image', '1');
         }
 
         if (payload.category_id !== undefined && payload.category_id !== null) {

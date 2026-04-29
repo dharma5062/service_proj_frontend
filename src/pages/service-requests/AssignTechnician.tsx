@@ -1,11 +1,10 @@
-import { useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
     useServiceRequestsApi,
 } from '@/pages/serviceAPI/ServiceRequestsAPI';
 import { useShopEmployeesApi } from '@/pages/serviceAPI/ShopEmployeesAPI';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
     Select,
     SelectContent,
@@ -15,13 +14,9 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
-    ArrowRight,
     CheckCircle2,
-    Clock,
     UserCheck,
-    ArrowLeft,
-    LayoutDashboard
-} from 'lucide-react';
+    ArrowLeft} from 'lucide-react';
 import { toast } from 'sonner';
 
 const AssignTechnician = () => {
@@ -40,14 +35,40 @@ const AssignTechnician = () => {
     const [selectedTechId, setSelectedTechId] = useState<string>('');
     const [description, setDescription] = useState<string>('');
 
-    // Filter employees to only show technicians or lead technicians
-    const technicians = employeesData?.data?.filter(emp => 
-        ['Technician', 'Lead Technician', 'Junior Mechanic'].includes(emp.role)
-    ) || [];
+    // ── Pre-fill existing assignment ─────────────────────────────────────────
+    useEffect(() => {
+        if (service?.assigned_technician) {
+            setSelectedTechId(service.assigned_technician.id.toString());
+        }
+        
+        if (service?.admin_note) {
+            try {
+                const parsed = JSON.parse(service.admin_note);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setDescription(parsed[0].internalNotes || '');
+                } else if (typeof parsed === 'object') {
+                    setDescription(parsed.internalNotes || '');
+                } else {
+                    setDescription(service.admin_note);
+                }
+            } catch {
+                setDescription(service.admin_note);
+            }
+        }
+    }, [service]);
+
+    // Allow all shop employees to be assigned, as roles are fully customizable
+    const technicians = employeesData?.data || [];
 
     const handleAssignTechnician = async () => {
         if (!selectedTechId || !numericId) {
             toast.error('Please select a technician');
+            return;
+        }
+
+        // If the technician is already assigned and hasn't changed, just navigate to the view page
+        if (service?.assigned_technician?.id?.toString() === selectedTechId) {
+            navigate('/dashboard/services');
             return;
         }
         
@@ -58,8 +79,8 @@ const AssignTechnician = () => {
                 admin_note: description
             });
             toast.success('Technician assigned successfully');
-            // After assignment, redirect to the View Request page to see the details properly
-            navigate(`/dashboard/services/view/${id}`);
+            // After assignment, redirect to the Service Requests list
+            navigate('/dashboard/services');
         } catch (error) {
             toast.error('Failed to assign technician');
         }
@@ -85,155 +106,154 @@ const AssignTechnician = () => {
     }
 
     return (
-        <div className="max-w-3xl mx-auto space-y-6 py-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Assign Technician</h1>
-                    <p className="text-sm text-gray-500">Service Request #{service.id}</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/services')} className="gap-2">
-                        <ArrowLeft className="h-4 w-4" />
-                        Back list
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/services/view/${id}`)} className="gap-2">
-                        View Request
-                    </Button>
+        <div className="p-0">
+            {/* Page Header */}
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => navigate('/dashboard/services')}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4 text-gray-600" />
+                    </button>
+                    <div>
+                        <h1 className="text-base font-bold text-gray-900 tracking-tight">Assign Technician</h1>
+                        <p className="text-xs text-blue-600 mt-0.5">Service Request SR{String(service.id).padStart(3, '0')}</p>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Request Summary Card */}
-                <Card className="md:col-span-1 h-fit">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-semibold">Request Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1">Customer</p>
-                            <p className="text-sm font-medium text-gray-900">{service.customer?.name || 'N/A'}</p>
-                            <p className="text-xs text-gray-500">{service.customer?.phone || ''}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* Left Column: Request Summary (1/3) */}
+                <div className="space-y-4">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Request Summary</h3>
                         </div>
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1">Device</p>
-                            <p className="text-sm font-medium text-gray-900">
-                                {(() => {
-                                    const brand = service.brand?.name || '';
-                                    const product = service.product?.name || '';
-                                    // If product already contains the brand name at the start, don't repeat it
-                                    if (product.toLowerCase().startsWith(brand.toLowerCase())) {
-                                        return product;
-                                    }
-                                    return `${brand} ${product}`;
-                                })()}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-1">Status</p>
-                            <div className="flex items-center gap-1.5 mt-1">
-                                {(() => {
-                                    const status = (service.service_status || 'pending').toLowerCase();
-                                    const isAssigned = status === 'assigned';
-                                    const isPending = status === 'pending';
-                                    
-                                    return (
-                                        <>
-                                            <Clock className={`h-3.5 w-3.5 ${isAssigned ? 'text-purple-500' : isPending ? 'text-yellow-500' : 'text-blue-500'}`} />
-                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${
-                                                isAssigned ? 'text-purple-700 bg-purple-50' : 
-                                                isPending ? 'text-yellow-700 bg-yellow-50' : 
-                                                'text-blue-700 bg-blue-50'
-                                            }`}>
-                                                {status.replace('_', ' ')}
+                        <div className="p-4 space-y-4">
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Customer</p>
+                                <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                                    <p className="text-sm font-semibold text-gray-900">{service.customer?.name || 'Walk-in'}</p>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">{service.customer?.phone || 'No phone'}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Device Info</p>
+                                <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        {(() => {
+                                            const brand = service.brand?.name || '';
+                                            const product = service.product?.name || '';
+                                            if (product.toLowerCase().startsWith(brand.toLowerCase())) return product;
+                                            return `${brand} ${product}`.trim() || 'General Service';
+                                        })()}
+                                    </p>
+                                    <p className="text-[11px] text-blue-600 font-medium mt-0.5">
+                                        {service.form?.name || 'Standard Form'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Current Status</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    {(() => {
+                                        const status = (service.service_status || 'pending').toLowerCase();
+                                        const styles: Record<string, string> = {
+                                            pending: 'bg-yellow-50 text-yellow-700 border-yellow-100',
+                                            assigned: 'bg-purple-50 text-purple-700 border-purple-100',
+                                            in_progress: 'bg-blue-50 text-blue-700 border-blue-100',
+                                            completed: 'bg-green-50 text-green-700 border-green-100',
+                                        };
+                                        return (
+                                            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${styles[status] || 'bg-gray-50 text-gray-600'}`}>
+                                                {status.replace('_', ' ').toUpperCase()}
                                             </span>
-                                        </>
-                                    );
-                                })()}
+                                        );
+                                    })()}
+                                </div>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                {/* Assignment Main Card */}
-                <Card className="md:col-span-2 border-primary/20 shadow-lg shadow-primary/5">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <UserCheck className="h-5 w-5 text-primary" />
-                            Select Technician
-                        </CardTitle>
-                        <CardDescription>
-                            Assign a technician to start working on this service request.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 block">Available Staff</label>
-                            <Select value={selectedTechId} onValueChange={setSelectedTechId}>
-                                <SelectTrigger className="w-full h-12 bg-gray-50/50">
-                                    <SelectValue placeholder="Choose a technician..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {technicians.length > 0 ? (
-                                        technicians.map((tech) => (
-                                            <SelectItem key={tech.id} value={tech.id.toString()}>
-                                                <div className="flex flex-col py-1">
-                                                    <span className="font-medium">{tech.name}</span>
-                                                    <span className="text-[10px] text-gray-500 uppercase tracking-tight">{tech.role}</span>
-                                                </div>
-                                            </SelectItem>
-                                        ))
-                                    ) : (
-                                        <div className="px-3 py-2 text-xs text-gray-500 italic">
-                                            No technicians found. Please add staff first.
-                                        </div>
-                                    )}
-                                </SelectContent>
-                            </Select>
+                {/* Right Column: Assignment Form (2/3) */}
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <UserCheck className="w-4 h-4 text-blue-600" />
+                                <h3 className="text-sm font-bold text-gray-900">Assignment Details</h3>
+                            </div>
+                            <span className="text-[10px] text-gray-400 font-medium italic">Updated real-time</span>
                         </div>
+                        
+                        <div className="p-5 space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Select Technician</label>
+                                <Select value={selectedTechId} onValueChange={setSelectedTechId}>
+                                    <SelectTrigger className="w-full h-10 text-sm border-gray-200 focus:ring-blue-500/20">
+                                        <SelectValue placeholder="Select a staff member" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {technicians.length > 0 ? (
+                                            technicians.map((tech) => (
+                                                <SelectItem key={tech.id} value={tech.id.toString()} className="text-sm">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium">{tech.name}</span>
+                                                        <span className="text-[10px] text-gray-400 capitalize">{tech.role}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center text-xs text-gray-400 italic">
+                                                No staff members available.
+                                            </div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 block">Assignment Notes / Description</label>
-                            <Textarea 
-                                placeholder="Add specific instructions for the technician..."
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className="min-h-[100px] bg-gray-50/50"
-                            />
-                        </div>
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Internal Instructions</label>
+                                <Textarea 
+                                    placeholder="Add notes or specific instructions for the technician..."
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    className="min-h-[120px] text-sm border-gray-200 resize-none focus:ring-blue-500/20"
+                                />
+                            </div>
 
-                        <div className="p-4 bg-primary/5 rounded-lg border border-primary/10 flex items-start gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                            <div className="text-sm text-gray-600 leading-relaxed">
-                                Once assigned, the technician will be notified and this request status will change to <span className="font-bold text-gray-900">Assigned</span>.
+                            <div className="bg-blue-50/50 rounded-lg p-3.5 border border-blue-100 flex items-start gap-3">
+                                <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                                <p className="text-xs text-blue-800 leading-relaxed">
+                                    Assigning a technician will notify them via their dashboard. The request status will automatically update to <span className="font-bold">ASSIGNED</span>.
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="text-xs text-gray-500 hover:text-gray-700 h-9"
+                                    onClick={() => navigate('/dashboard/services')}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    size="sm"
+                                    className="h-9 text-xs px-6 font-bold bg-blue-600 hover:bg-blue-700 shadow-sm"
+                                    onClick={handleAssignTechnician}
+                                    disabled={!selectedTechId || assignMutation.isPending}
+                                >
+                                    {assignMutation.isPending ? 'Processing...' : 'Complete Assignment'}
+                                </Button>
                             </div>
                         </div>
-
-                        <div className="flex items-center justify-between pt-4 gap-4">
-                             <Button 
-                                variant="ghost" 
-                                className="text-gray-500 hover:text-gray-700"
-                                onClick={() => navigate(`/dashboard/services/view/${id}`)}
-                            >
-                                Skip for now
-                            </Button>
-                            <Button 
-                                className="flex-1 h-11 text-base font-semibold gap-2 shadow-md shadow-primary/20"
-                                onClick={handleAssignTechnician}
-                                disabled={!selectedTechId || assignMutation.isPending}
-                            >
-                                {assignMutation.isPending ? 'Assigning...' : 'Complete Assignment'}
-                                <ArrowRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-            
-            <div className="flex justify-center pt-8 border-t border-dashed">
-                <Link to="/dashboard" className="flex items-center gap-2 text-sm text-gray-400 hover:text-primary transition-colors">
-                    <LayoutDashboard className="h-4 w-4" />
-                    Back to Dashboard
-                </Link>
+                    </div>
+                </div>
             </div>
         </div>
     );

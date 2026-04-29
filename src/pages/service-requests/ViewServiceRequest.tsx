@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '@/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -85,6 +86,7 @@ const ViewServiceRequest = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+    const { isSuperAdmin, isShopOwner } = useAuth();
 
     const { useGetServiceRequestById, useAssignTechnician } = useServiceRequestsApi();
     const { useGetCategoryForms } = useShopCategoryFormsApi();
@@ -101,10 +103,10 @@ const ViewServiceRequest = () => {
     const [selectedTechId, setSelectedTechId] = useState<string>('');
     const [isChangingTech, setIsChangingTech] = useState(false);
 
-    // Filter employees to only show technicians or lead technicians
-    const technicians = employeesData?.data?.filter(emp => 
-        ['Technician', 'Lead Technician', 'Junior Mechanic'].includes(emp.role)
-    ) || [];
+    const canChangeTechnician = isSuperAdmin || isShopOwner;
+
+    // Allow all shop employees to be assigned, as roles are fully customizable
+    const technicians = employeesData?.data || [];
 
     const handleAssignTechnician = async () => {
         if (!selectedTechId || !numericId) return;
@@ -162,7 +164,7 @@ const ViewServiceRequest = () => {
 
     // Parse admin notes
     let parsedInternalNotes = service.admin_note || '';
-    let parsedServiceCharges: any[] = [];
+    const parsedServiceCharges: any[] = data?.selectedServiceCharges && Array.isArray(data.selectedServiceCharges) ? data.selectedServiceCharges : [];
 
     if (service.admin_note) {
         try {
@@ -172,15 +174,9 @@ const ViewServiceRequest = () => {
                 if (noteData.internalNotes !== undefined) {
                     parsedInternalNotes = noteData.internalNotes;
                 }
-                if (noteData.serviceCharges !== undefined && Array.isArray(noteData.serviceCharges)) {
-                    parsedServiceCharges = noteData.serviceCharges;
-                }
             } else if (typeof parsed === 'object') {
                 if (parsed.internalNotes !== undefined) {
                     parsedInternalNotes = parsed.internalNotes;
-                }
-                if (parsed.serviceCharges !== undefined && Array.isArray(parsed.serviceCharges)) {
-                    parsedServiceCharges = parsed.serviceCharges;
                 }
             }
         } catch {
@@ -256,14 +252,16 @@ const ViewServiceRequest = () => {
                         </p>
                     </div>
                 </div>
-                <Button
-                    size="sm"
-                    onClick={() => navigate(`/dashboard/services/edit/${service.id}`)}
-                    className="h-8 gap-1.5"
-                >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Edit
-                </Button>
+                {canChangeTechnician && (
+                    <Button
+                        size="sm"
+                        onClick={() => navigate(`/dashboard/services/edit/${service.id}`)}
+                        className="h-8 gap-1.5"
+                    >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Edit
+                    </Button>
+                )}
             </div>
 
             {/* Main Content Grid */}
@@ -517,60 +515,69 @@ const ViewServiceRequest = () => {
                                         </div>
                                     )}
 
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="w-full text-xs h-8 border-dashed hover:border-blue-400 hover:text-blue-600"
-                                        onClick={() => {
-                                            setSelectedTechId(String(service.assigned_technician?.id || ''));
-                                            setIsChangingTech(true);
-                                        }}
-                                    >
-                                        Change Technician
-                                    </Button>
+                                    {canChangeTechnician && (
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            className="w-full text-xs h-8 border-dashed hover:border-blue-400 hover:text-blue-600"
+                                            onClick={() => {
+                                                setSelectedTechId(String(service.assigned_technician?.id || ''));
+                                                setIsChangingTech(true);
+                                            }}
+                                        >
+                                            Change Technician
+                                        </Button>
+                                    )}
                                 </div>
                             ) : (
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <p className="text-xs text-gray-500">
-                                            {isChangingTech ? 'Select a different technician for this request.' : 'Assign a technician to work on this request.'}
-                                        </p>
-                                        <div className="flex gap-2">
-                                            <Select 
-                                                value={selectedTechId} 
-                                                onValueChange={setSelectedTechId}
-                                            >
-                                                <SelectTrigger className="w-full h-9 text-xs">
-                                                    <SelectValue placeholder="Select Technician" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {technicians.map((tech) => (
-                                                        <SelectItem key={tech.id} value={String(tech.id)} className="text-xs">
-                                                            {tech.name} ({tech.role})
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {isChangingTech && (
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-9 w-9 text-gray-400"
-                                                    onClick={() => setIsChangingTech(false)}
+                                canChangeTechnician ? (
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <p className="text-xs text-gray-500">
+                                                {isChangingTech ? 'Select a different technician for this request.' : 'Assign a technician to work on this request.'}
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <Select 
+                                                    value={selectedTechId} 
+                                                    onValueChange={setSelectedTechId}
                                                 >
-                                                    <X className="w-4 h-4" />
-                                                </Button>
-                                            )}
+                                                    <SelectTrigger className="w-full h-9 text-xs">
+                                                        <SelectValue placeholder="Select Technician" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {technicians.map((tech) => (
+                                                            <SelectItem key={tech.id} value={String(tech.id)} className="text-xs">
+                                                                {tech.name} ({tech.role})
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                {isChangingTech && (
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-9 w-9 text-gray-400"
+                                                        onClick={() => setIsChangingTech(false)}
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
+                                        <Button 
+                                            className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700" 
+                                            onClick={handleAssignTechnician}
+                                            disabled={!selectedTechId || isAssigning || (isChangingTech && selectedTechId === String(service.assigned_technician?.id))}
+                                        >
+                                            {isAssigning ? 'Assigning...' : isChangingTech ? 'Update Assignment' : 'Assign Technician'}
+                                        </Button>
                                     </div>
-                                    <Button 
-                                        className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700" 
-                                        onClick={handleAssignTechnician}
-                                        disabled={!selectedTechId || isAssigning || (isChangingTech && selectedTechId === String(service.assigned_technician?.id))}
-                                    >
-                                        {isAssigning ? 'Assigning...' : isChangingTech ? 'Update Assignment' : 'Assign Technician'}
-                                    </Button>
-                                </div>
+                                ) : (
+                                    <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed">
+                                        <User className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                                        <p className="text-xs text-gray-500 font-medium">No technician assigned yet</p>
+                                    </div>
+                                )
                             )}
                         </CardContent>
                     </Card>

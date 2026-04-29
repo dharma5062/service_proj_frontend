@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/AuthContext';
 import {
@@ -21,8 +21,6 @@ import {
 
 // ─── Status helpers ──────────────────────────────────────────────────────────
 
-
-
 const formatStatusLabel = (status?: string) => {
     if (!status) return 'N/A';
     // Convert underscores to spaces and capitalize each word
@@ -44,17 +42,31 @@ const formatDate = (dateStr?: string) => {
     }
 };
 
+const capitalizeWords = (str?: string) => {
+    if (!str) return '-';
+    return str.replace(/\b\w/g, (c) => c.toLocaleUpperCase());
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const ServicesPage = () => {
     const navigate = useNavigate();
-    const { shopId } = useAuth();
+    const { shopId, hasPermission, user, isShopEmployee } = useAuth();
     const { useGetServiceRequests, useDeleteServiceRequest } = useServiceRequestsApi();
     const { data: rawServiceRequests = [], isLoading: loading } = useGetServiceRequests();
     const deleteServiceRequestMutation = useDeleteServiceRequest();
 
-    // Sort by ID ascending on every render (cheap since data comes from cache)
-    const serviceRequests = [...rawServiceRequests].sort((a, b) => a.id - b.id);
+    // Filter and sort service requests
+    const serviceRequests = useMemo(() => {
+        let filtered = [...rawServiceRequests];
+
+        // If the user is a shop employee, filter to only show requests assigned to them
+        if (isShopEmployee && user?.id) {
+            filtered = filtered.filter(req => req.assigned_technician?.id === user.id);
+        }
+
+        return filtered.sort((a, b) => b.id - a.id); // Sort by newest first (descending ID)
+    }, [rawServiceRequests, isShopEmployee, user?.id]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -91,11 +103,11 @@ const ServicesPage = () => {
             filterable: true,
             render: (_value, record) => {
                 const formName = record.form?.name;
-                if (formName) return <span className="text-xs font-semibold text-gray-900">{formName}</span>;
+                if (formName) return <span className="text-xs font-semibold text-gray-900">{capitalizeWords(formName)}</span>;
 
                 const details = parseJson(record.service_details);
-                if (details?.serviceType) return <span className="text-xs font-semibold text-gray-900">{details.serviceType}</span>;
-                if (details?.productType) return <span className="text-xs font-semibold text-gray-900">{details.productType}</span>;
+                if (details?.serviceType) return <span className="text-xs font-semibold text-gray-900">{capitalizeWords(details.serviceType)}</span>;
+                if (details?.productType) return <span className="text-xs font-semibold text-gray-900">{capitalizeWords(details.productType)}</span>;
 
                 return <span className="text-xs text-gray-400">-</span>;
             },
@@ -111,7 +123,7 @@ const ServicesPage = () => {
                 if (!customer) return <span className="text-xs text-gray-400">-</span>;
                 return (
                     <div>
-                        <p className="text-xs font-semibold text-gray-900">{customer.name}</p>
+                        <p className="text-xs font-semibold text-gray-900">{capitalizeWords(customer.name)}</p>
                         {customer.phone && (
                             <p className="text-[11px] text-gray-500 mt-0.5">{customer.phone}</p>
                         )}
@@ -135,16 +147,51 @@ const ServicesPage = () => {
                 }
 
                 const subtitleParts: string[] = [];
-                if (brandName) subtitleParts.push(brandName);
-                if (serviceName) subtitleParts.push(serviceName);
+                if (brandName) subtitleParts.push(capitalizeWords(brandName));
+                if (serviceName) subtitleParts.push(capitalizeWords(serviceName));
 
                 return (
                     <div>
-                        <p className="text-xs font-semibold text-gray-900">{productName || '-'}</p>
+                        <p className="text-xs font-semibold text-gray-900">{capitalizeWords(productName) || '-'}</p>
                         {subtitleParts.length > 0 && (
                             <p className="text-[11px] text-gray-500 mt-0.5">{subtitleParts.join(' · ')}</p>
                         )}
                     </div>
+                );
+            },
+        },
+        {
+            key: 'assigned_technician',
+            title: 'Shop Employee',
+            dataIndex: 'assigned_technician',
+            sortable: true,
+            filterable: true,
+            render: (_value, record) => {
+                const technician = record.assigned_technician;
+                if (!technician) return <span className="text-xs text-gray-400">Not Assigned</span>;
+                return (
+                    <div>
+                        <p className="text-xs font-semibold text-gray-900">{capitalizeWords(technician.name)}</p>
+                        {technician.phone && (
+                            <p className="text-[11px] text-gray-500 mt-0.5">{technician.phone}</p>
+                        )}
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'technician_role',
+            title: 'Role',
+            dataIndex: 'assigned_technician',
+            sortable: true,
+            filterable: true,
+            render: (_value, record) => {
+                const role = record.assigned_technician?.role;
+                if (!role) return <span className="text-xs text-gray-400">-</span>;
+                return (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 whitespace-nowrap">
+                        {capitalizeWords(role)}
+                    </span>
                 );
             },
         },
@@ -165,10 +212,10 @@ const ServicesPage = () => {
                 const status = record.service_status || record.status;
                 const styleMap: Record<string, string> = {
                     in_progress: 'text-blue-700 bg-blue-50',
-                    assigned:    'text-purple-700 bg-purple-50 border border-purple-100',
-                    pending:     'text-yellow-700 bg-yellow-50',
-                    completed:   'text-green-700 bg-green-50',
-                    cancelled:   'text-red-700 bg-red-50',
+                    assigned: 'text-purple-700 bg-purple-50 border border-purple-100',
+                    pending: 'text-yellow-700 bg-yellow-50',
+                    completed: 'text-green-700 bg-green-50',
+                    cancelled: 'text-red-700 bg-red-50',
                 };
                 const key = (status || 'pending').toLowerCase();
                 const style = styleMap[key] ?? 'text-gray-700 bg-gray-50';
@@ -245,12 +292,12 @@ const ServicesPage = () => {
                 title="Service Requests List"
                 searchable={true}
                 showActions={true}
-                showAdd={true}
+                showAdd={hasPermission('service.create')}
                 showExport={true}
-                onAdd={handleAddNew}
+                onAdd={hasPermission('service.create') ? handleAddNew : undefined}
                 onView={handleView}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
+                onEdit={hasPermission('service.update') ? handleEdit : undefined}
+                onDelete={hasPermission('service.delete') ? handleDeleteClick : undefined}
                 pagination={{
                     current: currentPage,
                     pageSize: pageSize,

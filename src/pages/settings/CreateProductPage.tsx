@@ -75,6 +75,7 @@ const CreateProductPage = () => {
         active: true,
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [removeImageFlag, setRemoveImageFlag] = useState(false);
 
     // When existing product data arrives (edit mode), populate form
     useEffect(() => {
@@ -278,6 +279,7 @@ const CreateProductPage = () => {
             }
 
             setFormData({ ...formData, image: file });
+            setRemoveImageFlag(false); // New image added, don't remove existing
 
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -290,6 +292,7 @@ const CreateProductPage = () => {
     const removeImage = () => {
         setFormData({ ...formData, image: null });
         setImagePreview(null);
+        setRemoveImageFlag(true); // Explicitly marked for removal
     };
 
     const validateForm = (): boolean => {
@@ -339,10 +342,11 @@ const CreateProductPage = () => {
         try {
             const descriptionObj: any = {
                 text: formData.description,
+                cost_price: formData.cost_price ? parseFloat(formData.cost_price) : 0,
+                tax_name: formData.tax_name || undefined,
+                tax_percentage: formData.tax_percentage ? parseFloat(formData.tax_percentage) : undefined,
+                tax_type: formData.tax_type,
             };
-            if (formData.cost_price && parseFloat(formData.cost_price) > 0) {
-                descriptionObj.cost_price = parseFloat(formData.cost_price);
-            }
 
             const payload: CreateProductPayload = {
                 name: formData.name,
@@ -355,6 +359,7 @@ const CreateProductPage = () => {
                 category_id: formData.category_id,
                 brand_id: formData.brand_id,
                 image: formData.image,
+                remove_image: removeImageFlag ? 1 : 0,
             };
 
             if (isEditMode && productId) {
@@ -774,15 +779,15 @@ const CreateProductPage = () => {
                                 <p className="text-[11px] text-gray-400 mt-0.5">Upload a clear photo to help identify this product</p>
                             </CardHeader>
                             <CardContent className="px-3 pb-3">
+                                <input
+                                    type="file"
+                                    id="image-upload"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                    className="hidden"
+                                />
                                 {!imagePreview ? (
                                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-blue-400 transition-colors">
-                                        <input
-                                            type="file"
-                                            id="image-upload"
-                                            accept="image/*"
-                                            onChange={handleImageChange}
-                                            className="hidden"
-                                        />
                                         <label
                                             htmlFor="image-upload"
                                             className="cursor-pointer flex flex-col items-center"
@@ -799,36 +804,29 @@ const CreateProductPage = () => {
                                         </label>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
-                                        <div className="relative group">
-                                            <img
-                                                src={imagePreview}
-                                                alt="Product preview"
-                                                className="w-full h-48 object-contain bg-gray-50 rounded-lg border border-gray-200"
-                                            />
-                                            <button
-                                                onClick={removeImage}
-                                                className="absolute top-1.5 right-1.5 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                                    <div className="relative group">
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
+                                            className="w-full h-48 object-contain rounded-lg border border-gray-200"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={removeImage}
+                                            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-colors"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                        <div className="mt-3">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="w-full text-xs font-medium"
+                                                onClick={() => document.getElementById('image-upload')?.click()}
                                             >
-                                                <X className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="file"
-                                                id="image-replace"
-                                                accept="image/*"
-                                                onChange={handleImageChange}
-                                                className="hidden"
-                                            />
-                                            <label
-                                                htmlFor="image-replace"
-                                                className="flex-1 cursor-pointer"
-                                            >
-                                                <Button variant="outline" size="sm" className="w-full" type="button">
-                                                    Replace Image
-                                                </Button>
-                                            </label>
+                                                Replace Image
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
