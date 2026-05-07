@@ -51,7 +51,7 @@ const capitalizeWords = (str?: string) => {
 
 const ServicesPage = () => {
     const navigate = useNavigate();
-    const { shopId, hasPermission, user, isShopEmployee } = useAuth();
+    const { shopId, hasPermission, user, isShopEmployee, isCustomer } = useAuth();
     const { useGetServiceRequests, useDeleteServiceRequest } = useServiceRequestsApi();
     const { data: rawServiceRequests = [], isLoading: loading } = useGetServiceRequests();
     const deleteServiceRequestMutation = useDeleteServiceRequest();
@@ -63,10 +63,12 @@ const ServicesPage = () => {
         // If the user is a shop employee, filter to only show requests assigned to them
         if (isShopEmployee && user?.id) {
             filtered = filtered.filter(req => req.assigned_technician?.id === user.id);
+        } else if (isCustomer && user?.id) {
+            filtered = filtered.filter(req => req.customer?.id === user.id);
         }
 
         return filtered.sort((a, b) => b.id - a.id); // Sort by newest first (descending ID)
-    }, [rawServiceRequests, isShopEmployee, user?.id]);
+    }, [rawServiceRequests, isShopEmployee, isCustomer, user?.id]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -237,6 +239,14 @@ const ServicesPage = () => {
         },
     ];
 
+    // Filter columns for customer
+    const filteredColumns = useMemo(() => {
+        if (isCustomer) {
+            return columns.filter(col => col.key !== 'assigned_technician' && col.key !== 'technician_role');
+        }
+        return columns;
+    }, [columns, isCustomer]);
+
     // ── Action handlers ──────────────────────────────────────────────────────
 
     const handleView = (record: ServiceRequest) => {
@@ -287,17 +297,17 @@ const ServicesPage = () => {
 
             {/* DataTable */}
             <DataTable
-                columns={columns}
+                columns={filteredColumns}
                 data={serviceRequests}
-                title="Service Requests List"
+                title={isCustomer ? "My Service History" : "Service Requests List"}
                 searchable={true}
                 showActions={true}
-                showAdd={hasPermission('service.create')}
-                showExport={true}
-                onAdd={hasPermission('service.create') ? handleAddNew : undefined}
+                showAdd={!isCustomer && (hasPermission('service.create'))}
+                showExport={!isCustomer}
+                onAdd={(!isCustomer && hasPermission('service.create')) ? handleAddNew : undefined}
                 onView={handleView}
-                onEdit={hasPermission('service.update') ? handleEdit : undefined}
-                onDelete={hasPermission('service.delete') ? handleDeleteClick : undefined}
+                onEdit={(!isCustomer && hasPermission('service.update')) ? handleEdit : undefined}
+                onDelete={(!isCustomer && hasPermission('service.delete')) ? handleDeleteClick : undefined}
                 pagination={{
                     current: currentPage,
                     pageSize: pageSize,

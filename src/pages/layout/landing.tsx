@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     ClipboardList,
     Store,
@@ -11,479 +12,274 @@ import {
     Zap,
     ArrowRight,
     FileText,
-    Settings,
-    TrendingUp
+    TrendingUp,
+    LayoutDashboard,
+    Clock
 } from 'lucide-react';
 
 export default function LandingPage() {
     return (
-        <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50">
-            {/* Navigation */}
-            <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-gray-200 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center space-x-2">
-                            <ClipboardList className="h-8 w-8 text-blue-600" />
-                            <span className="text-xl font-bold text-gray-900">ServiceHub</span>
+        <div className="h-screen w-full font-sans text-gray-900 bg-gray-50/50 overflow-hidden flex flex-col">
+            {/* Navigation - Outside ScrollArea for perfect "fixed" behavior */}
+            <nav className="shrink-0 w-full bg-white/70 backdrop-blur-md border-b border-gray-100 z-50">
+                <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between relative">
+                    {/* Logo */}
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-blue-600 rounded-lg">
+                            <ClipboardList className="h-4 w-4 text-white" />
                         </div>
-                        <div className="hidden md:flex items-center space-x-8">
-                            <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
-                            <a href="#benefits" className="text-gray-600 hover:text-blue-600 transition-colors">Benefits</a>
-                            <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors">Pricing</a>
-                            <Link to="/login">
-                                <Button variant="ghost">Sign In</Button>
-                            </Link>
-                            <Link to="/register">
-                                <Button variant="ghost">Get Started</Button>
-                            </Link>
-                        </div>
+                        <span className="text-sm font-bold tracking-tight">ServiceHub</span>
+                    </div>
+
+                    {/* Centered Links */}
+                    <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+                        {['Features', 'Security', 'Privacy', 'Status'].map(link => (
+                            <a key={link} href={`#${link.toLowerCase()}`} className="text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors">
+                                {link}
+                            </a>
+                        ))}
+                    </div>
+                    
+                    {/* CTAs */}
+                    <div className="flex items-center gap-4">
+                        <Link to="/login" className="text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors">
+                            Sign In
+                        </Link>
+                        <Link to="/register">
+                            <Button size="sm" className="text-[11px] font-bold h-8 px-4 rounded-full shadow-sm">
+                                Get Started
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             </nav>
 
-            {/* Hero Section */}
-            <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="text-center space-y-8">
-                        <div className="inline-flex items-center px-4 py-2 bg-blue-100 rounded-full text-blue-700 text-sm font-medium mb-4">
-                            <Zap className="h-4 w-4 mr-2" />
-                            Streamline Your Service Operations
-                        </div>
-
-                        <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-gray-900 leading-tight">
-                            Manage Multi-Shop
-                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                                Service Reports
-                            </span>
-                            with Ease
-                        </h1>
-
-                        <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
-                            Complete service report management system for multi-location businesses.
-                            Track, manage, and analyze service operations across all your shops in one powerful platform.
-                        </p>
-
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-                            <Link to="/register">
-                                <Button size="lg" className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all">
-                                    Start Free Trial
-                                    <ArrowRight className="ml-2 h-5 w-5" />
-                                </Button>
-                            </Link>
-                            <Link to="/login">
-                                <Button size="lg" variant="outline" className="text-lg px-8 py-6">
-                                    View Demo
-                                </Button>
-                            </Link>
-                        </div>
-
-                        <div className="pt-8 flex items-center justify-center gap-8 text-sm text-gray-500">
-                            <div className="flex items-center">
-                                <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
-                                No credit card required
+            {/* Scrollable Content Area */}
+            <ScrollArea className="flex-1 w-full">
+                <main className="pt-10 pb-12">
+                    <div className="max-w-6xl mx-auto px-4">
+                        {/* Hero Section */}
+                        <div className="max-w-3xl mx-auto text-center mb-20">
+                            <div className="inline-flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[10px] font-bold uppercase tracking-wider mb-6">
+                                <Zap className="h-3 w-3" />
+                                Next-Gen Service Management
                             </div>
-                            <div className="flex items-center">
-                                <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
-                                14-day free trial
-                            </div>
-                            <div className="flex items-center">
-                                <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
-                                Cancel anytime
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Dashboard Preview */}
-                    <div className="mt-16 relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl blur-3xl"></div>
-                        <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 p-4">
-                            <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-6">
-                                <div className="flex items-center justify-between mb-6">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900">Dashboard Overview</h3>
-                                        <p className="text-sm text-gray-500">Real-time analytics & insights</p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                        <div className="h-2 w-2 rounded-full bg-gray-300"></div>
-                                        <div className="h-2 w-2 rounded-full bg-gray-300"></div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs text-gray-500">Total Reports</span>
-                                            <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                                <FileText className="h-4 w-4 text-blue-600" />
-                                            </div>
-                                        </div>
-                                        <div className="text-2xl font-bold text-gray-900">1,284</div>
-                                        <div className="flex items-center text-xs text-green-600 mt-1">
-                                            <TrendingUp className="h-3 w-3 mr-1" />
-                                            <span>+12%</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs text-gray-500">Active Shops</span>
-                                            <div className="h-8 w-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                                                <Store className="h-4 w-4 text-purple-600" />
-                                            </div>
-                                        </div>
-                                        <div className="text-2xl font-bold text-gray-900">24</div>
-                                        <div className="flex items-center text-xs text-green-600 mt-1">
-                                            <TrendingUp className="h-3 w-3 mr-1" />
-                                            <span>+3</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs text-gray-500">Staff Members</span>
-                                            <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                                <Users className="h-4 w-4 text-green-600" />
-                                            </div>
-                                        </div>
-                                        <div className="text-2xl font-bold text-gray-900">156</div>
-                                        <div className="flex items-center text-xs text-green-600 mt-1">
-                                            <TrendingUp className="h-3 w-3 mr-1" />
-                                            <span>+8</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs text-gray-500">Completed</span>
-                                            <div className="h-8 w-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                                                <CheckCircle2 className="h-4 w-4 text-orange-600" />
-                                            </div>
-                                        </div>
-                                        <div className="text-2xl font-bold text-gray-900">892</div>
-                                        <div className="flex items-center text-xs text-green-600 mt-1">
-                                            <TrendingUp className="h-3 w-3 mr-1" />
-                                            <span>+18%</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid sm:grid-cols-2 gap-4">
-                                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h4 className="text-sm font-semibold text-gray-900">Report Trends</h4>
-                                            <BarChart3 className="h-4 w-4 text-gray-400" />
-                                        </div>
-                                        <div className="h-32 flex items-end justify-between gap-2">
-                                            <div className="bg-blue-500 rounded-t w-full h-[60%]"></div>
-                                            <div className="bg-blue-400 rounded-t w-full h-[75%]"></div>
-                                            <div className="bg-blue-500 rounded-t w-full h-[55%]"></div>
-                                            <div className="bg-blue-400 rounded-t w-full h-[85%]"></div>
-                                            <div className="bg-blue-500 rounded-t w-full h-[70%]"></div>
-                                            <div className="bg-blue-600 rounded-t w-full h-[95%]"></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h4 className="text-sm font-semibold text-gray-900">Recent Activity</h4>
-                                            <ClipboardList className="h-4 w-4 text-gray-400" />
-                                        </div>
-                                        <div className="space-y-3">
-                                            <div className="flex items-start gap-2">
-                                                <div className="h-2 w-2 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs text-gray-900 font-medium truncate">Report #1284 completed</p>
-                                                    <p className="text-xs text-gray-500">2 min ago</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <div className="h-2 w-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs text-gray-900 font-medium truncate">New shop added</p>
-                                                    <p className="text-xs text-gray-500">1 hour ago</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <div className="h-2 w-2 rounded-full bg-purple-500 mt-1.5 flex-shrink-0"></div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs text-gray-900 font-medium truncate">Staff assigned</p>
-                                                    <p className="text-xs text-gray-500">3 hours ago</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <div className="h-2 w-2 rounded-full bg-orange-500 mt-1.5 flex-shrink-0"></div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs text-gray-900 font-medium truncate">Service updated</p>
-                                                    <p className="text-xs text-gray-500">5 hours ago</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Features Section */}
-            <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
-                <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                            Powerful Features
-                        </h2>
-                        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                            Everything you need to manage service operations across multiple locations
-                        </p>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        <Card className="hover:shadow-lg transition-shadow border-2 hover:border-blue-200">
-                            <CardHeader>
-                                <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                                    <Store className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <CardTitle>Multi-Shop Management</CardTitle>
-                                <CardDescription>
-                                    Manage unlimited shops and locations from a single dashboard. Track performance across all your service centers.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-
-                        <Card className="hover:shadow-lg transition-shadow border-2 hover:border-blue-200">
-                            <CardHeader>
-                                <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                                    <Users className="h-6 w-6 text-purple-600" />
-                                </div>
-                                <CardTitle>Staff Management</CardTitle>
-                                <CardDescription>
-                                    Assign technicians, track workload, and monitor staff performance with detailed analytics and reporting.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-
-                        <Card className="hover:shadow-lg transition-shadow border-2 hover:border-blue-200">
-                            <CardHeader>
-                                <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                                    <FileText className="h-6 w-6 text-green-600" />
-                                </div>
-                                <CardTitle>Dynamic Service Reports</CardTitle>
-                                <CardDescription>
-                                    Create custom report templates with dynamic forms. Capture signatures, attach files, and track status in real-time.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-
-                        <Card className="hover:shadow-lg transition-shadow border-2 hover:border-blue-200">
-                            <CardHeader>
-                                <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-                                    <BarChart3 className="h-6 w-6 text-orange-600" />
-                                </div>
-                                <CardTitle>Advanced Analytics</CardTitle>
-                                <CardDescription>
-                                    Gain insights with powerful charts and reports. Track KPIs, service trends, and make data-driven decisions.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-
-                        <Card className="hover:shadow-lg transition-shadow border-2 hover:border-blue-200">
-                            <CardHeader>
-                                <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
-                                    <Shield className="h-6 w-6 text-red-600" />
-                                </div>
-                                <CardTitle>Secure & Reliable</CardTitle>
-                                <CardDescription>
-                                    Enterprise-grade security with role-based access control. Your data is encrypted and backed up automatically.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-
-                        <Card className="hover:shadow-lg transition-shadow border-2 hover:border-blue-200">
-                            <CardHeader>
-                                <div className="h-12 w-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
-                                    <Settings className="h-6 w-6 text-indigo-600" />
-                                </div>
-                                <CardTitle>Customizable Workflows</CardTitle>
-                                <CardDescription>
-                                    Build custom service types and forms tailored to your business needs. Full flexibility and control.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-                    </div>
-                </div>
-            </section>
-
-            {/* Benefits Section */}
-            <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="grid lg:grid-cols-2 gap-12 items-center">
-                        <div className="space-y-6">
-                            <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
-                                Why Choose ServiceHub?
-                            </h2>
-                            <p className="text-xl text-gray-600">
-                                Built specifically for multi-location service businesses that need powerful reporting and analytics.
+                            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900 mb-6 leading-[1.1]">
+                                Manage Multi-Shop Service Operations 
+                                <span className="text-blue-600"> with Precision.</span>
+                            </h1>
+                            <p className="text-base md:text-lg text-gray-500 mb-10 max-w-xl mx-auto leading-relaxed">
+                                A minimal, high-performance platform for multi-location businesses. 
+                                Track reports, manage staff, and analyze growth in one unified dashboard.
                             </p>
-
-                            <div className="space-y-4">
-                                <div className="flex items-start">
-                                    <div className="flex-shrink-0">
-                                        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                            <TrendingUp className="h-6 w-6 text-blue-600" />
-                                        </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <h3 className="text-lg font-semibold text-gray-900">Increase Efficiency</h3>
-                                        <p className="text-gray-600">Reduce paperwork by 80% and complete reports 3x faster with digital workflows.</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start">
-                                    <div className="flex-shrink-0">
-                                        <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                            <BarChart3 className="h-6 w-6 text-purple-600" />
-                                        </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <h3 className="text-lg font-semibold text-gray-900">Better Insights</h3>
-                                        <p className="text-gray-600">Make informed decisions with real-time analytics and comprehensive reports.</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start">
-                                    <div className="flex-shrink-0">
-                                        <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                            <Users className="h-6 w-6 text-green-600" />
-                                        </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <h3 className="text-lg font-semibold text-gray-900">Team Collaboration</h3>
-                                        <p className="text-gray-600">Keep everyone in sync with real-time updates and role-based permissions.</p>
-                                    </div>
-                                </div>
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                                <Link to="/register">
+                                    <Button className="h-11 px-8 rounded-lg text-xs font-bold shadow-md w-full sm:w-auto">
+                                        Create Free Account
+                                        <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                                    </Button>
+                                </Link>
+                                <Link to="/login">
+                                    <Button variant="outline" className="h-11 px-8 rounded-lg text-xs font-bold bg-white w-full sm:w-auto">
+                                        View Demo
+                                    </Button>
+                                </Link>
                             </div>
                         </div>
 
-                        <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl blur-2xl"></div>
-                            <Card className="relative shadow-xl">
-                                <CardContent className="p-8">
-                                    <div className="space-y-6">
-                                        <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6">
-                                            <h4 className="font-semibold text-gray-900 mb-4">Real-time Activity</h4>
-                                            <div className="h-40 bg-white rounded-lg shadow-sm p-4 space-y-3">
-                                                <div className="flex items-start gap-2">
-                                                    <div className="h-2 w-2 rounded-full bg-blue-500 mt-1 flex-shrink-0"></div>
-                                                    <p className="text-xs font-medium text-gray-800 flex-1">Report completed</p>
-                                                </div>
-                                                <div className="flex items-start gap-2">
-                                                    <div className="h-2 w-2 rounded-full bg-green-500 mt-1 flex-shrink-0"></div>
-                                                    <p className="text-xs font-medium text-gray-800 flex-1">New assignment created</p>
-                                                </div>
-                                                <div className="flex items-start gap-2">
-                                                    <div className="h-2 w-2 rounded-full bg-purple-500 mt-1 flex-shrink-0"></div>
-                                                    <p className="text-xs font-medium text-gray-800 flex-1">Status updated</p>
-                                                </div>
-                                                <div className="h-12 flex items-end justify-between gap-1 mt-4">
-                                                    <div className="bg-blue-300 rounded-t w-full h-[40%]"></div>
-                                                    <div className="bg-blue-400 rounded-t w-full h-[65%]"></div>
-                                                    <div className="bg-blue-300 rounded-t w-full h-[50%]"></div>
-                                                    <div className="bg-blue-500 rounded-t w-full h-[80%]"></div>
-                                                    <div className="bg-blue-400 rounded-t w-full h-[60%]"></div>
-                                                    <div className="bg-blue-300 rounded-t w-full h-[75%]"></div>
-                                                </div>
+                        {/* Dashboard Preview */}
+                        <div className="relative group mb-32">
+                            <div className="absolute -inset-4 bg-gradient-to-tr from-blue-100/50 to-purple-100/50 rounded-[2rem] blur-2xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                            <Card className="relative bg-white border border-gray-100 shadow-2xl rounded-xl overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <div className="min-w-[800px] p-6 md:p-8">
+                                        {/* Mock Dashboard Header */}
+                                        <div className="flex items-center justify-between mb-8">
+                                            <div>
+                                                <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                                    <LayoutDashboard className="h-4 w-4 text-blue-600" />
+                                                    Dashboard Overview
+                                                </h2>
+                                                <p className="text-[10px] text-blue-600 font-medium mt-0.5">Real-time performance metrics across all shops</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 border rounded-lg">
+                                                <Clock className="h-3 w-3 text-gray-400" />
+                                                <span className="text-[10px] font-bold text-gray-700">Live Updates</span>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="bg-blue-100 rounded-lg p-4 text-center">
-                                                <div className="text-2xl font-bold text-blue-600">250+</div>
-                                                <div className="text-sm text-gray-600">Reports</div>
+
+                                        {/* Stats Grid */}
+                                        <div className="grid grid-cols-4 gap-4 mb-8">
+                                            {[
+                                                { title: "Total Services", value: "1,482", change: "+12%", icon: Clock },
+                                                { title: "Active Shops", value: "18", change: "+2", icon: Store },
+                                                { title: "Staff Members", value: "84", change: "+5", icon: Users },
+                                                { title: "Completion Rate", value: "94%", change: "+3%", icon: CheckCircle2 }
+                                            ].map((stat, i) => (
+                                                <div key={i} className="bg-gray-50/50 rounded-lg border border-gray-100 p-4 hover:border-blue-200 transition-colors">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{stat.title}</span>
+                                                        <div className="p-1 bg-white rounded shadow-sm">
+                                                            <stat.icon className="h-3 w-3 text-blue-600" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className="text-xl font-bold text-gray-900">{stat.value}</span>
+                                                        <span className="text-[9px] font-bold text-green-500">{stat.change}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Activity & Trends */}
+                                        <div className="grid grid-cols-2 gap-8">
+                                            <div className="bg-white rounded-lg border border-gray-100 p-5">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-[11px] font-bold text-gray-900 uppercase tracking-tight">Recent Activity</h3>
+                                                    <TrendingUp className="h-3 w-3 text-gray-400" />
+                                                </div>
+                                                <div className="space-y-4">
+                                                    {[
+                                                        { label: "SR-842 Completed", time: "2m ago", status: "completed" },
+                                                        { label: "New Tech Assigned", time: "15m ago", status: "assigned" },
+                                                        { label: "Parts Ordered #94", time: "1h ago", status: "pending" }
+                                                    ].map((act, i) => (
+                                                        <div key={i} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`h-1.5 w-1.5 rounded-full ${act.status === 'completed' ? 'bg-green-500' : act.status === 'assigned' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
+                                                                <span className="text-[11px] font-medium text-gray-700">{act.label}</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-gray-400">{act.time}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="bg-purple-100 rounded-lg p-4 text-center">
-                                                <div className="text-2xl font-bold text-purple-600">15</div>
-                                                <div className="text-sm text-gray-600">Shops</div>
-                                            </div>
-                                            <div className="bg-green-100 rounded-lg p-4 text-center">
-                                                <div className="text-2xl font-bold text-green-600">45</div>
-                                                <div className="text-sm text-gray-600">Staff</div>
+
+                                            <div className="bg-white rounded-lg border border-gray-100 p-5">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-[11px] font-bold text-gray-900 uppercase tracking-tight">Weekly Throughput</h3>
+                                                    <BarChart3 className="h-3 w-3 text-gray-400" />
+                                                </div>
+                                                <div className="h-28 flex items-end justify-between gap-2 px-2">
+                                                    {[40, 65, 45, 90, 70, 85, 95].map((h, i) => (
+                                                        <div key={i} className="bg-blue-600/10 hover:bg-blue-600/20 transition-colors rounded-t w-full" style={{ height: `${h}%` }}></div>
+                                                    ))}
+                                                </div>
+                                                <div className="flex justify-between mt-3 px-1">
+                                                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(d => (
+                                                        <span key={d} className="text-[9px] font-bold text-gray-400">{d}</span>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </CardContent>
+                                </div>
                             </Card>
                         </div>
-                    </div>
-                </div>
-            </section>
 
-            {/* CTA Section */}
-            <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-purple-600">
-                <div className="max-w-4xl mx-auto text-center space-y-8">
-                    <h2 className="text-4xl md:text-5xl font-bold text-white">
-                        Ready to Transform Your Service Operations?
-                    </h2>
-                    <p className="text-xl text-blue-100">
-                        Join hundreds of businesses already using ServiceHub to streamline their operations
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <Link to="/register">
-                            <Button size="lg" variant="secondary" className="text-lg px-8 py-6 shadow-xl hover:shadow-2xl">
-                                Start Free Trial
-                                <ArrowRight className="ml-2 h-5 w-5" />
-                            </Button>
-                        </Link>
-                        <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-white/10  border-white hover:bg-white hover:text-blue-600">
-                            Schedule Demo
-                        </Button>
-                    </div>
-                </div>
-            </section>
+                        {/* Features Grid */}
+                        <div id="features" className="mt-24 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-12 text-center sm:text-left">
+                            {[
+                                { title: "Multi-Shop Control", desc: "Manage all branches from one master account.", icon: Store },
+                                { title: "Dynamic Forms", desc: "Custom service report templates for every need.", icon: FileText },
+                                { title: "Staff Analytics", desc: "Monitor technician performance and workload.", icon: Users },
+                                { title: "Enterprise Security", desc: "Role-based access and data encryption.", icon: Shield }
+                            ].map((feature, i) => (
+                                <div key={i} className="space-y-4">
+                                    <div className="h-12 w-12 bg-white border border-gray-100 rounded-xl flex items-center justify-center shadow-sm mx-auto sm:mx-0">
+                                        <feature.icon className="h-6 w-6 text-blue-600" />
+                                    </div>
+                                    <h3 className="text-sm font-bold text-gray-900 tracking-tight">{feature.title}</h3>
+                                    <p className="text-xs text-gray-500 leading-relaxed">{feature.desc}</p>
+                                </div>
+                            ))}
+                        </div>
 
-            {/* Footer */}
-            <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="grid md:grid-cols-4 gap-8">
-                        <div>
-                            <div className="flex items-center space-x-2 mb-4">
-                                <ClipboardList className="h-6 w-6 text-blue-400" />
-                                <span className="text-lg font-bold text-white">ServiceHub</span>
-                            </div>
-                            <p className="text-sm">
-                                Complete service report management for multi-location businesses.
+                        {/* Final CTA */}
+                        <div className="mt-32 py-16 px-8 bg-blue-600 rounded-3xl text-center relative overflow-hidden mb-12">
+                            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-400/20 via-transparent to-transparent"></div>
+                            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 relative tracking-tight">Ready to optimize your workflow?</h2>
+                            <p className="text-blue-100 text-sm md:text-base mb-10 max-w-md mx-auto relative opacity-90">
+                                Join 500+ businesses scaling their service operations with ServiceHub. 
+                                Start your 14-day free trial today.
                             </p>
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-white mb-4">Product</h3>
-                            <ul className="space-y-2 text-sm">
-                                <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
-                                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-white mb-4">Company</h3>
-                            <ul className="space-y-2 text-sm">
-                                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-white mb-4">Legal</h3>
-                            <ul className="space-y-2 text-sm">
-                                <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Terms</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-                            </ul>
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center relative">
+                                <Link to="/register">
+                                    <Button className="bg-white text-blue-600 hover:bg-gray-50 h-12 px-10 text-xs font-bold rounded-lg shadow-xl">
+                                        Get Started Free
+                                    </Button>
+                                </Link>
+                                <Button variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 h-12 px-10 text-xs font-bold rounded-lg">
+                                    Contact Sales
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                    <div className="border-t border-gray-800 mt-8 pt-8 text-sm text-center">
-                        <p>&copy; 2025 ServiceHub. All rights reserved.</p>
-                    </div>
-                </div>
-            </footer>
+
+                    {/* Footer */}
+                    <footer className="border-t border-gray-100 py-16 bg-white">
+                        <div className="max-w-6xl mx-auto px-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-12">
+                                {/* Brand Column */}
+                                <div className="col-span-2 md:col-span-1">
+                                    <div className="flex items-center gap-2 mb-6 text-center sm:text-left">
+                                        <div className="p-1.5 bg-blue-600 rounded-lg mx-auto sm:mx-0">
+                                            <ClipboardList className="h-4 w-4 text-white" />
+                                        </div>
+                                        <span className="text-sm font-bold tracking-tight">ServiceHub</span>
+                                    </div>
+                                    <p className="text-xs text-gray-400 leading-relaxed max-w-xs text-center sm:text-left mx-auto sm:mx-0">
+                                        Empowering multi-shop businesses with intelligent service reporting and staff management solutions.
+                                    </p>
+                                </div>
+
+                                {/* Product Column */}
+                                <div className="text-center sm:text-left">
+                                    <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-6">Product</h4>
+                                    <ul className="space-y-4">
+                                        {['Features', 'Dashboard', 'Security', 'Integrations'].map(item => (
+                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-blue-600 transition-colors">{item}</a></li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                {/* Company Column */}
+                                <div className="text-center sm:text-left">
+                                    <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-6">Company</h4>
+                                    <ul className="space-y-4">
+                                        {['About Us', 'Success Stories', 'Privacy Policy', 'Terms of Service'].map(item => (
+                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-blue-600 transition-colors">{item}</a></li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                {/* Support Column */}
+                                <div className="text-center sm:text-left">
+                                    <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-6">Support</h4>
+                                    <ul className="space-y-4">
+                                        {['Help Center', 'Status', 'Contact', 'Knowledge Base'].map(item => (
+                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-blue-600 transition-colors">{item}</a></li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="pt-12 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-6">
+                                <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest order-2 md:order-1 text-center md:text-left">
+                                    &copy; 2025 ServiceHub. All rights reserved.
+                                </p>
+                                <div className="flex gap-6 order-1 md:order-2">
+                                    {['Twitter', 'LinkedIn', 'GitHub'].map(social => (
+                                        <a key={social} href="#" className="text-[10px] font-bold text-gray-400 hover:text-blue-600 uppercase tracking-widest transition-colors">
+                                            {social}
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </footer>
+                </main>
+            </ScrollArea>
         </div>
     );
 }

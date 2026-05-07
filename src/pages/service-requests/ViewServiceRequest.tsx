@@ -86,7 +86,7 @@ const ViewServiceRequest = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-    const { isSuperAdmin, isShopOwner } = useAuth();
+    const { isSuperAdmin, isShopOwner, isCustomer, isShopEmployee, hasPermission } = useAuth();
 
     const { useGetServiceRequestById, useAssignTechnician } = useServiceRequestsApi();
     const { useGetCategoryForms } = useShopCategoryFormsApi();
@@ -252,7 +252,7 @@ const ViewServiceRequest = () => {
                         </p>
                     </div>
                 </div>
-                {canChangeTechnician && (
+                {(canChangeTechnician || (isShopEmployee && hasPermission('service.update'))) && (
                     <Button
                         size="sm"
                         onClick={() => navigate(`/dashboard/services/edit/${service.id}`)}
@@ -451,7 +451,7 @@ const ViewServiceRequest = () => {
                     )}
 
                     {/* Admin Notes */}
-                    {parsedInternalNotes && (
+                    {parsedInternalNotes && !isCustomer && (
                         <Card>
                             <CardHeader className="pb-2 pt-3 px-4">
                                 <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -621,9 +621,9 @@ const ViewServiceRequest = () => {
                                                                 </Badge>
                                                             </td>
                                                             <td className="px-3 py-2 text-center text-xs text-gray-700">{qty}</td>
-                                                            <td className="px-3 py-2 text-right text-xs text-gray-700">${price.toFixed(2)}</td>
+                                                            <td className="px-3 py-2 text-right text-xs text-gray-700">₹{price.toFixed(2)}</td>
                                                             <td className="px-3 py-2 text-right text-xs font-medium text-gray-900">
-                                                                ${(price * qty).toFixed(2)}
+                                                                ₹{(price * qty).toFixed(2)}
                                                             </td>
                                                         </tr>
                                                     );
@@ -641,9 +641,9 @@ const ViewServiceRequest = () => {
                                                                 </Badge>
                                                             </td>
                                                             <td className="px-3 py-2 text-center text-xs text-gray-700">-</td>
-                                                            <td className="px-3 py-2 text-right text-xs text-gray-700">${amount.toFixed(2)}</td>
+                                                            <td className="px-3 py-2 text-right text-xs text-gray-700">₹{amount.toFixed(2)}</td>
                                                             <td className="px-3 py-2 text-right text-xs font-medium text-gray-900">
-                                                                ${amount.toFixed(2)}
+                                                                ₹{amount.toFixed(2)}
                                                             </td>
                                                         </tr>
                                                     );
@@ -656,19 +656,19 @@ const ViewServiceRequest = () => {
                                     <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
                                         <div className="flex justify-between text-xs">
                                             <span className="text-gray-600">Subtotal</span>
-                                            <span className="font-medium text-gray-800">${Number(subtotal).toFixed(2)}</span>
+                                            <span className="font-medium text-gray-800">₹{Number(subtotal).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between text-xs">
                                             <span className="text-gray-600">Discount</span>
-                                            <span className="font-medium text-gray-800">${Number(discount).toFixed(2)}</span>
+                                            <span className="font-medium text-gray-800">₹{Number(discount).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between text-xs">
                                             <span className="text-gray-600">Tax</span>
-                                            <span className="font-medium text-gray-800">${Number(tax).toFixed(2)}</span>
+                                            <span className="font-medium text-gray-800">₹{Number(tax).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between text-sm border-t pt-1.5 mt-1.5">
                                             <span className="font-bold text-gray-900">Grand Total</span>
-                                            <span className="font-bold text-gray-900">${Number(grandTotal).toFixed(2)}</span>
+                                            <span className="font-bold text-gray-900">₹{Number(grandTotal).toFixed(2)}</span>
                                         </div>
                                     </div>
                                 </div>

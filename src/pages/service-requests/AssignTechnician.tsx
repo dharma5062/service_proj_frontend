@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '@/AuthContext';
 import {
     useServiceRequestsApi,
 } from '@/pages/serviceAPI/ServiceRequestsAPI';
@@ -22,7 +23,15 @@ import { toast } from 'sonner';
 const AssignTechnician = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const { isShopEmployee } = useAuth();
     const numericId = id ? Number(id) : undefined;
+
+    useEffect(() => {
+        if (isShopEmployee) {
+            toast.error('You do not have permission to assign technicians');
+            navigate('/dashboard/services');
+        }
+    }, [isShopEmployee, navigate]);
 
     const { useGetServiceRequestById, useAssignTechnician } = useServiceRequestsApi();
     const { useGetShopEmployees } = useShopEmployeesApi();

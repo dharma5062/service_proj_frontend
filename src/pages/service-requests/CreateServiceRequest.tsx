@@ -110,7 +110,7 @@ const CreateServiceRequest = () => {
     const customerIdFromUrl = searchParams.get('customerId');
 
     // ── Auth context — provides shopId and shop metadata globally ─────────────
-    const { shopId: contextShopId, shop } = useAuth();
+    const { shopId: contextShopId, shop, user, isCustomer, isShopEmployee } = useAuth();
 
     const isEditMode = Boolean(id);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -254,6 +254,13 @@ const CreateServiceRequest = () => {
             toast.success(`Customer ${customerFromUrlData.name} pre-selected`);
         }
     }, [isEditMode, customerFromUrlData, selectedCustomer]);
+
+    // Automatically set customer for 'cu' users
+    useEffect(() => {
+        if (isCustomer && user && !selectedCustomer) {
+            setSelectedCustomer(user as unknown as Customer);
+        }
+    }, [isCustomer, user, selectedCustomer]);
 
     // Save Draft Function
     const saveDraft = () => {
@@ -876,14 +883,24 @@ const CreateServiceRequest = () => {
             if (isEditMode && id) {
                 await updateServiceRequestMutation.mutateAsync({ id, payload });
                 toast.success('Service request updated successfully');
-                navigate(`/dashboard/services/assign-technician/${id}`);
+                if (isShopEmployee) {
+                    navigate('/dashboard/services');
+                } else {
+                    navigate(`/dashboard/services/assign-technician/${id}`);
+                }
             } else {
                 const response = await createServiceRequestMutation.mutateAsync(payload);
                 toast.success('Service request created successfully');
 
-                // Redirect to Technician Assignment page with the new ID
+                // Redirect appropriately
                 if (response.data?.id) {
-                    navigate(`/dashboard/services/assign-technician/${response.data.id}`);
+                    if (isCustomer) {
+                        navigate(`/dashboard/services/view/${response.data.id}`);
+                    } else if (isShopEmployee) {
+                        navigate('/dashboard/services');
+                    } else {
+                        navigate(`/dashboard/services/assign-technician/${response.data.id}`);
+                    }
                 } else {
                     navigate('/dashboard/services');
                 }
@@ -1059,124 +1076,126 @@ const CreateServiceRequest = () => {
                 {/* Top Section: Customer & Parts in Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                     {/* Customer Selection - Compact Card */}
-                    <Card>
-                        <CardHeader className="pb-2 pt-3 px-3">
-                            <div className="flex justify-between items-center">
-                                <CardTitle className="text-sm font-bold text-gray-900">Customer</CardTitle>
-                                <button
-                                    onClick={() => setIsModalOpen(true)}
-                                    className="flex items-center gap-1 px-2 py-1 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors"
-                                >
-                                    <Plus className="h-3 w-3" />
-                                    <span>Add</span>
-                                </button>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="px-3 pb-3">
-                            {/* Customer Card Display */}
-                            {selectedCustomer ? (
-                                <div className="border border-gray-200 rounded p-2 bg-white hover:shadow-sm transition-shadow">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
-                                                {selectedCustomer.name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-medium text-gray-900 text-xs">
-                                                        {selectedCustomer.name}
+                    {!isCustomer && (
+                        <Card>
+                            <CardHeader className="pb-2 pt-3 px-3">
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="text-sm font-bold text-gray-900">Customer</CardTitle>
+                                    <button
+                                        onClick={() => setIsModalOpen(true)}
+                                        className="flex items-center gap-1 px-2 py-1 bg-primary text-white rounded text-xs font-medium hover:bg-primary/90 transition-colors"
+                                    >
+                                        <Plus className="h-3 w-3" />
+                                        <span>Add</span>
+                                    </button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="px-3 pb-3">
+                                {/* Customer Card Display */}
+                                {selectedCustomer ? (
+                                    <div className="border border-gray-200 rounded p-2 bg-white hover:shadow-sm transition-shadow">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                                                    {selectedCustomer.name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-medium text-gray-900 text-xs">
+                                                            {selectedCustomer.name}
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500">
+                                                        {selectedCustomer.phone}
                                                     </p>
                                                 </div>
-                                                <p className="text-xs text-gray-500">
-                                                    {selectedCustomer.phone}
-                                                </p>
                                             </div>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setSelectedCustomer(null)}
+                                                className="text-xs h-6 px-2"
+                                            >
+                                                Change
+                                            </Button>
                                         </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setSelectedCustomer(null)}
-                                            className="text-xs h-6 px-2"
-                                        >
-                                            Change
-                                        </Button>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <div className="relative">
-                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                                        <Input
-                                            className="h-9 text-xs pl-8 border border-gray-300 hover:border-primary transition-colors"
-                                            placeholder="Enter phone number to search..."
-                                            value={phoneSearchQuery}
-                                            onChange={(e) => setPhoneSearchQuery(e.target.value)}
-                                        />
-                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="relative">
+                                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                                            <Input
+                                                className="h-9 text-xs pl-8 border border-gray-300 hover:border-primary transition-colors"
+                                                placeholder="Enter phone number to search..."
+                                                value={phoneSearchQuery}
+                                                onChange={(e) => setPhoneSearchQuery(e.target.value)}
+                                            />
+                                        </div>
 
-                                    {/* Search Results */}
-                                    {isSearchingCustomer ? (
-                                        <div className="text-center py-2 text-xs text-gray-500">
-                                            Searching...
-                                        </div>
-                                    ) : searchedCustomers.length > 0 ? (
-                                        <div className="space-y-2">
-                                            {searchedCustomers.map((customer) => (
-                                                <div
-                                                    key={customer.id}
-                                                    className="border border-gray-200 rounded-md p-2 bg-white hover:bg-gray-50 transition-colors"
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
-                                                            {customer.name.charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div className="flex-1 overflow-hidden">
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="font-medium text-xs truncate">{customer.name}</p>
+                                        {/* Search Results */}
+                                        {isSearchingCustomer ? (
+                                            <div className="text-center py-2 text-xs text-gray-500">
+                                                Searching...
+                                            </div>
+                                        ) : searchedCustomers.length > 0 ? (
+                                            <div className="space-y-2">
+                                                {searchedCustomers.map((customer) => (
+                                                    <div
+                                                        key={customer.id}
+                                                        className="border border-gray-200 rounded-md p-2 bg-white hover:bg-gray-50 transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                                                {customer.name.charAt(0).toUpperCase()}
                                                             </div>
-                                                            <p className="text-xs text-gray-500 truncate">{customer.phone}</p>
+                                                            <div className="flex-1 overflow-hidden">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="font-medium text-xs truncate">{customer.name}</p>
+                                                                </div>
+                                                                <p className="text-xs text-gray-500 truncate">{customer.phone}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Action buttons based on new approval and shop status */}
+                                                        <div className="flex gap-2 mt-2">
+                                                            {customer.in_same_shop || customer.in_current_branch || (customer.customer_approved && customer.in_same_shop === undefined) ? (
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="w-full text-xs h-7"
+                                                                    onClick={() => {
+                                                                        setSelectedCustomer(customer);
+                                                                        setPhoneSearchQuery('');
+                                                                        setSearchedCustomers([]);
+                                                                    }}
+                                                                >
+                                                                    Select Customer
+                                                                </Button>
+                                                            ) : (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="w-full text-xs h-7 gap-1"
+                                                                    onClick={() => handleSendInvite(customer)}
+                                                                    disabled={isSendingInvite || !!customer.invite_token}
+                                                                >
+                                                                    <Mail className="h-3 w-3" />
+                                                                    {customer.invite_token ? 'Invite Sent' : 'Send Invite'}
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     </div>
-
-                                                    {/* Action buttons based on new approval and shop status */}
-                                                    <div className="flex gap-2 mt-2">
-                                                        {customer.in_same_shop || customer.in_current_branch || (customer.customer_approved && customer.in_same_shop === undefined) ? (
-                                                            <Button
-                                                                size="sm"
-                                                                className="w-full text-xs h-7"
-                                                                onClick={() => {
-                                                                    setSelectedCustomer(customer);
-                                                                    setPhoneSearchQuery('');
-                                                                    setSearchedCustomers([]);
-                                                                }}
-                                                            >
-                                                                Select Customer
-                                                            </Button>
-                                                        ) : (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="w-full text-xs h-7 gap-1"
-                                                                onClick={() => handleSendInvite(customer)}
-                                                                disabled={isSendingInvite || !!customer.invite_token}
-                                                            >
-                                                                <Mail className="h-3 w-3" />
-                                                                {customer.invite_token ? 'Invite Sent' : 'Send Invite'}
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : phoneSearchQuery.length > 3 ? (
-                                        <div className="text-center py-2 text-xs text-gray-500">
-                                            No customers found
-                                        </div>
-                                    ) : null}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                                                ))}
+                                            </div>
+                                        ) : phoneSearchQuery.length > 3 ? (
+                                            <div className="text-center py-2 text-xs text-gray-500">
+                                                No customers found
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Parts & Estimates - Compact Card */}
                     <Card>

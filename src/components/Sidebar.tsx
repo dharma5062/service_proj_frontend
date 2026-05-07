@@ -63,7 +63,7 @@ const Sidebar = () => {
     const [settingsOpen, setSettingsOpen] = useState(true);
 
     // ── Auth context ──────────────────────────────────────────────────────────
-    const { user, shop, shops, setShop, logout, hasPermission, isSuperAdmin, isShopOwner } = useAuth();
+    const { user, shop, shops, setShop, logout, hasPermission, isSuperAdmin, isShopOwner, isCustomer } = useAuth();
 
     const displayName = shop?.name || user?.name || 'My Shop';
     const displayEmail = user?.email || '';
@@ -89,9 +89,15 @@ const Sidebar = () => {
     ];
 
     // Determines if a nav/settings item should be visible for the current user
-    const isItemVisible = (item: { reqPerm: string | null; adminOnly?: boolean }) => {
+    const isItemVisible = (item: { label: string; reqPerm: string | null; adminOnly?: boolean }) => {
         // adminOnly items are only shown to sa / so
         if (item.adminOnly && !isSuperAdmin && !isShopOwner) return false;
+        
+        // Customers only see Dashboard and Services
+        if (isCustomer) {
+            return ['Dashboard', 'Services'].includes(item.label);
+        }
+
         // reqPerm: null means always visible (already passed adminOnly check)
         if (!item.reqPerm) return true;
         return hasPermission(item.reqPerm);
@@ -117,6 +123,7 @@ const Sidebar = () => {
                                 <SidebarMenuButton
                                     size="lg"
                                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                                    disabled={isCustomer}
                                 >
                                     <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
                                         CO
@@ -125,28 +132,30 @@ const Sidebar = () => {
                                         <span className="truncate font-semibold">{shop?.shop_owner?.company_name || 'Company Name'}</span>
                                         <span className="truncate text-xs text-muted-foreground">{shop?.name || 'Select Branch'}</span>
                                     </div>
-                                    <ChevronsUpDown className="ml-auto size-4" />
+                                    {!isCustomer && <ChevronsUpDown className="ml-auto size-4" />}
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                                align="start"
-                                side={isMobile ? "bottom" : "right"}
-                                sideOffset={4}
-                            >
-                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                                    Branches
-                                </DropdownMenuLabel>
-                                {shops?.map((s) => (
-                                    <DropdownMenuItem key={s.id} onClick={() => setShop(s)} className="gap-2 p-2 cursor-pointer">
-                                        <div className="flex size-6 items-center justify-center rounded-sm border">
-                                            <Store className="size-4 shrink-0" />
-                                        </div>
-                                        {s.name}
-                                        {shop?.id === s.id && <Check className="ml-auto size-4" />}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
+                            {!isCustomer && (
+                                <DropdownMenuContent
+                                    className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                                    align="start"
+                                    side={isMobile ? "bottom" : "right"}
+                                    sideOffset={4}
+                                >
+                                    <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                                        Branches
+                                    </DropdownMenuLabel>
+                                    {shops?.map((s) => (
+                                        <DropdownMenuItem key={s.id} onClick={() => setShop(s)} className="gap-2 p-2 cursor-pointer">
+                                            <div className="flex size-6 items-center justify-center rounded-sm border">
+                                                <Store className="size-4 shrink-0" />
+                                            </div>
+                                            {s.name}
+                                            {shop?.id === s.id && <Check className="ml-auto size-4" />}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            )}
                         </DropdownMenu>
                     </SidebarMenuItem>
 

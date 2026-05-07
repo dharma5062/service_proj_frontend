@@ -101,6 +101,7 @@ interface AuthContextType {
     isShopOwner: boolean;
     isShopEmployee: boolean;
     isUser: boolean;
+    isCustomer: boolean;
     hasPermission: (permission: string) => boolean;
 }
 
@@ -137,6 +138,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const isShopOwner = useMemo(() => user?.user_type === 'so', [user?.user_type]);
     const isShopEmployee = useMemo(() => user?.user_type === 'se', [user?.user_type]);
     const isUser = useMemo(() => user?.user_type === 'us', [user?.user_type]);
+    const isCustomer = useMemo(() => user?.user_type === 'cu', [user?.user_type]);
 
     const hasPermission = useCallback(
         (permission: string) => {
@@ -349,6 +351,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 isShopOwner,
                 isShopEmployee,
                 isUser,
+                isCustomer,
                 hasPermission,
             }}
         >

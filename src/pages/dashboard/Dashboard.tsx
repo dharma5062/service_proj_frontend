@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
     const navigate = useNavigate();
-    const { user, isShopEmployee } = useAuth();
+    const { user, isShopEmployee, isCustomer } = useAuth();
     const { useGetServiceRequests } = useServiceRequestsApi();
     const { data: rawServiceRequests = [], isLoading: loading } = useGetServiceRequests();
 
@@ -17,9 +17,11 @@ const Dashboard = () => {
         let filtered = [...rawServiceRequests];
         if (isShopEmployee && user?.id) {
             filtered = filtered.filter(req => req.assigned_technician?.id === user.id);
+        } else if (isCustomer && user?.id) {
+            filtered = filtered.filter(req => req.customer?.id === user.id);
         }
         return filtered.sort((a, b) => b.id - a.id);
-    }, [rawServiceRequests, isShopEmployee, user?.id]);
+    }, [rawServiceRequests, isShopEmployee, isCustomer, user?.id]);
 
     // ─── Stats Calculation ────────────────────────────────────────────────────
     const stats = useMemo(() => {
@@ -126,7 +128,7 @@ const Dashboard = () => {
                         Dashboard
                     </h1>
                     <p className="text-xs text-blue-600 mt-0.5 font-medium">
-                        {isShopEmployee ? `Assigned to ${user?.name}` : 'Overview of service operations'}
+                        {isShopEmployee ? `Assigned to ${user?.name}` : isCustomer ? 'My Service Requests' : 'Overview of service operations'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2 bg-white border rounded-lg px-2 py-1.5 shadow-sm">
@@ -164,7 +166,7 @@ const Dashboard = () => {
             <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
                     <h2 className="text-sm font-bold text-gray-900">
-                        {isShopEmployee ? 'My Assigned Requests' : 'Recent Service Requests'}
+                        {isShopEmployee ? 'My Assigned Requests' : isCustomer ? 'My Requests' : 'Recent Service Requests'}
                     </h2>
                     <Button
                         variant="link"
@@ -178,7 +180,7 @@ const Dashboard = () => {
                 <DataTable
                     columns={columns}
                     data={filteredRequests}
-                    title={isShopEmployee ? 'Active Tasks' : 'All Requests'}
+                    title={isShopEmployee ? 'Active Tasks' : isCustomer ? 'My Services' : 'All Requests'}
                     searchable={false}
                     showActions={true}
                     loading={loading}
