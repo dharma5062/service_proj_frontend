@@ -95,11 +95,11 @@ export default function ResetPassword() {
   // UI
   // =============================
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 to-primary/10">
       <Card className="max-w-md w-full rounded-2xl shadow-2xl border-0">
-        <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-2xl pt-8 pb-6 text-center">
+        <CardHeader className="bg-primary text-white rounded-t-2xl pt-8 pb-6 text-center">
           <CardTitle className="text-3xl font-bold">Reset Password</CardTitle>
-          <CardDescription className="text-blue-100 text-base mt-2">
+          <CardDescription className="text-primary-foreground/80 text-base mt-2">
             Enter the OTP and create your new password
           </CardDescription>
         </CardHeader>
@@ -223,7 +223,7 @@ export default function ResetPassword() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+              className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-white"
             >
               {loading ? "Resetting..." : "Reset Password"}
             </Button>
@@ -233,7 +233,7 @@ export default function ResetPassword() {
               <button
                 type="button"
                 onClick={() => navigate("/login")}
-                className="text-blue-600 font-semibold"
+                className="text-primary font-semibold"
               >
                 Login
               </button>

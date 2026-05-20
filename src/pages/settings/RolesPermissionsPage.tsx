@@ -3,7 +3,7 @@ import { useAuth } from '@/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { DataTable, Column } from '@/components/ui/table/tableComponents';
+import { DataTable, Column } from '@/components/ui/table/datatable';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -122,7 +122,7 @@ const RolesPermissionsPage: React.FC = () => {
             sortable: true,
             render: (value) =>
                 value === null ? (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap text-blue-700 bg-blue-100 border border-blue-200">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap text-primary bg-primary/10 border border-primary/20">
                         System Role
                     </span>
                 ) : (
@@ -150,7 +150,7 @@ const RolesPermissionsPage: React.FC = () => {
                     <h1 className="text-lg font-bold text-gray-900 tracking-tight">
                         Roles &amp; Privileges
                     </h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-blue-600">
+                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">
                         Manage employee access levels and system permissions.
                     </p>
                 </div>
@@ -172,25 +172,25 @@ const RolesPermissionsPage: React.FC = () => {
                 onEdit={
                     hasPermission('role.update')
                         ? (record) => {
-                              // System roles (shop_id === null) are not editable
-                              if (record.shop_id !== null) {
-                                  handleOpenRolePage(record);
-                              } else {
-                                  toast.error('System roles cannot be edited');
-                              }
-                          }
+                            // System roles (shop_id === null) are not editable
+                            if (record.shop_id !== null) {
+                                handleOpenRolePage(record);
+                            } else {
+                                toast.error('System roles cannot be edited');
+                            }
+                        }
                         : undefined
                 }
                 onDelete={
                     hasPermission('role.delete')
                         ? (record) => {
-                              // System roles (shop_id === null) are not deletable
-                              if (record.shop_id !== null) {
-                                  handleDeleteClick(record);
-                              } else {
-                                  toast.error('System roles cannot be deleted');
-                              }
-                          }
+                            // System roles (shop_id === null) are not deletable
+                            if (record.shop_id !== null) {
+                                handleDeleteClick(record);
+                            } else {
+                                toast.error('System roles cannot be deleted');
+                            }
+                        }
                         : undefined
                 }
                 pagination={{

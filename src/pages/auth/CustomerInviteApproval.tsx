@@ -52,13 +52,13 @@ const CustomerInviteApproval: React.FC = () => {
       <Card className="w-full max-w-md shadow-lg border-0">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className={`p-4 rounded-full ${status === 'success' ? 'bg-green-100' : 'bg-blue-100'}`}>
+            <div className={`p-4 rounded-full ${status === 'success' ? 'bg-green-100' : 'bg-primary/10'}`}>
               {status === 'success' ? (
                 <CheckCircle2 className="w-10 h-10 text-green-600" />
               ) : status === 'error' ? (
                 <AlertCircle className="w-10 h-10 text-red-600" />
               ) : (
-                <UserPlus className="w-10 h-10 text-blue-600" />
+                <UserPlus className="w-10 h-10 text-primary" />
               )}
             </div>
           </div>
@@ -81,8 +81,8 @@ const CustomerInviteApproval: React.FC = () => {
 
           {status === 'loading' && (
             <div className="flex flex-col items-center space-y-4">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-              <p className="text-blue-600 font-medium">Approving your invitation...</p>
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <p className="text-primary font-medium">Approving your invitation...</p>
             </div>
           )}
 
@@ -108,7 +108,7 @@ const CustomerInviteApproval: React.FC = () => {
             <Button 
               size="lg"
               className={`w-full h-12 text-lg font-semibold shadow-md transition-all duration-200 ${
-                status === 'error' ? 'bg-gray-800 hover:bg-black' : 'bg-blue-600 hover:bg-blue-700'
+                status === 'error' ? 'bg-gray-800 hover:bg-black' : 'bg-primary hover:bg-primary/90'
               }`}
               onClick={status === 'error' ? () => navigate('/') : handleApprove}
             >

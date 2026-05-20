@@ -158,7 +158,7 @@ export default function VerifyOTP() {
             <div className="w-full max-w-md bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg p-6">
                 {/* Lock Icon */}
                 <div className="flex justify-center mb-3">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <Lock className="h-7 w-7" />
                     </div>
                 </div>
@@ -188,7 +188,7 @@ export default function VerifyOTP() {
                                 onChange={(e) => handleInputChange(index, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(index, e)}
                                 onPaste={(e) => handlePaste(index, e)}
-                                className="flex h-12 w-10 sm:h-14 sm:w-12 text-center text-lg sm:text-xl font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 dark:focus:ring-offset-slate-900 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50 transition-all"
+                                className="flex h-12 w-10 sm:h-14 sm:w-12 text-center text-lg sm:text-xl font-semibold focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 dark:focus:ring-offset-slate-900 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50 transition-all"
                                 aria-label={`Digit ${index + 1}`}
                             />
                         ))}
@@ -198,7 +198,7 @@ export default function VerifyOTP() {
                     <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors disabled:bg-slate-300 dark:disabled:bg-slate-700"
+                        className="w-full h-10 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg transition-colors disabled:bg-slate-300 dark:disabled:bg-slate-700"
                     >
                         {loading ? (
                             <div className="flex items-center justify-center gap-2">
@@ -229,7 +229,7 @@ export default function VerifyOTP() {
                         Already have an account?{" "}
                         <button
                             onClick={() => navigate("/login")}
-                            className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-500 dark:hover:text-blue-400 hover:underline focus:outline-none"
+                            className="font-semibold text-primary hover:underline focus:outline-none"
                         >
                             Sign in
                         </button>

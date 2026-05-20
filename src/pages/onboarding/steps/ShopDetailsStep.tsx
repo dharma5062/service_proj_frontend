@@ -261,7 +261,7 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
                     <div
                         className={cn(
                             "border-2 border-dashed rounded-xl p-6 h-[280px] flex flex-col items-center justify-center text-center transition-all cursor-pointer",
-                            dragging ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-blue-400 hover:bg-gray-50",
+                            dragging ? "border-primary bg-primary/5" : "border-gray-200 hover:border-primary/50 hover:bg-gray-50",
                             data.shopLogoPreview ? "bg-white" : "bg-gray-50"
                         )}
                         onDragOver={handleDragOver}
@@ -283,8 +283,8 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
                             </div>
                         ) : (
                             <>
-                                <div className="bg-blue-100 p-4 rounded-full mb-4">
-                                    <Upload className="w-8 h-8 text-blue-600" />
+                                <div className="bg-primary/10 p-4 rounded-full mb-4">
+                                    <Upload className="w-8 h-8 text-primary" />
                                 </div>
                                 <h3 className="text-sm font-bold text-gray-900 mb-1">Click to upload or drag and drop</h3>
                                 <p className="text-xs text-gray-500 mb-4">SVG, PNG, JPG or GIF (max. 3MB)</p>
@@ -306,7 +306,7 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
                 {/* Footer Buttons */}
                 <div className="md:col-span-3 pt-6 border-t border-gray-100 flex justify-end gap-3">
                     <Button type="button" variant="ghost" onClick={() => { }}>Cancel</Button>
-                    <Button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white min-w-[120px]">
+                    <Button type="submit" className="bg-primary hover:bg-primary/90 text-white min-w-[120px]">
                         Next Step <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                 </div>

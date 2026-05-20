@@ -259,34 +259,57 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const response = await axiosInstance.get('/shops-index');
             const raw = response.data;
 
-            let shops: Shop[] = [];
+            let shopList: Shop[] = [];
 
             if (Array.isArray(raw)) {
-                shops = raw;
+                shopList = raw;
             } else if (raw?.data && Array.isArray(raw.data)) {
-                shops = raw.data;
+                shopList = raw.data;
             } else if (raw?.data?.data && Array.isArray(raw.data.data)) {
-                shops = raw.data.data;
+                shopList = raw.data.data;
             } else if (raw?.id) {
-                shops = [raw as Shop];
+                shopList = [raw as Shop];
             } else if (raw && typeof raw === 'object') {
                 const firstArray = Object.values(raw).find(v => Array.isArray(v));
-                if (firstArray) shops = firstArray as Shop[];
+                if (firstArray) shopList = firstArray as Shop[];
             }
 
+            // ── Validate the stored shop ID belongs to THIS user's shops ────────
+            // This prevents stale localStorage from a previous user session
+            // from loading a different shop owner's data.
             const storedShopId = localStorage.getItem('selected_shop_id');
             const parsedStoredShopId = storedShopId ? parseInt(storedShopId, 10) : null;
             let userShop: Shop | null = null;
 
-            if (shops.length > 0) {
+            if (shopList.length > 0) {
                 if (parsedStoredShopId) {
-                    userShop = shops.find(s => s.id === parsedStoredShopId) || shops[0];
+                    // Only use stored shop ID if it actually belongs to this user's shops
+                    const matchedShop = shopList.find(s => s.id === parsedStoredShopId);
+                    if (matchedShop) {
+                        userShop = matchedShop;
+                    } else {
+                        // Stale/invalid stored ID — check for main branch first
+                        const mainBranch = shopList.find(s => {
+                            const desc = typeof s.description === 'string' ? JSON.parse(s.description) : s.description;
+                            return desc?.is_main === true;
+                        });
+                        userShop = mainBranch || shopList[0];
+                        localStorage.setItem('selected_shop_id', userShop.id.toString());
+                    }
                 } else {
-                    userShop = shops[0];
+                    // No stored preference — look for the Main Branch
+                    const mainBranch = shopList.find(s => {
+                        const desc = typeof s.description === 'string' ? JSON.parse(s.description) : s.description;
+                        return desc?.is_main === true;
+                    });
+                    userShop = mainBranch || shopList[0];
+                    if (userShop) {
+                        localStorage.setItem('selected_shop_id', userShop.id.toString());
+                    }
                 }
             }
 
-            setShops(shops);
+            setShops(shopList);
             setShop(userShop);
             setShopLoaded(true);
         } catch (err) {

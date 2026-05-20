@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CreateShopPayload, useShopsApi } from '@/pages/serviceAPI/ShopsAPI';
 import { useProductCategoriesApi, ProductCategory } from '@/pages/serviceAPI/ProductCategoriesAPI';
-import { User } from '@/AuthContext';
+import { User, useAuth } from '@/AuthContext';
 
 interface ReviewStepProps {
     data: OnboardingData;
@@ -17,9 +17,9 @@ interface ReviewStepProps {
 }
 
 
-
 const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, user }) => {
     const navigate = useNavigate();
+    const { fetchShop } = useAuth(); // Access fetchShop to refresh context after shop creation
     const [agreed, setAgreed] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedCategories, setSelectedCategories] = useState<ProductCategory[]>([]);
@@ -93,6 +93,13 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
 
             await createShopMutation.mutateAsync(payload);
 
+            // ── Refresh shop context ────────────────────────────────────────────
+            // After creating a shop, re-fetch the shop list so the AuthContext
+            // picks up the newly created shop as the active shop.
+            // Without this, the dashboard would show the previously selected
+            // (potentially wrong) shop's data.
+            await fetchShop();
+
             toast.success('Shop setup completed successfully!');
             navigate('/dashboard');
         } catch (error) {
@@ -118,10 +125,10 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
-                            <Store className="h-5 w-5 text-blue-500" />
+                            <Store className="h-5 w-5 text-primary" />
                             <h3 className="font-bold text-gray-900">Shop Profile</h3>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-blue-500 h-auto p-0 hover:text-blue-700 font-medium" onClick={() => onEditSection(1)}>
+                        <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-medium" onClick={() => onEditSection(1)}>
                             Edit
                         </Button>
                     </div>
@@ -154,10 +161,10 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
                 <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
-                            <LayoutGrid className="h-5 w-5 text-blue-500" />
+                            <LayoutGrid className="h-5 w-5 text-primary" />
                             <h3 className="font-bold text-gray-900">Selected Services</h3>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-blue-500 h-auto p-0 hover:text-blue-700 font-medium" onClick={() => onEditSection(3)}>
+                        <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-medium" onClick={() => onEditSection(3)}>
                             Edit
                         </Button>
                     </div>
@@ -188,10 +195,10 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 lg:col-span-2">
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
-                            <Clock className="h-5 w-5 text-blue-500" />
+                            <Clock className="h-5 w-5 text-primary" />
                             <h3 className="font-bold text-gray-900">Business Hours</h3>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-blue-500 h-auto p-0 hover:text-blue-700 font-medium" onClick={() => onEditSection(2)}>
+                        <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-medium" onClick={() => onEditSection(2)}>
                             Edit
                         </Button>
                     </div>
@@ -229,7 +236,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
                 <div className="flex items-start gap-3 mb-6">
                     <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
                     <label htmlFor="terms" className="text-sm text-gray-600 leading-relaxed cursor-pointer">
-                        I agree to wService's <a href="#" className="text-blue-500 hover:underline">Terms of Service</a> and <a href="#" className="text-blue-500 hover:underline">Privacy Policy</a>.
+                        I agree to wService's <a href="#" className="text-primary hover:underline">Terms of Service</a> and <a href="#" className="text-primary hover:underline">Privacy Policy</a>.
                         I confirm that the information provided is accurate.
                     </label>
                 </div>
@@ -241,7 +248,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
                     <Button
                         onClick={handleComplete}
                         disabled={isSubmitting || !agreed}
-                        className="bg-blue-500 hover:bg-blue-600 text-white min-w-[160px]"
+                        className="bg-primary hover:bg-primary/90 text-white min-w-[160px]"
                     >
                         {isSubmitting ? 'Setting up...' : 'Complete Setup'}
                         {!isSubmitting && <Check className="ml-2 h-4 w-4" />}

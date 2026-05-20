@@ -30,7 +30,11 @@ import ViewProductPage from '@/pages/settings/ViewProductPage';
 import ServiceChargesPage from '@/pages/settings/ServiceChargesPage';
 import RolesPermissionsPage from '@/pages/settings/RolesPermissionsPage';
 import CreateRolePage from '@/pages/settings/CreateRolePage';
+import BusinessTypesPage from '@/pages/settings/BusinessTypesPage';
+import SettingsPage from '@/pages/settings/SettingsPage';
+import CompanyBranchesPage from '@/pages/settings/CompanyBranchesPage';
 // import ShopsPage from '@/pages/settings/ShopsPage';
+import TableDemoPage from '@/pages/demo/TableDemoPage';
 import PrivateRoute from '@/components/routes/PrivateRoute';
 import PublicRoute from '@/components/routes/PublicRoute';
 
@@ -51,6 +55,7 @@ const RouterComponent: React.FC = () => {
                 {/* Protected Routes */}
                 <Route path='/dashboard' element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
                     <Route index element={<Dashboard />} />
+                    <Route path='table-demo' element={<TableDemoPage />} />
 
                     <Route path='staff' element={<StaffPage />} />
                     {/* <Route path='notifications' element={<NotificationCenter />} /> */}
@@ -64,6 +69,7 @@ const RouterComponent: React.FC = () => {
                     <Route path='invoice/create' element={<InvoiceGenerator />} />
                     <Route path='invoice/:id' element={<InvoiceGenerator />} />
                     {/* Settings Routes */}
+                    <Route path='settings' element={<SettingsPage />} />
                     <Route path='settings/categories' element={<ProductCategoriesPage />} />
                     <Route path='settings/category-form' element={<ShopCategoryFormsPage />} />
                     <Route path='settings/category-form/create' element={<CreateShopCategoryFormPage />} />
@@ -74,9 +80,11 @@ const RouterComponent: React.FC = () => {
                     <Route path='settings/product/edit/:id' element={<CreateProductPage />} />
                     <Route path='settings/product/view/:id' element={<ViewProductPage />} />
                     <Route path='settings/service-charges' element={<ServiceChargesPage />} />
+                    <Route path='settings/business-types' element={<BusinessTypesPage />} />
                     <Route path='settings/roles' element={<RolesPermissionsPage />} />
                     <Route path='settings/roles/create' element={<CreateRolePage />} />
                     <Route path='settings/roles/edit/:id' element={<CreateRolePage />} />
+                    <Route path='settings/company-branches' element={<CompanyBranchesPage />} />
                     {/* <Route path='settings/shop' element={<ShopsPage />} /> */}
                     {/* Add other routes as they are created */}
                 </Route>

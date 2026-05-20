@@ -47,18 +47,34 @@ export interface ApiResponse<T = any> {
  * Fetches all shop employees with search and pagination
  */
 export const fetchShopEmployees = async (
-    params: { search?: string; page?: number; per_page?: number } = {}
+    params: { search?: string; page?: number; per_page?: number; shop_id?: number } = {}
 ): Promise<PaginatedResponse<ShopEmployee>> => {
     try {
         const response = await axiosInstance.get('/shop-employees-index', { params });
         const raw = response.data;
 
-        // Handle Laravel pagination or direct data
+        // Handle custom Laravel response format: { status: true, data: { current_page: 1, data: [...] } }
+        if (raw?.status && raw?.data) {
+            if (raw.data.data && Array.isArray(raw.data.data)) {
+                return raw.data; // Return the paginated object directly
+            }
+            if (Array.isArray(raw.data)) {
+                return {
+                    data: raw.data,
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: raw.data.length,
+                    total: raw.data.length,
+                };
+            }
+        }
+
+        // Handle standard Laravel pagination (if not wrapped in custom response)
         if (raw?.data && Array.isArray(raw.data)) {
             return raw;
         }
 
-        // Fallback for non-paginated responses
+        // Fallback for non-paginated flat array response
         if (Array.isArray(raw)) {
             return {
                 data: raw,
@@ -175,7 +191,8 @@ export const useShopEmployeesApi = () => {
     const useGetShopEmployees = (params: { search?: string; page?: number; per_page?: number } = {}) =>
         useQuery<PaginatedResponse<ShopEmployee>, Error>({
             queryKey: ['shop-employees', shopId, params],
-            queryFn: () => fetchShopEmployees(params),
+            // Include shop_id in params so the backend scopes employees to this shop
+            queryFn: () => fetchShopEmployees({ ...params, shop_id: shopId ?? undefined }),
             enabled: !!shopId,
         });
 

@@ -20,7 +20,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { DataTable, Column } from '@/components/ui/table/tableComponents';
+import { DataTable, Column } from '@/components/ui/table/datatable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     CategoryForm,
@@ -73,7 +73,7 @@ const ShopCategoryFormsPage = () => {
                     const formData = deserializeDefectFormData(value);
                     if (formData) {
                         return (
-                            <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                            <span className="text-[10px] text-primary font-bold bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
                                 Defect Form ({formData.fields.length} fields)
                             </span>
                         );
@@ -106,7 +106,7 @@ const ShopCategoryFormsPage = () => {
                     return (
                         <div className="flex flex-wrap gap-1">
                             {displayCategories.map((cat: any) => (
-                                <Badge key={cat.id} variant="outline" className="text-[10px] font-bold bg-blue-50 text-blue-700 border-blue-200 px-1.5 py-0 shadow-sm">
+                                <Badge key={cat.id} variant="outline" className="text-[10px] font-bold bg-primary/10 text-primary border-primary/20 px-1.5 py-0 shadow-sm">
                                     {cat.name}
                                 </Badge>
                             ))}
@@ -116,7 +116,7 @@ const ShopCategoryFormsPage = () => {
                 // Fallback to legacy single category object
                 if (record.category?.name) {
                     return (
-                        <Badge variant="outline" className="text-[10px] font-bold bg-blue-50 text-blue-700 border-blue-200 px-1.5 py-0 shadow-sm">
+                        <Badge variant="outline" className="text-[10px] font-bold bg-primary/10 text-primary border-primary/20 px-1.5 py-0 shadow-sm">
                             {record.category.name}
                         </Badge>
                     );
@@ -184,7 +184,7 @@ const ShopCategoryFormsPage = () => {
             <div className="flex justify-between items-start mb-6">
                 <div>
                     <h1 className="text-lg font-bold text-gray-900 tracking-tight">Defect Form Builder</h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-blue-600">Manage defect form builders and their configurations.</p>
+                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">Manage defect form builders and their configurations.</p>
                 </div>
             </div>
 
@@ -257,7 +257,7 @@ const ShopCategoryFormsPage = () => {
                                                         const displayCats = leafCats.length > 0 ? leafCats : selectedForm.categories;
 
                                                         return displayCats.map((cat) => (
-                                                            <Badge key={cat.id} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                                            <Badge key={cat.id} variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
                                                                 {cat.name}
                                                             </Badge>
                                                         ));

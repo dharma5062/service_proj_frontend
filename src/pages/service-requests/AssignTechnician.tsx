@@ -127,7 +127,7 @@ const AssignTechnician = () => {
                     </button>
                     <div>
                         <h1 className="text-base font-bold text-gray-900 tracking-tight">Assign Technician</h1>
-                        <p className="text-xs text-blue-600 mt-0.5">Service Request SR{String(service.id).padStart(3, '0')}</p>
+                        <p className="text-xs text-primary mt-0.5">Service Request SR{String(service.id).padStart(3, '0')}</p>
                     </div>
                 </div>
             </div>
@@ -159,7 +159,7 @@ const AssignTechnician = () => {
                                             return `${brand} ${product}`.trim() || 'General Service';
                                         })()}
                                     </p>
-                                    <p className="text-[11px] text-blue-600 font-medium mt-0.5">
+                                    <p className="text-[11px] text-primary font-medium mt-0.5">
                                         {service.form?.name || 'Standard Form'}
                                     </p>
                                 </div>
@@ -173,7 +173,7 @@ const AssignTechnician = () => {
                                         const styles: Record<string, string> = {
                                             pending: 'bg-yellow-50 text-yellow-700 border-yellow-100',
                                             assigned: 'bg-purple-50 text-purple-700 border-purple-100',
-                                            in_progress: 'bg-blue-50 text-blue-700 border-blue-100',
+                                            in_progress: 'bg-primary/10 text-primary border-primary/20',
                                             completed: 'bg-green-50 text-green-700 border-green-100',
                                         };
                                         return (
@@ -193,7 +193,7 @@ const AssignTechnician = () => {
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <UserCheck className="w-4 h-4 text-blue-600" />
+                                <UserCheck className="w-4 h-4 text-primary" />
                                 <h3 className="text-sm font-bold text-gray-900">Assignment Details</h3>
                             </div>
                             <span className="text-[10px] text-gray-400 font-medium italic">Updated real-time</span>
@@ -203,7 +203,7 @@ const AssignTechnician = () => {
                             <div className="space-y-2">
                                 <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Select Technician</label>
                                 <Select value={selectedTechId} onValueChange={setSelectedTechId}>
-                                    <SelectTrigger className="w-full h-10 text-sm border-gray-200 focus:ring-blue-500/20">
+                                    <SelectTrigger className="w-full h-10 text-sm border-gray-200 focus:ring-primary/20">
                                         <SelectValue placeholder="Select a staff member" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -231,13 +231,13 @@ const AssignTechnician = () => {
                                     placeholder="Add notes or specific instructions for the technician..."
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    className="min-h-[120px] text-sm border-gray-200 resize-none focus:ring-blue-500/20"
+                                    className="min-h-[120px] text-sm border-gray-200 resize-none focus:ring-primary/20"
                                 />
                             </div>
 
-                            <div className="bg-blue-50/50 rounded-lg p-3.5 border border-blue-100 flex items-start gap-3">
-                                <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                                <p className="text-xs text-blue-800 leading-relaxed">
+                            <div className="bg-primary/10 rounded-lg p-3.5 border border-primary/20 flex items-start gap-3">
+                                <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                <p className="text-xs text-primary leading-relaxed">
                                     Assigning a technician will notify them via their dashboard. The request status will automatically update to <span className="font-bold">ASSIGNED</span>.
                                 </p>
                             </div>
@@ -253,7 +253,7 @@ const AssignTechnician = () => {
                                 </Button>
                                 <Button 
                                     size="sm"
-                                    className="h-9 text-xs px-6 font-bold bg-blue-600 hover:bg-blue-700 shadow-sm"
+                                    className="h-9 text-xs px-6 font-bold bg-primary hover:bg-primary/90 shadow-sm"
                                     onClick={handleAssignTechnician}
                                     disabled={!selectedTechId || assignMutation.isPending}
                                 >

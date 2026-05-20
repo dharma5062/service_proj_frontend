@@ -90,14 +90,14 @@ const InvoiceGenerator = () => {
             <div className="flex items-center gap-2 mb-4">
                 <button
                     onClick={() => navigate('/dashboard')}
-                    className="text-gray-500 hover:text-blue-600 text-sm font-medium"
+                    className="text-gray-500 hover:text-primary text-sm font-medium"
                 >
                     Dashboard
                 </button>
                 <ChevronRight className="h-4 w-4 text-gray-400" />
                 <button
                     onClick={() => navigate('/dashboard/services')}
-                    className="text-gray-500 hover:text-blue-600 text-sm font-medium"
+                    className="text-gray-500 hover:text-primary text-sm font-medium"
                 >
                     Invoices
                 </button>
@@ -115,7 +115,7 @@ const InvoiceGenerator = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <Button variant="outline">Save as Draft</Button>
-                    <Button onClick={generatePDF} className="bg-blue-600 hover:bg-blue-700">
+                    <Button onClick={generatePDF} className="bg-primary hover:bg-primary/90">
                         Generate & Send
                     </Button>
                 </div>
@@ -136,8 +136,8 @@ const InvoiceGenerator = () => {
                                     <p className="text-gray-500 mt-1">Invoice #: {invoiceNumber}</p>
                                 </div>
                                 <div className="text-right">
-                                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                        <span className="text-blue-600 font-bold text-lg">AP</span>
+                                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                                        <span className="text-primary font-bold text-lg">AP</span>
                                     </div>
                                     <p className="font-semibold text-gray-800 mt-2">AutoFix Pro</p>
                                     <p className="text-sm text-gray-500">123 Service Lane, Auto City</p>
@@ -356,7 +356,7 @@ const InvoiceGenerator = () => {
                             ))}
                             <button
                                 onClick={addLineItem}
-                                className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-600 hover:text-blue-600 transition text-sm font-medium"
+                                className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-primary hover:text-primary transition text-sm font-medium"
                             >
                                 <Plus className="h-4 w-4" /> Add Item
                             </button>

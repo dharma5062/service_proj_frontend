@@ -25,7 +25,7 @@ export default function LandingPage() {
                 <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between relative">
                     {/* Logo */}
                     <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-blue-600 rounded-lg">
+                        <div className="p-1.5 bg-primary rounded-lg">
                             <ClipboardList className="h-4 w-4 text-white" />
                         </div>
                         <span className="text-sm font-bold tracking-tight">ServiceHub</span>
@@ -34,7 +34,7 @@ export default function LandingPage() {
                     {/* Centered Links */}
                     <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
                         {['Features', 'Security', 'Privacy', 'Status'].map(link => (
-                            <a key={link} href={`#${link.toLowerCase()}`} className="text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors">
+                            <a key={link} href={`#${link.toLowerCase()}`} className="text-xs font-semibold text-gray-500 hover:text-primary transition-colors">
                                 {link}
                             </a>
                         ))}
@@ -42,7 +42,7 @@ export default function LandingPage() {
                     
                     {/* CTAs */}
                     <div className="flex items-center gap-4">
-                        <Link to="/login" className="text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors">
+                        <Link to="/login" className="text-xs font-semibold text-gray-500 hover:text-primary transition-colors">
                             Sign In
                         </Link>
                         <Link to="/register">
@@ -60,13 +60,13 @@ export default function LandingPage() {
                     <div className="max-w-6xl mx-auto px-4">
                         {/* Hero Section */}
                         <div className="max-w-3xl mx-auto text-center mb-20">
-                            <div className="inline-flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-[10px] font-bold uppercase tracking-wider mb-6">
+                            <div className="inline-flex items-center gap-2 px-2 py-1 bg-primary/10 border border-primary/20 rounded-full text-primary text-[10px] font-bold uppercase tracking-wider mb-6">
                                 <Zap className="h-3 w-3" />
                                 Next-Gen Service Management
                             </div>
                             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-900 mb-6 leading-[1.1]">
                                 Manage Multi-Shop Service Operations 
-                                <span className="text-blue-600"> with Precision.</span>
+                                <span className="text-primary"> with Precision.</span>
                             </h1>
                             <p className="text-base md:text-lg text-gray-500 mb-10 max-w-xl mx-auto leading-relaxed">
                                 A minimal, high-performance platform for multi-location businesses. 
@@ -89,7 +89,7 @@ export default function LandingPage() {
 
                         {/* Dashboard Preview */}
                         <div className="relative group mb-32">
-                            <div className="absolute -inset-4 bg-gradient-to-tr from-blue-100/50 to-purple-100/50 rounded-[2rem] blur-2xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                            <div className="absolute -inset-4 bg-gradient-to-tr from-primary/10 to-purple-100/50 rounded-[2rem] blur-2xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
                             <Card className="relative bg-white border border-gray-100 shadow-2xl rounded-xl overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <div className="min-w-[800px] p-6 md:p-8">
@@ -97,10 +97,10 @@ export default function LandingPage() {
                                         <div className="flex items-center justify-between mb-8">
                                             <div>
                                                 <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                                    <LayoutDashboard className="h-4 w-4 text-blue-600" />
+                                                    <LayoutDashboard className="h-4 w-4 text-primary" />
                                                     Dashboard Overview
                                                 </h2>
-                                                <p className="text-[10px] text-blue-600 font-medium mt-0.5">Real-time performance metrics across all shops</p>
+                                                <p className="text-[10px] text-primary font-medium mt-0.5">Real-time performance metrics across all shops</p>
                                             </div>
                                             <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 border rounded-lg">
                                                 <Clock className="h-3 w-3 text-gray-400" />
@@ -116,11 +116,11 @@ export default function LandingPage() {
                                                 { title: "Staff Members", value: "84", change: "+5", icon: Users },
                                                 { title: "Completion Rate", value: "94%", change: "+3%", icon: CheckCircle2 }
                                             ].map((stat, i) => (
-                                                <div key={i} className="bg-gray-50/50 rounded-lg border border-gray-100 p-4 hover:border-blue-200 transition-colors">
+                                                <div key={i} className="bg-gray-50/50 rounded-lg border border-gray-100 p-4 hover:border-primary/50 transition-colors">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{stat.title}</span>
                                                         <div className="p-1 bg-white rounded shadow-sm">
-                                                            <stat.icon className="h-3 w-3 text-blue-600" />
+                                                            <stat.icon className="h-3 w-3 text-primary" />
                                                         </div>
                                                     </div>
                                                     <div className="flex items-baseline gap-2">
@@ -146,7 +146,7 @@ export default function LandingPage() {
                                                     ].map((act, i) => (
                                                         <div key={i} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
                                                             <div className="flex items-center gap-3">
-                                                                <div className={`h-1.5 w-1.5 rounded-full ${act.status === 'completed' ? 'bg-green-500' : act.status === 'assigned' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
+                                                                <div className={`h-1.5 w-1.5 rounded-full ${act.status === 'completed' ? 'bg-green-500' : act.status === 'assigned' ? 'bg-primary' : 'bg-yellow-500'}`}></div>
                                                                 <span className="text-[11px] font-medium text-gray-700">{act.label}</span>
                                                             </div>
                                                             <span className="text-[10px] text-gray-400">{act.time}</span>
@@ -162,7 +162,7 @@ export default function LandingPage() {
                                                 </div>
                                                 <div className="h-28 flex items-end justify-between gap-2 px-2">
                                                     {[40, 65, 45, 90, 70, 85, 95].map((h, i) => (
-                                                        <div key={i} className="bg-blue-600/10 hover:bg-blue-600/20 transition-colors rounded-t w-full" style={{ height: `${h}%` }}></div>
+                                                        <div key={i} className="bg-primary/10 hover:bg-primary/20 transition-colors rounded-t w-full" style={{ height: `${h}%` }}></div>
                                                     ))}
                                                 </div>
                                                 <div className="flex justify-between mt-3 px-1">
@@ -187,7 +187,7 @@ export default function LandingPage() {
                             ].map((feature, i) => (
                                 <div key={i} className="space-y-4">
                                     <div className="h-12 w-12 bg-white border border-gray-100 rounded-xl flex items-center justify-center shadow-sm mx-auto sm:mx-0">
-                                        <feature.icon className="h-6 w-6 text-blue-600" />
+                                        <feature.icon className="h-6 w-6 text-primary" />
                                     </div>
                                     <h3 className="text-sm font-bold text-gray-900 tracking-tight">{feature.title}</h3>
                                     <p className="text-xs text-gray-500 leading-relaxed">{feature.desc}</p>
@@ -196,16 +196,16 @@ export default function LandingPage() {
                         </div>
 
                         {/* Final CTA */}
-                        <div className="mt-32 py-16 px-8 bg-blue-600 rounded-3xl text-center relative overflow-hidden mb-12">
-                            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-400/20 via-transparent to-transparent"></div>
+                        <div className="mt-32 py-16 px-8 bg-primary rounded-3xl text-center relative overflow-hidden mb-12">
+                            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-primary/30 via-transparent to-transparent"></div>
                             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 relative tracking-tight">Ready to optimize your workflow?</h2>
-                            <p className="text-blue-100 text-sm md:text-base mb-10 max-w-md mx-auto relative opacity-90">
+                            <p className="text-primary-foreground/80 text-sm md:text-base mb-10 max-w-md mx-auto relative opacity-90">
                                 Join 500+ businesses scaling their service operations with ServiceHub. 
                                 Start your 14-day free trial today.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center relative">
                                 <Link to="/register">
-                                    <Button className="bg-white text-blue-600 hover:bg-gray-50 h-12 px-10 text-xs font-bold rounded-lg shadow-xl">
+                                    <Button className="bg-white text-primary hover:bg-gray-50 h-12 px-10 text-xs font-bold rounded-lg shadow-xl">
                                         Get Started Free
                                     </Button>
                                 </Link>
@@ -223,7 +223,7 @@ export default function LandingPage() {
                                 {/* Brand Column */}
                                 <div className="col-span-2 md:col-span-1">
                                     <div className="flex items-center gap-2 mb-6 text-center sm:text-left">
-                                        <div className="p-1.5 bg-blue-600 rounded-lg mx-auto sm:mx-0">
+                                        <div className="p-1.5 bg-primary rounded-lg mx-auto sm:mx-0">
                                             <ClipboardList className="h-4 w-4 text-white" />
                                         </div>
                                         <span className="text-sm font-bold tracking-tight">ServiceHub</span>
@@ -238,7 +238,7 @@ export default function LandingPage() {
                                     <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-6">Product</h4>
                                     <ul className="space-y-4">
                                         {['Features', 'Dashboard', 'Security', 'Integrations'].map(item => (
-                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-blue-600 transition-colors">{item}</a></li>
+                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-primary transition-colors">{item}</a></li>
                                         ))}
                                     </ul>
                                 </div>
@@ -248,7 +248,7 @@ export default function LandingPage() {
                                     <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-6">Company</h4>
                                     <ul className="space-y-4">
                                         {['About Us', 'Success Stories', 'Privacy Policy', 'Terms of Service'].map(item => (
-                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-blue-600 transition-colors">{item}</a></li>
+                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-primary transition-colors">{item}</a></li>
                                         ))}
                                     </ul>
                                 </div>
@@ -258,7 +258,7 @@ export default function LandingPage() {
                                     <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-6">Support</h4>
                                     <ul className="space-y-4">
                                         {['Help Center', 'Status', 'Contact', 'Knowledge Base'].map(item => (
-                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-blue-600 transition-colors">{item}</a></li>
+                                            <li key={item}><a href="#" className="text-xs text-gray-500 hover:text-primary transition-colors">{item}</a></li>
                                         ))}
                                     </ul>
                                 </div>
@@ -270,7 +270,7 @@ export default function LandingPage() {
                                 </p>
                                 <div className="flex gap-6 order-1 md:order-2">
                                     {['Twitter', 'LinkedIn', 'GitHub'].map(social => (
-                                        <a key={social} href="#" className="text-[10px] font-bold text-gray-400 hover:text-blue-600 uppercase tracking-widest transition-colors">
+                                        <a key={social} href="#" className="text-[10px] font-bold text-gray-400 hover:text-primary uppercase tracking-widest transition-colors">
                                             {social}
                                         </a>
                                     ))}

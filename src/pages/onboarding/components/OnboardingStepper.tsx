@@ -38,7 +38,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({ currentStep }) =>
 
                 {/* Active Progress Bar */}
                 <div
-                    className="absolute top-5 left-0 h-1 bg-blue-500 rounded-full transition-all duration-500 -z-10"
+                    className="absolute top-5 left-0 h-1 bg-primary rounded-full transition-all duration-500 -z-10"
                     style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
                 />
 
@@ -52,8 +52,8 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({ currentStep }) =>
                             <div
                                 className={cn(
                                     "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300",
-                                    isActive ? "border-blue-500 bg-blue-500 text-white shadow-lg shadow-blue-200" :
-                                        isCompleted ? "border-blue-500 bg-white text-blue-500" :
+                                    isActive ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20" :
+                                        isCompleted ? "border-primary bg-white text-primary" :
                                             "border-gray-200 bg-white text-gray-300"
                                 )}
                             >
@@ -66,7 +66,7 @@ const OnboardingStepper: React.FC<OnboardingStepperProps> = ({ currentStep }) =>
                             <span
                                 className={cn(
                                     "text-xs font-medium transition-colors duration-300",
-                                    isActive ? "text-blue-600" :
+                                    isActive ? "text-primary" :
                                         isCompleted ? "text-gray-900" :
                                             "text-gray-400"
                                 )}

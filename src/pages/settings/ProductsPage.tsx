@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Package } from 'lucide-react';
 import { useAuth } from '@/AuthContext';
 import {
     AlertDialog,
@@ -12,22 +13,24 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { DataTable, Column } from '@/components/ui/table/tableComponents';
+import { DataTable, Column } from '@/components/ui/table/datatable';
 import { Product, useProductsApi } from '@/pages/serviceAPI/ProductsAPI';
 
 const ProductsPage = () => {
     const navigate = useNavigate();
     const { shopId, hasPermission } = useAuth();
     const { useGetProducts, useDeleteProduct } = useProductsApi();
-    const { data: products = [], isLoading: loading } = useGetProducts();
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const { data: productResponse, isLoading: loading } = useGetProducts({ page: currentPage, per_page: pageSize });
+    const products = productResponse?.data ?? [];
+    const totalProducts = productResponse?.total ?? 0;
     const deleteProductMutation = useDeleteProduct();
 
     // Reset pagination when branch changes
     useEffect(() => {
         setCurrentPage(1);
     }, [shopId]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
@@ -155,11 +158,11 @@ const ProductsPage = () => {
                     <img
                         src={value}
                         alt="Product"
-                        className="w-10 h-10 object-cover rounded-md border border-gray-100 shadow-sm"
+                        className="w-8 h-8 object-cover rounded-md border border-gray-100 shadow-sm"
                     />
                 ) : (
-                    <div className="w-10 h-10 bg-gradient-to-br from-gray-50 to-gray-100 rounded-md flex items-center justify-center border border-gray-200">
-                        <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <div className="w-8 h-8 bg-gradient-to-br from-gray-50 to-gray-100 rounded-md flex items-center justify-center border border-gray-200">
+                        <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
                         </svg>
                     </div>
@@ -171,7 +174,6 @@ const ProductsPage = () => {
             title: 'Product Name',
             dataIndex: 'name',
             sortable: true,
-            filterable: true,
             render: (value, record) => (
                 <div className="flex flex-col">
                     <span className="text-xs font-bold text-gray-900 leading-tight">
@@ -202,10 +204,9 @@ const ProductsPage = () => {
             title: 'Selling Price',
             dataIndex: 'price',
             sortable: true,
-            filterable: true,
             render: (value) => (
                 value ? (
-                    <span className="text-xs font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100 whitespace-nowrap">
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20 whitespace-nowrap">
                         ₹{Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 ) : <span className="text-xs text-gray-400">-</span>
@@ -216,7 +217,6 @@ const ProductsPage = () => {
             title: 'Category',
             dataIndex: 'category',
             sortable: true,
-            filterable: true,
             render: (value) => {
                 if (!value) return <span className="text-xs text-gray-400">-</span>;
 
@@ -247,7 +247,6 @@ const ProductsPage = () => {
             title: 'Brand',
             dataIndex: 'brand',
             sortable: true,
-            filterable: true,
             render: (value) => (
                 <span className="text-xs font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100">
                     {value?.name.charAt(0).toUpperCase() + value?.name.slice(1) || '-'}
@@ -290,7 +289,7 @@ const ProductsPage = () => {
                     }
                 }
                 return (
-                    <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded-full border border-green-100 whitespace-nowrap shadow-sm">
+                    <span className="text-xs font-bold text-secondary bg-secondary/10 px-2 py-1 rounded-full border border-secondary/20 whitespace-nowrap shadow-sm">
                         ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 );
@@ -330,38 +329,86 @@ const ProductsPage = () => {
         navigate('/dashboard/settings/product/create');
     };
 
+    const processedProducts = useMemo(() => {
+        return products.map(p => ({
+            ...p,
+            _filter_category: p.category?.name?.toLowerCase() || 'unassigned',
+            _filter_brand: p.brand?.name?.toLowerCase() || 'unassigned',
+            _search_blob: `${p.name} ${p.category?.name || ''} ${p.brand?.name || ''}`.toLowerCase()
+        }));
+    }, [products]);
+
+    const categoryOptions = useMemo(() => {
+        const unique = new Set<string>();
+        products.forEach(p => {
+            if (p.category?.name) unique.add(p.category.name.toLowerCase());
+        });
+        return [
+            ...Array.from(unique).map(c => ({ label: c.charAt(0).toUpperCase() + c.slice(1), value: c })),
+            { label: 'Unassigned', value: 'unassigned' }
+        ];
+    }, [products]);
+
+    const brandOptions = useMemo(() => {
+        const unique = new Set<string>();
+        products.forEach(p => {
+            if (p.brand?.name) unique.add(p.brand.name.toLowerCase());
+        });
+        return [
+            ...Array.from(unique).map(b => ({ label: b.charAt(0).toUpperCase() + b.slice(1), value: b })),
+            { label: 'Unassigned', value: 'unassigned' }
+        ];
+    }, [products]);
+
     return (
         <div className="p-0">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h1 className="text-lg font-bold text-gray-900 tracking-tight">Products</h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-blue-600">Manage your product catalog.</p>
-                </div>
-            </div>
-
             {/* DataTable */}
             <DataTable
+                title="Products List"
+                headerStats={[
+                    {
+                        label: 'Total Products',
+                        value: totalProducts,
+                        icon: <Package className="h-3 w-3" />,
+                        color: 'primary'
+                    }
+                ]}
+                filterConfig={[
+                    {
+                        key: '_filter_category',
+                        label: 'Category',
+                        type: 'select',
+                        options: categoryOptions
+                    },
+                    {
+                        key: '_filter_brand',
+                        label: 'Brand',
+                        type: 'select',
+                        options: brandOptions
+                    }
+                ]}
+                searchKey="_search_blob"
                 columns={columns}
-                data={products}
-                title="Product List"
+                data={processedProducts}
                 searchable={true}
                 showActions={true}
                 showAdd={hasPermission('product.create')}
                 showExport={true}
-                onAdd={hasPermission('product.create') ? handleAddNew : undefined}
+                onAdd={handleAddNew}
+                onExport={() => toast.info('Exporting data...')}
                 onView={handleView}
                 onEdit={hasPermission('product.update') ? handleEdit : undefined}
                 onDelete={hasPermission('product.delete') ? handleDeleteClick : undefined}
                 pagination={{
                     current: currentPage,
                     pageSize: pageSize,
-                    total: products.length,
+                    total: totalProducts,
                     onChange: (page, size) => {
                         setCurrentPage(page);
                         setPageSize(size);
                     },
                 }}
+                serverSidePagination={true}
                 hoverable
                 bordered
                 loading={loading}

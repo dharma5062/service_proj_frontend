@@ -85,45 +85,47 @@ export interface ApiResponse<T> {
     data?: T;
 }
 
+export interface PaginatedProductsResponse {
+    data: Product[];
+    total: number;
+    current_page: number;
+    per_page: number;
+    last_page: number;
+}
+
 /**
- * Fetches all products from the backend API
- * @returns Promise<Product[]> - Array of products
- * @throws Error if the API request fails
+ * Fetches products from the backend API with pagination support
  */
-export const fetchProducts = async (): Promise<Product[]> => {
+export const fetchProducts = async (params?: { page?: number; per_page?: number }): Promise<PaginatedProductsResponse> => {
     try {
         const response = await axiosInstance.get<any>(
-            '/products-index'
+            '/products-index',
+            { params: { page: params?.page ?? 1, per_page: params?.per_page ?? 10 } }
         );
 
         const responseData = response.data;
 
-        // Handle paginated response
-        if (responseData && responseData.data && Array.isArray(responseData.data.data)) {
-            return responseData.data.data;
+        // Paginated response: { status, message, data: { data: [], total, current_page, per_page, last_page } }
+        if (responseData?.data && Array.isArray(responseData.data.data)) {
+            return {
+                data: responseData.data.data as Product[],
+                total: responseData.data.total ?? responseData.data.data.length,
+                current_page: responseData.data.current_page ?? 1,
+                per_page: responseData.data.per_page ?? 10,
+                last_page: responseData.data.last_page ?? 1,
+            };
         }
-        // Handle direct array response (fallback)
-        else if (Array.isArray(responseData)) {
-            return responseData;
+        // Direct array fallback
+        if (Array.isArray(responseData)) {
+            return { data: responseData, total: responseData.length, current_page: 1, per_page: responseData.length, last_page: 1 };
         }
-        // Handle direct data array
-        else if (responseData && Array.isArray(responseData.data)) {
-            return responseData.data;
-        }
-        else {
-            console.warn('Unexpected response format from /products-index:', responseData);
-            return [];
-        }
+        console.warn('Unexpected response format from /products-index:', responseData);
+        return { data: [], total: 0, current_page: 1, per_page: 10, last_page: 1 };
     } catch (error) {
         console.error('Error fetching products:', error);
-
         if (error instanceof AxiosError) {
-            throw new Error(
-                error.response?.data?.message ||
-                `Failed to fetch products: ${error.message}`
-            );
+            throw new Error(error.response?.data?.message || `Failed to fetch products: ${error.message}`);
         }
-
         throw error;
     }
 };
@@ -360,11 +362,11 @@ export const useProductsApi = () => {
     const queryClient = useQueryClient();
     const { shopId } = useAuth();
 
-    const useGetProducts = () =>
-        useQuery<Product[], Error>({
-            queryKey: ['products', shopId],
-            queryFn: () => fetchProducts(),
-            enabled: !!shopId,
+    const useGetProducts = (options?: { enabled?: boolean; page?: number; per_page?: number }) =>
+        useQuery<PaginatedProductsResponse, Error>({
+            queryKey: ['products', shopId, options?.page ?? 1, options?.per_page ?? 10],
+            queryFn: () => fetchProducts({ page: options?.page ?? 1, per_page: options?.per_page ?? 10 }),
+            enabled: options?.enabled !== undefined ? options.enabled && !!shopId : !!shopId,
         });
 
     const useGetProductById = (id: number | undefined) =>

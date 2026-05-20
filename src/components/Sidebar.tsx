@@ -1,5 +1,4 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     Store,
@@ -9,14 +8,13 @@ import {
     BarChart3,
     Tag,
     ChevronsUpDown,
-    ChevronDown,
     FolderTree,
     FileEdit,
     Package,
     ShoppingBag,
     Check,
-    Plus,
-    IndianRupee
+    IndianRupee,
+    Briefcase,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -28,11 +26,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
     Sidebar as SidebarContainer,
     SidebarContent,
     SidebarFooter,
@@ -40,9 +33,6 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarMenuSub,
-    SidebarMenuSubButton,
-    SidebarMenuSubItem,
     SidebarRail,
     useSidebar,
 } from '@/components/ui/sidebar';
@@ -60,7 +50,6 @@ const Sidebar = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { isMobile } = useSidebar();
-    const [settingsOpen, setSettingsOpen] = useState(true);
 
     // ── Auth context ──────────────────────────────────────────────────────────
     const { user, shop, shops, setShop, logout, hasPermission, isSuperAdmin, isShopOwner, isCustomer } = useAuth();
@@ -70,29 +59,30 @@ const Sidebar = () => {
     const displayInitials = getInitials(shop?.name || user?.name);
 
     const navItems = [
-        { icon: LayoutDashboard, label: 'Dashboard',  path: '/dashboard',             reqPerm: null },
-        { icon: Store,           label: 'Services',   path: '/dashboard/services',    reqPerm: 'service.view' },
-        { icon: Users,           label: 'Staff',      path: '/dashboard/staff',       reqPerm: 'employee.view' },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', reqPerm: null },
+        { icon: Store, label: 'Services', path: '/dashboard/services', reqPerm: 'service.view' },
+        { icon: Users, label: 'Staff', path: '/dashboard/staff', reqPerm: 'employee.view' },
         // Reporting & Promotions are owner/admin level; employees need no special permission guard here
         // but we restrict them to sa/so only via the isAdminOrOwner flag
-        { icon: BarChart3,       label: 'Reporting',  path: '/dashboard/reporting',   reqPerm: null, adminOnly: true },
-        { icon: Tag,             label: 'Promotions', path: '/dashboard/promotions',  reqPerm: null, adminOnly: true },
+        { icon: BarChart3, label: 'Reporting', path: '/dashboard/reporting', reqPerm: null, adminOnly: true },
+        { icon: Tag, label: 'Promotions', path: '/dashboard/promotions', reqPerm: null, adminOnly: true },
     ];
 
     const settingsItems = [
-        { icon: FolderTree,    label: 'Categories',       path: '/dashboard/settings/categories',     reqPerm: 'category.view' },
-        { icon: FileEdit,      label: 'Defect Form',      path: '/dashboard/settings/category-form',  reqPerm: null, adminOnly: true },
-        { icon: Package,       label: 'Brand',            path: '/dashboard/settings/brand',          reqPerm: 'brand.view' },
-        { icon: ShoppingBag,   label: 'Product',          path: '/dashboard/settings/product',        reqPerm: 'product.view' },
-        { icon: IndianRupee,   label: 'Service Charges',  path: '/dashboard/settings/service-charges', reqPerm: 'service_charge.view' },
-        { icon: Users,         label: 'Roles & Privileges', path: '/dashboard/settings/roles',        reqPerm: 'role.view' },
+        { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories', reqPerm: 'category.view' },
+        { icon: FileEdit, label: 'Defect Form', path: '/dashboard/settings/category-form', reqPerm: null, adminOnly: true },
+        { icon: Package, label: 'Brand', path: '/dashboard/settings/brand', reqPerm: 'brand.view' },
+        { icon: ShoppingBag, label: 'Product', path: '/dashboard/settings/product', reqPerm: 'product.view' },
+        { icon: Briefcase, label: 'Business Types', path: '/dashboard/settings/business-types', reqPerm: 'business_type.view' },
+        { icon: IndianRupee, label: 'Service Charges', path: '/dashboard/settings/service-charges', reqPerm: 'service_charge.view' },
+        { icon: Users, label: 'Roles & Privileges', path: '/dashboard/settings/roles', reqPerm: 'role.view' },
     ];
 
     // Determines if a nav/settings item should be visible for the current user
     const isItemVisible = (item: { label: string; reqPerm: string | null; adminOnly?: boolean }) => {
         // adminOnly items are only shown to sa / so
         if (item.adminOnly && !isSuperAdmin && !isShopOwner) return false;
-        
+
         // Customers only see Dashboard and Services
         if (isCustomer) {
             return ['Dashboard', 'Services'].includes(item.label);
@@ -113,29 +103,27 @@ const Sidebar = () => {
     };
 
     return (
-        <SidebarContainer collapsible="icon">
+        <SidebarContainer collapsible="icon" className="sidebar-professional">
             {/* Header with Shop / User Info */}
             <SidebarHeader>
-                <SidebarMenu>
-                    <SidebarMenuItem>
+                <div>
+                    <div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <SidebarMenuButton
-                                    size="lg"
-                                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                                    disabled={isCustomer}
+                                <div
+                                    className="flex items-center gap-2"
                                 >
-                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
-                                        CO
+                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-semibold">
+                                        {shop?.shop_owner?.company_name?.slice(0, 2).toUpperCase()}
                                     </div>
                                     <div className="grid flex-1 text-left text-sm leading-tight">
-                                        <span className="truncate font-semibold">{shop?.shop_owner?.company_name || 'Company Name'}</span>
-                                        <span className="truncate text-xs text-muted-foreground">{shop?.name || 'Select Branch'}</span>
+                                        <span className="truncate font-semibold sidebar-label-compact">{shop?.shop_owner?.company_name || 'Company Name'}</span>
+                                        <span className="truncate text-xs text-muted-foreground sidebar-label-compact">{shop?.name || 'Select Branch'}</span>
                                     </div>
-                                    {!isCustomer && <ChevronsUpDown className="ml-auto size-4" />}
-                                </SidebarMenuButton>
+                                    {!isCustomer && (isSuperAdmin || isShopOwner) && <ChevronsUpDown className="ml-auto size-4" />}
+                                </div>
                             </DropdownMenuTrigger>
-                            {!isCustomer && (
+                            {!isCustomer && (isSuperAdmin || isShopOwner) && (
                                 <DropdownMenuContent
                                     className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
                                     align="start"
@@ -157,21 +145,8 @@ const Sidebar = () => {
                                 </DropdownMenuContent>
                             )}
                         </DropdownMenu>
-                    </SidebarMenuItem>
-
-                    {/* Create Shop minimal button */}
-                    {(isSuperAdmin || isShopOwner) && (
-                        <SidebarMenuItem className="mt-1">
-                            <SidebarMenuButton 
-                                onClick={() => navigate('/onboarding/shop')}
-                                className="text-primary hover:text-primary hover:bg-primary/10 font-medium cursor-pointer"
-                            >
-                                <Plus className="size-4" />
-                                <span>Create Shop</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    )}
-                </SidebarMenu>
+                    </div>
+                </div>
             </SidebarHeader>
 
             {/* Navigation Content */}
@@ -179,53 +154,29 @@ const Sidebar = () => {
                 <SidebarMenu>
                     {navItems.filter(isItemVisible).map((item) => (
                         <SidebarMenuItem key={item.path}>
-                            <SidebarMenuButton
-                                asChild
-                                tooltip={item.label}
-                                isActive={isActive(item.path)}
+                            <div
+                                title={item.label}
+                                className={`flex items-center w-full sidebar-menu-button-compact cursor-pointer ${isActive(item.path) ? 'active' : 'text-gray-500'}`}
+                                onClick={() => navigate(item.path)}
                             >
-                                <Link to={item.path}>
-                                    <item.icon />
-                                    <span>{item.label}</span>
-                                </Link>
-                            </SidebarMenuButton>
+                                <item.icon className="sidebar-icon-compact size-4 shrink-0" />
+                                <span className="sidebar-label-compact">{item.label}</span>
+                            </div>
                         </SidebarMenuItem>
                     ))}
 
-                    {/* Settings Dropdown — only shown when the user has at least one visible settings item */}
+                    {/* Settings Link — only shown when the user has at least one visible settings item */}
                     {visibleSettingsItems.length > 0 && (
-                        <Collapsible
-                            open={settingsOpen}
-                            onOpenChange={setSettingsOpen}
-                            className="group/collapsible"
-                        >
-                            <SidebarMenuItem>
-                                <CollapsibleTrigger asChild>
-                                    <SidebarMenuButton tooltip="Settings">
-                                        <Settings />
-                                        <span>Settings</span>
-                                        <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
-                                    </SidebarMenuButton>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                    <SidebarMenuSub>
-                                        {visibleSettingsItems.map((item) => (
-                                            <SidebarMenuSubItem key={item.path}>
-                                                <SidebarMenuSubButton
-                                                    asChild
-                                                    isActive={isActive(item.path)}
-                                                >
-                                                    <Link to={item.path}>
-                                                        <item.icon />
-                                                        <span>{item.label}</span>
-                                                    </Link>
-                                                </SidebarMenuSubButton>
-                                            </SidebarMenuSubItem>
-                                        ))}
-                                    </SidebarMenuSub>
-                                </CollapsibleContent>
-                            </SidebarMenuItem>
-                        </Collapsible>
+                        <SidebarMenuItem>
+                            <div
+                                title="Settings"
+                                className={`flex items-center w-full sidebar-menu-button-compact cursor-pointer ${isActive('/dashboard/settings') ? 'active' : 'text-gray-500'}`}
+                                onClick={() => navigate('/dashboard/settings')}
+                            >
+                                <Settings className="sidebar-icon-compact size-4 shrink-0" />
+                                <span className="sidebar-label-compact">Settings</span>
+                            </div>
+                        </SidebarMenuItem>
                     )}
                 </SidebarMenu>
             </SidebarContent>
@@ -238,7 +189,7 @@ const Sidebar = () => {
                             <DropdownMenuTrigger asChild>
                                 <SidebarMenuButton
                                     size="lg"
-                                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground sidebar-menu-button-compact"
                                 >
                                     <Avatar className="h-8 w-8 rounded-lg">
                                         <AvatarImage src="" alt={displayName} />
@@ -247,8 +198,8 @@ const Sidebar = () => {
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="grid flex-1 text-left text-sm leading-tight">
-                                        <span className="truncate font-semibold">{displayName}</span>
-                                        <span className="truncate text-xs">{displayEmail}</span>
+                                        <span className="truncate font-semibold sidebar-label-compact">{displayName}</span>
+                                        <span className="truncate text-xs sidebar-label-compact">{displayEmail}</span>
                                     </div>
                                     <ChevronsUpDown className="ml-auto size-4" />
                                 </SidebarMenuButton>
@@ -285,6 +236,7 @@ const Sidebar = () => {
             </SidebarFooter>
             <SidebarRail />
         </SidebarContainer>
+
     );
 };
 

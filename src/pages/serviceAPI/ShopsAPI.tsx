@@ -8,12 +8,27 @@ export interface Shop {
     name: string;
     description: string | Record<string, any>; // Can be string or JSON object with metadata
     active: boolean;
-    shop_owner_id: number | null;
+    shop_owner_id: any | null;
     business_type_id?: number | null;
     image: string | null;
     image_url: string | null;
     created_at?: string;
     updated_at?: string;
+    shop_owner?: {
+        id: number;
+        name: string;
+        email: string;
+        email_verified_at: string;
+        company_id: number;
+        active: number;
+        deleted_at: string | null;
+        created_at: string;
+        updated_at: string;
+        company_name: string;
+        phone: string | null;
+        address: string | null;
+        profile_photo_url: any
+    };
 }
 
 // Payload for creating a shop

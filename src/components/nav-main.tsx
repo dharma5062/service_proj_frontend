@@ -33,29 +33,28 @@ export function NavMain({
   }[]
 }) {
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
-      <SidebarMenu>
+    <SidebarGroup className="sidebar-group-compact">
+      <SidebarMenu className="sidebar-menu-compact">
         {items.map((item) => (
           <Collapsible
             key={item.title}
             asChild
             defaultOpen={item.isActive}
-            className="group/collapsible"
+            className="group/collapsible sidebar-collapsible-compact"
           >
-            <SidebarMenuItem>
+            <SidebarMenuItem className="sidebar-menu-item-compact">
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={item.title}>
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                <SidebarMenuButton tooltip={item.title} className="sidebar-menu-button-compact">
+                  {item.icon && <item.icon className="sidebar-icon-compact" />}
+                  <span className="sidebar-label-compact">{item.title}</span>
+                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 sidebar-chevron-compact" />
                 </SidebarMenuButton>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <SidebarMenuSub>
+                <SidebarMenuSub className="sidebar-submenu-compact">
                   {item.items?.map((subItem) => (
-                    <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton asChild>
+                    <SidebarMenuSubItem key={subItem.title} className="sidebar-submenu-item-compact">
+                      <SidebarMenuSubButton asChild className="sidebar-submenu-button-compact">
                         <a href={subItem.url}>
                           <span>{subItem.title}</span>
                         </a>
@@ -69,5 +68,6 @@ export function NavMain({
         ))}
       </SidebarMenu>
     </SidebarGroup>
+
   )
 }

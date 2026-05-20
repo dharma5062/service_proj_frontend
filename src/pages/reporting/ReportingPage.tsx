@@ -49,9 +49,9 @@ const ReportingPage = () => {
                 <div className="flex items-start justify-between mb-4">
                     <div>
                         <h1 className="text-lg font-bold text-gray-900 tracking-tight">Reporting &amp; Analytics</h1>
-                        <p className="text-xs text-blue-600 mt-1">Gain insights into your business performance.</p>
+                        <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">Gain insights into your business performance.</p>
                     </div>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-sm">
+                    <Button className="bg-primary hover:bg-primary/90 text-sm">
                         <Download className="h-4 w-4 mr-2" />
                         Export Report
                     </Button>
@@ -59,7 +59,7 @@ const ReportingPage = () => {
 
                 {/* Period Filters */}
                 <div className="flex gap-3 mb-4">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium text-sm">
+                    <button className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg font-medium text-sm">
                         <Calendar className="h-4 w-4" />
                         Last 30 Days
                         <ChevronDown className="h-4 w-4" />
@@ -87,6 +87,7 @@ const ReportingPage = () => {
                         </Card>
                     ))}
                 </div>
+
 
                 {/* Charts Section */}
                 <div className="grid grid-cols-3 gap-3">
@@ -144,7 +145,7 @@ const ReportingPage = () => {
                                            C 595,60 610,35 630,25
                                            C 650,15 670,20 700,30"
                                         fill="none"
-                                        stroke="#3b82f6"
+                                        stroke="#1F80FF"
                                         strokeWidth="3"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
@@ -153,8 +154,8 @@ const ReportingPage = () => {
                                     {/* Gradient definitions */}
                                     <defs>
                                         <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor="#93c5fd" stopOpacity="0.4" />
-                                            <stop offset="100%" stopColor="#dbeafe" stopOpacity="0.1" />
+                                            <stop offset="0%" stopColor="#1F80FF" stopOpacity="0.4" />
+                                            <stop offset="100%" stopColor="#1F80FF" stopOpacity="0.1" />
                                         </linearGradient>
                                     </defs>
                                 </svg>
@@ -163,7 +164,7 @@ const ReportingPage = () => {
                             {/* Month labels */}
                             <div className="flex justify-between border-t border-gray-200 pt-3 mt-2">
                                 {['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN'].map((month) => (
-                                    <span key={month} className="text-xs font-bold text-blue-600 uppercase tracking-wide">
+                                    <span key={month} className="text-xs font-bold text-primary uppercase tracking-wide">
                                         {month}
                                     </span>
                                 ))}
@@ -186,7 +187,7 @@ const ReportingPage = () => {
                                         </div>
                                         <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                                             <div
-                                                className="bg-blue-600 h-full rounded-full transition-all duration-300"
+                                                className="bg-primary h-full rounded-full transition-all duration-300"
                                                 style={{ width: `${service.percentage}%` }}
                                             />
                                         </div>

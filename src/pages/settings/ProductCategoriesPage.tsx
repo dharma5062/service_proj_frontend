@@ -438,7 +438,7 @@ const ProductCategoriesPage = () => {
             <div className="flex justify-between items-start mb-4">
                 <div>
                     <h1 className="text-lg font-bold text-gray-900 tracking-tight">Category Management</h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-blue-600">Manage your product categories hierarchy</p>
+                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">Manage your product categories hierarchy</p>
                 </div>
                 {hasPermission('category.create') && (
                     <Button size="sm" onClick={handleAddNew} className="gap-1.5">

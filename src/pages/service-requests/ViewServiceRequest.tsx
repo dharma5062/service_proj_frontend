@@ -39,7 +39,7 @@ import { toast } from 'sonner';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<string, string> = {
-    in_progress: 'bg-blue-100 text-blue-700',
+    in_progress: 'bg-primary/10 text-primary',
     pending: 'bg-yellow-100 text-yellow-700',
     completed: 'bg-green-100 text-green-700',
     cancelled: 'bg-red-100 text-red-700',
@@ -103,7 +103,7 @@ const ViewServiceRequest = () => {
     const [selectedTechId, setSelectedTechId] = useState<string>('');
     const [isChangingTech, setIsChangingTech] = useState(false);
 
-    const canChangeTechnician = isSuperAdmin || isShopOwner;
+    const canChangeTechnician = (isSuperAdmin || isShopOwner) && service?.service_status?.toLowerCase() !== 'completed' && service?.status?.toLowerCase() !== 'completed';
 
     // Allow all shop employees to be assigned, as roles are fully customizable
     const technicians = employeesData?.data || [];
@@ -133,7 +133,7 @@ const ViewServiceRequest = () => {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="text-center space-y-3">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
                     <p className="text-sm text-gray-500">Loading service request...</p>
                 </div>
             </div>
@@ -218,10 +218,23 @@ const ViewServiceRequest = () => {
     const resolvedDefectFields = resolveDefectFields();
 
     // Price calculations
-    const subtotal = data?.subtotal ?? 0;
-    const discount = data?.discount ?? 0;
-    const tax = data?.tax ?? 0;
-    const grandTotal = data?.grandTotal ?? 0;
+    const calculatedPartsSubtotal = parts.reduce((sum, part) => sum + (Number(part.price) || 0) * (part.quantity || 1), 0);
+    const calculatedPartsTax = parts.reduce((sum, part) => {
+        if (part.tax_type !== 'inclusive') {
+            return sum + ((Number(part.price) || 0) * (part.quantity || 1) * (Number(part.tax_percentage) || 0) / 100);
+        }
+        return sum;
+    }, 0);
+    const calculatedServiceSubtotal = parsedServiceCharges.reduce((sum, charge) => sum + (Number(charge.amount) || 0), 0);
+    const gstType = data?.gstType || 'none';
+    const gstPercentage = Number(data?.gstPercentage || 18);
+    const serviceDiscount = Number(data?.serviceDiscount || data?.discount || 0);
+    const calculatedServiceTax = gstType === 'none' ? 0 : calculatedServiceSubtotal * (gstPercentage / 100);
+    
+    const subtotal = calculatedPartsSubtotal + calculatedServiceSubtotal;
+    const discount = serviceDiscount;
+    const tax = calculatedPartsTax + calculatedServiceTax;
+    const grandTotal = calculatedPartsSubtotal + calculatedPartsTax + calculatedServiceSubtotal + calculatedServiceTax - serviceDiscount;
 
     return (
         <div className="p-0 max-w-6xl mx-auto">
@@ -240,7 +253,7 @@ const ViewServiceRequest = () => {
                     <div>
                         <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                             Service Request{' '}
-                            <span className="text-blue-600">
+                            <span className="text-primary">
                                 SR{String(service.id).padStart(3, '0')}
                             </span>
                             <Badge className={getStatusStyle(status)}>
@@ -273,13 +286,13 @@ const ViewServiceRequest = () => {
                         <Card>
                             <CardHeader className="pb-2 pt-3 px-4">
                                 <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                    <User className="w-4 h-4 text-blue-600" />
+                                    <User className="w-4 h-4 text-primary" />
                                     Customer
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="px-4 pb-4">
                                 <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0">
                                         {service.customer.name?.charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 space-y-1.5">
@@ -323,7 +336,7 @@ const ViewServiceRequest = () => {
                         <Card>
                             <CardHeader className="pb-2 pt-3 px-4">
                                 <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                    <FileText className="w-4 h-4 text-blue-600" />
+                                    <FileText className="w-4 h-4 text-primary" />
                                     Service Details
                                 </CardTitle>
                             </CardHeader>
@@ -474,7 +487,7 @@ const ViewServiceRequest = () => {
                     <Card>
                         <CardHeader className="pb-2 pt-3 px-4">
                             <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                <User className="w-4 h-4 text-blue-600" />
+                                <User className="w-4 h-4 text-primary" />
                                 Technician Assignment
                             </CardTitle>
                         </CardHeader>
@@ -482,14 +495,14 @@ const ViewServiceRequest = () => {
                             {service.assigned_technician && !isChangingTech ? (
                                 <div className="space-y-4">
                                     <div className="flex items-start gap-3">
-                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0 border border-blue-200">
+                                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm flex-shrink-0 border border-primary/20">
                                             {service.assigned_technician.name?.charAt(0).toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-gray-900 truncate">
                                                 {service.assigned_technician.name}
                                             </p>
-                                            <Badge variant="secondary" className="bg-blue-50 text-blue-700 text-[10px] mt-1 h-5">
+                                            <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px] mt-1 h-5">
                                                 {service.assigned_technician.role}
                                             </Badge>
                                         </div>
@@ -519,7 +532,7 @@ const ViewServiceRequest = () => {
                                         <Button 
                                             variant="outline" 
                                             size="sm" 
-                                            className="w-full text-xs h-8 border-dashed hover:border-blue-400 hover:text-blue-600"
+                                            className="w-full text-xs h-8 border-dashed hover:border-primary/40 hover:text-primary"
                                             onClick={() => {
                                                 setSelectedTechId(String(service.assigned_technician?.id || ''));
                                                 setIsChangingTech(true);
@@ -565,7 +578,7 @@ const ViewServiceRequest = () => {
                                             </div>
                                         </div>
                                         <Button 
-                                            className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700" 
+                                            className="w-full h-8 text-xs bg-primary hover:bg-primary/90" 
                                             onClick={handleAssignTechnician}
                                             disabled={!selectedTechId || isAssigning || (isChangingTech && selectedTechId === String(service.assigned_technician?.id))}
                                         >
@@ -586,7 +599,7 @@ const ViewServiceRequest = () => {
                     <Card>
                         <CardHeader className="pb-2 pt-3 px-4">
                             <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                <Package className="w-4 h-4 text-blue-600" />
+                                <Package className="w-4 h-4 text-primary" />
                                 Parts & Pricing
                             </CardTitle>
                         </CardHeader>
@@ -636,7 +649,7 @@ const ViewServiceRequest = () => {
                                                                 <p className="font-medium text-gray-900 text-xs">{charge.name}</p>
                                                             </td>
                                                             <td className="px-3 py-2 text-center">
-                                                                <Badge variant="outline" className="text-xs text-blue-600 border-blue-200 bg-blue-50">
+                                                                <Badge variant="outline" className="text-xs text-primary border-primary/20 bg-primary/10">
                                                                     Service Charge
                                                                 </Badge>
                                                             </td>
@@ -751,7 +764,7 @@ const ViewServiceRequest = () => {
                                 </div>
                                 {service.updated_at && service.updated_at !== service.created_at && (
                                     <div className="flex items-start gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+                                        <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
                                         <div>
                                             <p className="text-xs font-medium text-gray-900">Last Updated</p>
                                             <p className="text-xs text-gray-500">{formatDate(service.updated_at)}</p>

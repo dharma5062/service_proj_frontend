@@ -1,6 +1,7 @@
 import axiosInstance from '@/lib/axiosInstance';
 import { AxiosError } from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/AuthContext';
 
 // Customer API Interfaces
 export interface Customer {
@@ -314,32 +315,38 @@ export const approveInvite = async (token: string): Promise<ApiResponse<Customer
 
 export const useCustomersApi = () => {
     const queryClient = useQueryClient();
+    const { shopId } = useAuth();
 
-    const useGetCustomers = (shopId?: number | null, approvedOnly?: boolean) =>
-        useQuery<Customer[], Error>({
-            queryKey: ['customers', shopId, approvedOnly],
-            queryFn: () => fetchCustomers(shopId, approvedOnly),
+    const useGetCustomers = (providedShopId?: number | null, approvedOnly?: boolean) => {
+        const effectiveShopId = providedShopId !== undefined ? providedShopId : shopId;
+        return useQuery<Customer[], Error>({
+            queryKey: ['customers', effectiveShopId, approvedOnly],
+            queryFn: () => fetchCustomers(effectiveShopId, approvedOnly),
+            enabled: !!effectiveShopId,
         });
+    };
 
     const useGetCustomerById = (id: number | undefined) =>
         useQuery<Customer, Error>({
-            queryKey: ['customers', id],
+            queryKey: ['customers', id, shopId],
             queryFn: () => fetchCustomerById(id!),
-            enabled: !!id,
+            enabled: !!id && !!shopId,
         });
 
-    const useSearchCustomers = (phone: string, shopId?: number | null, approvedOnly?: boolean) =>
-        useQuery<Customer[], Error>({
-            queryKey: ['customers', 'search', phone, shopId, approvedOnly],
-            queryFn: () => searchCustomersByPhone(phone, shopId, approvedOnly),
-            enabled: phone.length >= 3,
+    const useSearchCustomers = (phone: string, providedShopId?: number | null, approvedOnly?: boolean) => {
+        const effectiveShopId = providedShopId !== undefined ? providedShopId : shopId;
+        return useQuery<Customer[], Error>({
+            queryKey: ['customers', 'search', phone, effectiveShopId, approvedOnly],
+            queryFn: () => searchCustomersByPhone(phone, effectiveShopId, approvedOnly),
+            enabled: phone.length >= 3 && !!effectiveShopId,
         });
+    };
 
     const useCreateCustomer = () =>
         useMutation<ApiResponse<Customer>, Error, CreateCustomerPayload>({
             mutationFn: (payload) => createCustomer(payload),
             onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: ['customers'] });
+                queryClient.invalidateQueries({ queryKey: ['customers', shopId] });
             },
         });
 
@@ -347,7 +354,7 @@ export const useCustomersApi = () => {
         useMutation<ApiResponse<Customer>, Error, { phone: string; shop_id?: number | null; business_type_id?: number | null }>({
             mutationFn: ({ phone, shop_id, business_type_id }) => sendInvite(phone, shop_id, business_type_id),
             onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: ['customers'] });
+                queryClient.invalidateQueries({ queryKey: ['customers', shopId] });
             },
         });
 
@@ -355,7 +362,7 @@ export const useCustomersApi = () => {
         useMutation<ApiResponse<Customer>, Error, string>({
             mutationFn: (token) => approveInvite(token),
             onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: ['customers'] });
+                queryClient.invalidateQueries({ queryKey: ['customers', shopId] });
             },
         });
 

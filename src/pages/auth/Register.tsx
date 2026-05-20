@@ -120,7 +120,7 @@ export default function Register() {
                 <header className="flex items-center justify-between whitespace-nowrap px-6 sm:px-10 lg:px-16 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <div className="flex items-center gap-3 text-slate-900 dark:text-slate-50">
                         <svg
-                            className="h-6 w-6 text-blue-600"
+                            className="h-6 w-6 text-primary"
                             fill="none"
                             viewBox="0 0 48 48"
                             xmlns="http://www.w3.org/2000/svg"
@@ -196,7 +196,7 @@ export default function Register() {
                                                         <Input
                                                             {...field}
                                                             placeholder="Enter your full name"
-                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-primary/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormMessage className="text-xs" />
@@ -217,7 +217,7 @@ export default function Register() {
                                                             {...field}
                                                             type="tel"
                                                             placeholder="Enter your mobile number"
-                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-primary/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormMessage className="text-xs" />
@@ -237,7 +237,7 @@ export default function Register() {
                                                         <Input
                                                             {...field}
                                                             placeholder="Enter your shop name"
-                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-primary/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormMessage className="text-xs" />
@@ -258,7 +258,7 @@ export default function Register() {
                                                             {...field}
                                                             type="email"
                                                             placeholder="Enter your email address"
-                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                                            className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-primary/50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                                             disabled={isSubmitting}
                                                         />
                                                         <FormMessage className="text-xs" />
@@ -280,7 +280,7 @@ export default function Register() {
                                                                 {...field}
                                                                 type={showPassword ? "text" : "password"}
                                                                 placeholder="Create a password"
-                                                                className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-9"
+                                                                className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-primary/50 placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-9"
                                                                 disabled={isSubmitting}
                                                                 autoComplete="new-password"
                                                             />
@@ -316,7 +316,7 @@ export default function Register() {
                                                                 {...field}
                                                                 type={showConfirmPassword ? "text" : "password"}
                                                                 placeholder="Re-enter your password"
-                                                                className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/50 placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-9"
+                                                                className="w-full h-8 rounded-lg text-sm text-slate-900 dark:text-slate-50 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-primary/50 placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-9"
                                                                 disabled={isSubmitting}
                                                                 autoComplete="new-password"
                                                             />
@@ -444,7 +444,7 @@ export default function Register() {
                                                 type="button"
                                                 onClick={() => navigate("/login")}
                                                 variant="link"
-                                                className="h-auto p-0 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                                className="h-auto p-0 text-sm font-semibold text-primary hover:text-primary/90 dark:text-primary/80 dark:hover:text-primary"
                                             >
                                                 Log In
                                             </Button>

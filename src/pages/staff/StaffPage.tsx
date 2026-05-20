@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Download, Mail, Phone, MapPin, ShieldCheck, Calendar } from 'lucide-react';
-import { DataTable, Column } from '@/components/ui/table/tableComponents';
+import { DataTable, Column } from '@/components/ui/table/datatable';
 import {
     Select,
     SelectContent,
@@ -79,11 +78,11 @@ const StaffPage = () => {
     const { useGetRoles } = useRolesPermissionsApi();
     const { data: rolesList = [] } = useGetRoles();
 
-    const { 
-        useGetShopEmployees, 
-        useCreateShopEmployee, 
-        useUpdateShopEmployee, 
-        useDeleteShopEmployee 
+    const {
+        useGetShopEmployees,
+        useCreateShopEmployee,
+        useUpdateShopEmployee,
+        useDeleteShopEmployee
     } = useShopEmployeesApi();
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -167,7 +166,7 @@ const StaffPage = () => {
             render: (value, record) => (
                 <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-blue-100 text-blue-600 text-[10px] font-bold">
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
                             {record.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -200,7 +199,7 @@ const StaffPage = () => {
                 const matched = rolesList.find(r => r.id.toString() === value?.toString());
                 const displayName = matched ? matched.name : (value || '—');
                 return (
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 capitalize">
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 capitalize">
                         {displayName}
                     </span>
                 );
@@ -218,7 +217,7 @@ const StaffPage = () => {
             render: (value, record) => (
                 <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-blue-100 text-blue-600 text-[10px] font-bold">
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
                             {value.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                     </Avatar>
@@ -294,7 +293,7 @@ const StaffPage = () => {
             render: (value, record) => (
                 <div className="flex items-center gap-3">
                     <Avatar>
-                        <AvatarFallback className="bg-blue-100 text-blue-600">
+                        <AvatarFallback className="bg-primary/10 text-primary">
                             {value.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                     </Avatar>
@@ -322,7 +321,7 @@ const StaffPage = () => {
                 if (!value) return null;
                 const [time, type] = value.split('|');
                 const bgColor = type === 'General Shift'
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-primary/10 text-primary'
                     : type === 'Half Day'
                         ? 'bg-purple-100 text-purple-700'
                         : 'bg-green-100 text-green-700';
@@ -381,10 +380,10 @@ const StaffPage = () => {
 
             const payload = { ...newEmployee, role: finalRoleId };
             const res = await createEmployeeMutation.mutateAsync(payload);
-            
+
             // Extract created user id. Backend likely returns it in res.data?.id or res.id
             const newUserId = res.data?.id || (res as any).id;
-            
+
             // If they picked a numeric custom role id
             if (newUserId && !isNaN(Number(finalRoleId))) {
                 await axiosInstance.post('/roles-assign', {
@@ -418,7 +417,7 @@ const StaffPage = () => {
 
     const handleEditStaff = (record: ShopEmployee) => {
         setSelectedEmployee(record);
-        
+
         // Find the role ID from the name to populate the select input correctly
         const matchedRole = rolesList.find(r => r.name === record.role || r.id.toString() === record.role?.toString());
 
@@ -435,7 +434,7 @@ const StaffPage = () => {
     const handleUpdateEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!selectedEmployee) return;
-        
+
         setIsSubmitting(true);
         try {
             let finalRoleId = editForm.role;
@@ -473,9 +472,9 @@ const StaffPage = () => {
             }
 
             const payload = { ...editForm, role: finalRoleId };
-            await updateEmployeeMutation.mutateAsync({ 
-                id: selectedEmployee.id, 
-                payload 
+            await updateEmployeeMutation.mutateAsync({
+                id: selectedEmployee.id,
+                payload
             });
 
             // Assign role
@@ -507,7 +506,7 @@ const StaffPage = () => {
 
     const confirmDeleteEmployee = async () => {
         if (!selectedEmployee) return;
-        
+
         setIsSubmitting(true);
         try {
             await deleteEmployeeMutation.mutateAsync(selectedEmployee.id);
@@ -538,7 +537,7 @@ const StaffPage = () => {
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h1 className="text-lg font-bold text-gray-900 tracking-tight">Staff & Technician Management</h1>
-                        <p className="text-xs sm:text-sm mt-0.5 text-blue-600">Manage your shop employees and their performance.</p>
+                        <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">Manage your shop employees and their performance.</p>
                     </div>
                     <TabsList>
                         <TabsTrigger value="staff">Staff List</TabsTrigger>
@@ -694,7 +693,7 @@ const StaffPage = () => {
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                         <DialogTitle>Add New Staff Member</DialogTitle>
-                        <DialogDescription>
+                        <DialogDescription className="text-xs sm:text-sm mt-0.5 text-primary font-medium">
                             Create a new shop employee. They will be able to log in with their email and password.
                         </DialogDescription>
                     </DialogHeader>
@@ -802,13 +801,13 @@ const StaffPage = () => {
                         <div className="space-y-6 py-4">
                             <div className="flex items-center gap-4 border-b pb-6">
                                 <Avatar className="h-16 w-16">
-                                    <AvatarFallback className="bg-blue-100 text-blue-600 text-xl font-bold">
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
                                         {selectedEmployee.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900">{selectedEmployee.name}</h3>
-                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 mt-1">
+                                    <Badge className="bg-primary/10 text-primary hover:bg-primary/20 mt-1">
                                         {(() => {
                                             const matched = rolesList.find(r => r.id.toString() === selectedEmployee.role?.toString());
                                             return matched ? matched.name : (selectedEmployee.role || 'No Role');
@@ -816,7 +815,7 @@ const StaffPage = () => {
                                     </Badge>
                                 </div>
                             </div>
-                            
+
                             <div className="grid grid-cols-1 gap-4">
                                 <div className="flex items-center gap-3 text-sm">
                                     <div className="bg-gray-100 p-2 rounded-full">
@@ -827,7 +826,7 @@ const StaffPage = () => {
                                         <span className="font-medium">{selectedEmployee.email}</span>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex items-center gap-3 text-sm">
                                     <div className="bg-gray-100 p-2 rounded-full">
                                         <Phone className="h-4 w-4 text-gray-600" />
@@ -837,7 +836,7 @@ const StaffPage = () => {
                                         <span className="font-medium">{selectedEmployee.phone}</span>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex items-center gap-3 text-sm">
                                     <div className="bg-gray-100 p-2 rounded-full">
                                         <ShieldCheck className="h-4 w-4 text-gray-600" />
@@ -847,7 +846,7 @@ const StaffPage = () => {
                                         <span className="font-medium text-green-600">{selectedEmployee.status || 'Active'}</span>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex items-center gap-3 text-sm">
                                     <div className="bg-gray-100 p-2 rounded-full">
                                         <MapPin className="h-4 w-4 text-gray-600" />
@@ -981,9 +980,9 @@ const StaffPage = () => {
                         <Button type="button" variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
                             Cancel
                         </Button>
-                        <Button 
-                            type="button" 
-                            variant="destructive" 
+                        <Button
+                            type="button"
+                            variant="destructive"
                             onClick={confirmDeleteEmployee}
                             disabled={isSubmitting}
                         >

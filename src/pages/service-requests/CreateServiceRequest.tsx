@@ -127,7 +127,8 @@ const CreateServiceRequest = () => {
     const { data: customerFromUrlData } = useGetCustomerById(customerIdFromUrl ? Number(customerIdFromUrl) : undefined);
     const { data: categoryForms = [] } = useGetCategoryForms();
     const { data: apiProductCategories = [], isLoading: isLoadingCategories } = useGetProductCategories();
-    const { data: availableProducts = [], isLoading: isLoadingProducts } = useGetProducts();
+    const { data: availableProductsResponse, isLoading: isLoadingProducts } = useGetProducts();
+    const availableProducts = availableProductsResponse?.data ?? [];
 
     const serviceRequestId = isEditMode && id ? Number(id) : undefined;
     const { data: existingServiceRequest } = useGetServiceRequestById(serviceRequestId);
@@ -1096,7 +1097,7 @@ const CreateServiceRequest = () => {
                                     <div className="border border-gray-200 rounded p-2 bg-white hover:shadow-sm transition-shadow">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                                                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs">
                                                     {selectedCustomer.name.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div className="flex-1">
@@ -1145,7 +1146,7 @@ const CreateServiceRequest = () => {
                                                         className="border border-gray-200 rounded-md p-2 bg-white hover:bg-gray-50 transition-colors"
                                                     >
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                                            <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs shrink-0">
                                                                 {customer.name.charAt(0).toUpperCase()}
                                                             </div>
                                                             <div className="flex-1 overflow-hidden">
@@ -1423,7 +1424,7 @@ const CreateServiceRequest = () => {
                                                             }}
                                                         />
                                                     ) : (
-                                                        <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-600 font-bold text-[8px] uppercase">
+                                                        <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold text-[8px] uppercase">
                                                             {brand.charAt(0)}
                                                         </div>
                                                     )}
@@ -1788,9 +1789,9 @@ const CreateServiceRequest = () => {
 
                                 {/* Totals */}
                                 <div className="border-t pt-2 space-y-1.5">
-                                    <div className="flex justify-between items-center bg-blue-50/50 p-2 rounded border border-blue-100">
-                                        <p className="text-xs font-bold text-blue-900">Parts Total</p>
-                                        <p className="text-xs font-bold text-blue-900">
+                                    <div className="flex justify-between items-center bg-primary/10 p-2 rounded border border-primary/20">
+                                        <p className="text-xs font-bold text-primary">Parts Total</p>
+                                        <p className="text-xs font-bold text-primary">
                                             ₹{partsGrandTotal.toFixed(2)}
                                         </p>
                                     </div>
@@ -2027,7 +2028,7 @@ const CreateServiceRequest = () => {
                             variant="secondary"
                             size="sm"
                             onClick={saveDraft}
-                            className="bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm h-8"
+                            className="bg-primary/10 hover:bg-primary/20 text-primary text-sm h-8"
                         >
                             Save Draft
                         </Button>

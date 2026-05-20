@@ -53,12 +53,12 @@ const ForcePasswordChange: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 px-4">
       <Card className="w-full max-w-md shadow-xl rounded-xl border-0">
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <Lock className="w-8 h-8 text-blue-600" />
+            <div className="p-3 bg-primary/10 rounded-full">
+              <Lock className="w-8 h-8 text-primary" />
             </div>
           </div>
           <CardTitle className="text-center text-2xl font-bold text-gray-800">Change Password</CardTitle>
@@ -76,7 +76,7 @@ const ForcePasswordChange: React.FC = () => {
                   placeholder="Enter temporary password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                  className="h-11 border-gray-300 focus:border-primary focus:ring-primary rounded-lg"
                   required
                 />
                 <button
@@ -100,7 +100,7 @@ const ForcePasswordChange: React.FC = () => {
                   placeholder="Enter new secure password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                  className="h-11 border-gray-300 focus:border-primary focus:ring-primary rounded-lg"
                   required
                 />
                 <button
@@ -123,7 +123,7 @@ const ForcePasswordChange: React.FC = () => {
                 placeholder="Confirm new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                className="h-11 border-gray-300 focus:border-primary focus:ring-primary rounded-lg"
                 required
               />
               {errors.new_password_confirmation && (
@@ -132,7 +132,7 @@ const ForcePasswordChange: React.FC = () => {
             </div>
 
             <Button
-              className="w-full h-12 mt-4 text-base font-bold transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg"
+              className="w-full h-12 mt-4 text-base font-bold transition-all duration-200 bg-primary hover:bg-primary/90 text-white rounded-lg shadow-lg"
               type="submit"
               disabled={loading}
             >

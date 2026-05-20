@@ -89,11 +89,18 @@ export interface ServiceApiResponse<T = any> {
 // ─── API Functions ───────────────────────────────────────────────────────────
 
 /**
- * Fetches all service requests
+ * Fetches all service requests scoped to the given shop.
+ * shop_id is sent as a query param so the backend can scope results
+ * to only the requesting user's shop/branch.
  */
-export const fetchServiceRequests = async (): Promise<ServiceRequest[]> => {
+export const fetchServiceRequests = async (shopId?: number | null): Promise<ServiceRequest[]> => {
     try {
-        const response = await axiosInstance.get('/service-index');
+        const params: Record<string, any> = {};
+        if (shopId) {
+            params.shop_id = shopId;
+        }
+
+        const response = await axiosInstance.get('/service-index', { params });
 
         // Handle all possible Laravel response shapes
         const raw = response.data;
@@ -320,7 +327,7 @@ export const useServiceRequestsApi = () => {
     const useGetServiceRequests = () =>
         useQuery<ServiceRequest[], Error>({
             queryKey: ['service-requests', shopId],
-            queryFn: () => fetchServiceRequests(),
+            queryFn: () => fetchServiceRequests(shopId),
             enabled: !!shopId,
         });
 

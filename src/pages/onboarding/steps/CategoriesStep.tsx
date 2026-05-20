@@ -143,8 +143,8 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
                         <button
                             onClick={() => handleBreadcrumbClick(index)}
                             className={cn(
-                                "font-medium transition-colors hover:text-blue-600",
-                                index === breadcrumb.length - 1 ? "text-blue-600" : "text-gray-600"
+                                "font-medium transition-colors hover:text-primary",
+                                index === breadcrumb.length - 1 ? "text-primary" : "text-gray-600"
                             )}
                         >
                             {index === 0 ? <Home className="h-4 w-4 inline" /> : crumb.name}
@@ -155,8 +155,8 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
 
             {/* Selected Categories Count */}
             {selectedCategoryIds.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-                    <span className="text-blue-700 font-medium">
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-center">
+                    <span className="text-primary font-medium">
                         {selectedCategoryIds.length} {selectedCategoryIds.length === 1 ? 'category' : 'categories'} selected
                     </span>
                 </div>
@@ -165,7 +165,7 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
             {/* Categories Grid */}
             {loading ? (
                 <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                 </div>
             ) : currentCategories.length === 0 ? (
                 <div className="text-center py-12">
@@ -186,8 +186,8 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
                                 className={cn(
                                     "relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer h-36",
                                     isSelected && isSelectable
-                                        ? "border-blue-500 bg-blue-50/50 shadow-md ring-1 ring-blue-500"
-                                        : "border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm"
+                                        ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary"
+                                        : "border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm"
                                 )}
                             >
                                 {/* Category Image */}
@@ -204,7 +204,7 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
                                 {/* Category Name */}
                                 <span className={cn(
                                     "font-medium text-sm text-center line-clamp-2",
-                                    isSelected && isSelectable ? "text-blue-700" : "text-gray-700"
+                                    isSelected && isSelectable ? "text-primary" : "text-gray-700"
                                 )}>
                                     {category.name}
                                 </span>
@@ -216,7 +216,7 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
 
                                 {/* Selection Checkmark (for subcategories at level 2) */}
                                 {isSelected && isSelectable && (
-                                    <div className="absolute top-2 right-2 bg-blue-500 rounded-full p-1">
+                                    <div className="absolute top-2 right-2 bg-primary rounded-full p-1">
                                         <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                         </svg>
@@ -230,7 +230,7 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
 
             <div className="text-center">
                 <p className="text-sm text-gray-500">
-                    Don't see your category? <a href="#" className="text-blue-500 font-medium hover:underline">Request New Category</a>
+                    Don't see your category? <a href="#" className="text-primary font-medium hover:underline">Request New Category</a>
                 </p>
             </div>
 
@@ -238,7 +238,7 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
                 <Button variant="ghost" onClick={onBack} className="text-gray-600 hover:text-gray-900">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>
-                <Button onClick={handleNext} className="bg-blue-500 hover:bg-blue-600 text-white min-w-[120px]">
+                <Button onClick={handleNext} className="bg-primary hover:bg-primary/90 text-white min-w-[120px]">
                     Next Step <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </div>

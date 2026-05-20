@@ -436,7 +436,7 @@ const CreateShopCategoryFormPage = () => {
                 ref={setNodeRef}
                 style={style}
                 className={`border rounded-lg cursor-pointer transition-all ${selectedFieldId === field.id
-                    ? 'border-blue-500 bg-blue-50'
+                    ? 'border-primary bg-primary/10'
                     : 'border-gray-200 hover:border-gray-300'
                     }`}
                 onClick={() => setSelectedFieldId(field.id)}
@@ -452,7 +452,7 @@ const CreateShopCategoryFormPage = () => {
                             <span className="text-red-500 text-xs">*</span>
                         )}
                         {hasConditionalFields && (
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-blue-50 text-blue-600 border-blue-200 ml-1 flex-shrink-0">
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/20 ml-1 flex-shrink-0">
                                 {field.conditionalFields!.length} conditional
                             </Badge>
                         )}
@@ -470,17 +470,17 @@ const CreateShopCategoryFormPage = () => {
 
                 {/* Show conditional child fields nested under toggle */}
                 {hasConditionalFields && (
-                    <div className="mx-2.5 mb-2 ml-6 pl-2.5 border-l-2 border-blue-300 space-y-1">
+                    <div className="mx-2.5 mb-2 ml-6 pl-2.5 border-l-2 border-primary/30 space-y-1">
                         {field.conditionalFields!.map((cf) => {
                             const CfIcon = getFieldIcon(cf.type);
                             return (
                                 <div
                                     key={cf.id}
-                                    className="flex items-center justify-between px-2 py-1 rounded bg-blue-50/60 border border-blue-100"
+                                    className="flex items-center justify-between px-2 py-1 rounded bg-primary/5 border border-primary/10"
                                 >
                                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                        <ChevronRight className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                                        <CfIcon className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                        <ChevronRight className="w-3 h-3 text-primary/40 flex-shrink-0" />
+                                        <CfIcon className="w-3 h-3 text-primary/50 flex-shrink-0" />
                                         <p className="text-[11px] text-gray-600 truncate">{cf.label}</p>
                                         {cf.required && (
                                             <span className="text-red-500 text-[10px]">*</span>
@@ -584,8 +584,8 @@ const CreateShopCategoryFormPage = () => {
                                                                 }));
                                                             }}
                                                             className={`px-3 py-1.5 text-xs rounded-full border transition-all flex items-center gap-1 ${isSelected
-                                                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                                                : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                                                                ? 'bg-primary text-white border-primary shadow-sm'
+                                                                : 'bg-white text-gray-700 border-gray-200 hover:border-primary/30 hover:bg-primary/5'
                                                                 }`}
                                                         >
                                                             {isSelected && (
@@ -718,10 +718,10 @@ const CreateShopCategoryFormPage = () => {
                                             <div className="flex items-center gap-2">
                                                 {(() => {
                                                     const FieldIcon = getFieldIcon(selectedField.type);
-                                                    return <FieldIcon className="w-4 h-4 text-blue-600" />;
+                                                    return <FieldIcon className="w-4 h-4 text-primary" />;
                                                 })()}
                                                 <CardTitle className="text-sm font-semibold">Edit Field</CardTitle>
-                                                <Badge variant="outline" className="text-xs capitalize bg-blue-50 text-blue-700 border-blue-200">
+                                                <Badge variant="outline" className="text-xs capitalize bg-primary/10 text-primary border-primary/20">
                                                     {selectedField.type}
                                                 </Badge>
                                             </div>
@@ -839,9 +839,9 @@ const CreateShopCategoryFormPage = () => {
 
                                                     {/* Existing conditional fields */}
                                                     {(selectedField.conditionalFields || []).map((cf, idx) => (
-                                                        <div key={cf.id} className="border border-dashed border-blue-200 rounded-lg p-2 bg-blue-50/30 space-y-1.5">
+                                                        <div key={cf.id} className="border border-dashed border-primary/20 rounded-lg p-2 bg-primary/5 space-y-1.5">
                                                             <div className="flex items-center justify-between">
-                                                                <span className="text-[10px] font-medium text-blue-600">Field {idx + 1} ({cf.type})</span>
+                                                                <span className="text-[10px] font-medium text-primary">Field {idx + 1} ({cf.type})</span>
                                                                 <button
                                                                     className="p-0.5 text-gray-400 hover:text-red-500 transition-colors"
                                                                     onClick={() => removeConditionalField(selectedField.id, cf.id)}
@@ -869,7 +869,7 @@ const CreateShopCategoryFormPage = () => {
                                                                     onChange={(e) => updateConditionalField(selectedField.id, cf.id, {
                                                                         options: e.target.value.split('\n').filter(o => o.trim())
                                                                     })}
-                                                                    className="w-full p-1.5 text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                                    className="w-full p-1.5 text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                                                                     rows={2}
                                                                     placeholder="Options (one per line)"
                                                                 />
@@ -962,7 +962,7 @@ const CreateShopCategoryFormPage = () => {
                                 <CardContent>
                                     <div className="border-2 border-gray-200 rounded-2xl overflow-hidden bg-gray-50 shadow-inner">
                                         {/* Header */}
-                                        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+                                        <div className="bg-gradient-to-r from-primary to-primary/90 text-white p-4">
                                             <h3 className="font-semibold text-base">{metadata.name || 'Form Name'}</h3>
                                             <p className="text-xs opacity-80 mt-0.5">
                                                 {metadata.category_ids.length > 0
@@ -983,7 +983,7 @@ const CreateShopCategoryFormPage = () => {
                                                 formFields.map((field) => (
                                                     <div
                                                         key={field.id}
-                                                        className={`space-y-1.5 transition-all ${selectedFieldId === field.id ? 'ring-2 ring-blue-300 rounded-lg p-2 -m-2 bg-blue-50/30' : ''
+                                                        className={`space-y-1.5 transition-all ${selectedFieldId === field.id ? 'ring-2 ring-primary/30 rounded-lg p-2 -m-2 bg-primary/5' : ''
                                                             }`}
                                                     >
                                                         {/* Generic label — skip for layout-only fields */}
@@ -1051,11 +1051,11 @@ const CreateShopCategoryFormPage = () => {
 
                                                                 {/* Conditional child fields – shown when toggle is ON */}
                                                                 {(togglePreviewStates[field.id] ?? Boolean(field.defaultValue)) && (field.conditionalFields || []).length > 0 && (
-                                                                    <div className="ml-4 pl-3 border-l-2 border-blue-300 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                    <div className="ml-4 pl-3 border-l-2 border-primary/30 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
                                                                         {(field.conditionalFields || []).map(cf => (
                                                                             <div key={cf.id} className="space-y-1.5">
                                                                                 <label className="text-xs font-medium text-gray-700 flex items-center gap-1">
-                                                                                    <ChevronRight className="w-3 h-3 text-blue-400" />
+                                                                                    <ChevronRight className="w-3 h-3 text-primary/40" />
                                                                                     {cf.label}
                                                                                     {cf.required && <span className="text-red-500">*</span>}
                                                                                 </label>
@@ -1108,7 +1108,7 @@ const CreateShopCategoryFormPage = () => {
                                                         {field.type === 'date' && (
                                                             <input
                                                                 type="date"
-                                                                className="w-full border border-gray-200 rounded-lg p-2.5 text-xs text-gray-600 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                                className="w-full border border-gray-200 rounded-lg p-2.5 text-xs text-gray-600 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                                                             />
                                                         )}
 
@@ -1117,7 +1117,7 @@ const CreateShopCategoryFormPage = () => {
                                                             <div className="space-y-3">
                                                                 {/* Upload area */}
                                                                 <div
-                                                                    className="border-2 border-dashed border-blue-200 rounded-lg p-4 text-center bg-blue-50/30 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                                                                    className="border-2 border-dashed border-primary/20 rounded-lg p-4 text-center bg-primary/5 cursor-pointer hover:border-primary/40 hover:bg-primary/10 transition-colors"
                                                                     onClick={() => fileInputRef.current?.click()}
                                                                 >
                                                                     <input
@@ -1128,9 +1128,9 @@ const CreateShopCategoryFormPage = () => {
                                                                         className="hidden"
                                                                         onChange={handlePhotoUpload}
                                                                     />
-                                                                    <Upload className="w-6 h-6 mx-auto text-blue-400 mb-1.5" />
-                                                                    <p className="text-xs font-medium text-blue-600">Click to upload photos</p>
-                                                                    <p className="text-xs text-blue-400 mt-0.5">
+                                                                    <Upload className="w-6 h-6 mx-auto text-primary/40 mb-1.5" />
+                                                                    <p className="text-xs font-medium text-primary">Click to upload photos</p>
+                                                                    <p className="text-xs text-primary/40 mt-0.5">
                                                                         {previewPhotos.length}/6 photos uploaded
                                                                     </p>
                                                                 </div>
@@ -1183,7 +1183,7 @@ const CreateShopCategoryFormPage = () => {
                         <Button
                             onClick={handleSubmit}
                             disabled={submitting}
-                            className="bg-blue-600 hover:bg-blue-700"
+                            className="bg-primary hover:bg-primary/90"
                         >
                             {submitting ? 'Saving...' : isEditMode ? 'Update Form' : 'Save Form'}
                         </Button>

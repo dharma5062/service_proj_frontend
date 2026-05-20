@@ -393,7 +393,7 @@ const CreateProductPage = () => {
                     <h1 className="text-lg font-bold text-gray-900 tracking-tight">
                         {isEditMode ? 'Edit Product' : 'Create New Product'}
                     </h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-blue-600 font-medium">
+                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">
                         {isEditMode ? 'Update existing product information' : 'Add a new product to your inventory'}
                     </p>
                 </div>
@@ -697,7 +697,7 @@ const CreateProductPage = () => {
                                 <CardTitle className="text-sm font-bold">Product Category</CardTitle>
                                 <p className="text-[11px] text-gray-400 mt-0.5">Organize your product under the right category for easy discovery</p>
                                 {getCategoryDisplayPath() && (
-                                    <p className="text-xs text-blue-600 mt-0.5 flex items-center gap-1">
+                                    <p className="text-xs text-primary mt-0.5 flex items-center gap-1">
                                         <Check className="w-3 h-3" />
                                         {getCategoryDisplayPath()}
                                     </p>
@@ -787,13 +787,13 @@ const CreateProductPage = () => {
                                     className="hidden"
                                 />
                                 {!imagePreview ? (
-                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-blue-400 transition-colors">
+                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center hover:border-primary/50 transition-colors">
                                         <label
                                             htmlFor="image-upload"
                                             className="cursor-pointer flex flex-col items-center"
                                         >
-                                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                                                <Upload className="w-5 h-5 text-blue-600" />
+                                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+                                                <Upload className="w-5 h-5 text-primary" />
                                             </div>
                                             <p className="text-xs font-medium text-gray-900 mb-0.5">
                                                 Click to upload photo
@@ -850,7 +850,7 @@ const CreateProductPage = () => {
                     size="sm"
                     onClick={handleSubmit}
                     disabled={submitting}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-primary hover:bg-blue-700 text-white"
                 >
                     {submitting ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Product' : 'Create Product')}
                 </Button>

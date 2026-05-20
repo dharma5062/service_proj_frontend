@@ -217,7 +217,7 @@ const CreateRolePage: React.FC = () => {
                             <h1 className="text-lg font-bold text-gray-900">
                                 {isEditMode ? 'Edit Custom Role' : 'Create Custom Role'}
                             </h1>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-primary font-medium">
                                 Define the specific privileges assigned to this role.
                             </p>
                         </div>
@@ -358,8 +358,8 @@ const CreateRolePage: React.FC = () => {
                                                             className="border rounded-md border-gray-200 bg-white overflow-hidden transition-all hover:border-gray-300"
                                                         >
                                                             {/* Module header with select-all toggle */}
-                                                            <div className="bg-gray-50/80 border-b border-gray-100 px-3 py-2 flex items-center justify-between">
-                                                                <h4 className="font-bold text-[11px] text-gray-700 uppercase tracking-wide">
+                                                            <div className="bg-primary/5 border-b border-primary/10 px-3 py-2 flex items-center justify-between">
+                                                                <h4 className="font-bold text-[11px] text-primary uppercase tracking-wide">
                                                                     {moduleName}
                                                                 </h4>
                                                                 <Checkbox

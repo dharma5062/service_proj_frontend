@@ -273,8 +273,8 @@ const BrandsPage = () => {
             {/* Header Area */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
-                    <h1 className="text-xl font-bold text-gray-900 tracking-tight">Brands List</h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-blue-600 font-medium">
+                    <h1 className="text-lg font-bold text-gray-900 tracking-tight">Brands List</h1>
+                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">
                         Manage all product brands and their visual identity.
                     </p>
                 </div>
@@ -284,7 +284,7 @@ const BrandsPage = () => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <Input
                             placeholder="Search brands..."
-                            className="pl-9 h-10 rounded-xl bg-white border-gray-200 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            className="pl-9 h-10 rounded-xl bg-white border-gray-200 shadow-sm focus:ring-primary focus:border-primary"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -292,7 +292,7 @@ const BrandsPage = () => {
                     {hasPermission('brand.create') && (
                         <Button 
                             onClick={handleAddNew}
-                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 h-10 shadow-md shadow-blue-100 flex items-center gap-2"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 h-10 shadow-md shadow-primary/20 flex items-center gap-2"
                         >
                             <Plus className="w-4 h-4" />
                             <span className="hidden sm:inline">New Brand</span>
@@ -313,7 +313,7 @@ const BrandsPage = () => {
                     {filteredBrands.map((brand) => (
                         <div 
                             key={brand.id}
-                            className="group relative bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all duration-300 flex flex-col items-center"
+                            className="group relative bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300 flex flex-col items-center"
                         >
                             {/* Action Menu (Top Right) */}
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -342,7 +342,7 @@ const BrandsPage = () => {
                             </div>
 
                             {/* Brand Logo Container */}
-                            <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-4 rounded-full bg-white p-2 flex items-center justify-center ring-1 ring-gray-50 shadow-inner group-hover:ring-blue-50 transition-all duration-300">
+                            <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-4 rounded-full bg-white p-2 flex items-center justify-center ring-1 ring-gray-50 shadow-inner group-hover:ring-primary/10 transition-all duration-300">
                                 {brand.brand_logo ? (
                                     <img
                                         src={brand.brand_logo}
@@ -355,7 +355,7 @@ const BrandsPage = () => {
                             </div>
 
                             {/* Brand Name */}
-                            <h3 className="text-[13px] font-bold text-gray-900 text-center line-clamp-1 group-hover:text-blue-600 transition-colors">
+                            <h3 className="text-[13px] font-bold text-gray-900 text-center line-clamp-1 group-hover:text-primary transition-colors">
                                 {brand.name.charAt(0).toUpperCase() + brand.name.slice(1)}
                             </h3>
                             
@@ -380,7 +380,7 @@ const BrandsPage = () => {
                     {!searchQuery && hasPermission('brand.create') && (
                         <Button 
                             onClick={handleAddNew}
-                            className="mt-6 bg-white hover:bg-gray-50 text-blue-600 border border-blue-200 rounded-xl"
+                            className="mt-6 bg-white hover:bg-gray-50 text-primary border border-primary/20 rounded-xl"
                         >
                             Add Your First Brand
                         </Button>
@@ -400,7 +400,7 @@ const BrandsPage = () => {
 
                     {selectedBrand && (
                         <div className="flex flex-col items-center py-6">
-                            <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-blue-50 shadow-xl border border-white bg-white p-4 mb-6">
+                            <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-primary/10 shadow-xl border border-white bg-white p-4 mb-6">
                                 {selectedBrand.brand_logo ? (
                                     <img
                                         src={selectedBrand.brand_logo}
@@ -416,7 +416,7 @@ const BrandsPage = () => {
                                 {selectedBrand.name.charAt(0).toUpperCase() + selectedBrand.name.slice(1)}
                             </h2>
                             
-                            <Badge className={selectedBrand.is_active ? 'bg-green-100 text-green-700 hover:bg-green-100 border-green-200 mb-6' : 'bg-red-100 text-red-700 hover:bg-red-100 border-red-200 mb-6'}>
+                            <Badge className={selectedBrand.is_active ? 'bg-secondary/10 text-secondary hover:bg-secondary/20 border-secondary/20 mb-6' : 'bg-red-100 text-red-700 hover:bg-red-100 border-red-200 mb-6'}>
                                 {selectedBrand.is_active ? 'Active Brand' : 'Inactive Brand'}
                             </Badge>
 
@@ -461,7 +461,7 @@ const BrandsPage = () => {
                                 placeholder="e.g., Apple, Samsung, Sony"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className={`rounded-xl h-11 ${formErrors.name ? 'border-red-500 ring-red-50' : 'border-gray-200 focus:ring-blue-500'}`}
+                                className={`rounded-xl h-11 ${formErrors.name ? 'border-red-500 ring-red-50' : 'border-gray-200 focus:ring-primary'}`}
                             />
                             {formErrors.name && (
                                 <p className="text-[10px] font-bold text-red-500 mt-1">{formErrors.name}</p>
@@ -471,7 +471,7 @@ const BrandsPage = () => {
                         <div className="space-y-3">
                             <Label className="text-sm font-bold text-gray-700">Brand Logo</Label>
                             <div className="flex items-center gap-4">
-                                <div className="relative group w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 overflow-hidden transition-colors hover:border-blue-400">
+                                <div className="relative group w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 overflow-hidden transition-colors hover:border-primary/50">
                                     {logoPreview ? (
                                         <img src={logoPreview} alt="Preview" className="w-full h-full object-contain p-2" />
                                     ) : (
@@ -490,7 +490,7 @@ const BrandsPage = () => {
                                     <Button 
                                         variant="outline" 
                                         size="sm" 
-                                        className="mt-2 text-[10px] font-bold rounded-lg border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200 h-7"
+                                        className="mt-2 text-[10px] font-bold rounded-lg border-gray-200 hover:bg-white hover:text-primary hover:border-primary/20 h-7"
                                         onClick={() => document.getElementById('brand_logo_input')?.click()}
                                     >
                                         Choose File
@@ -511,7 +511,7 @@ const BrandsPage = () => {
                                 id="is_active"
                                 checked={formData.is_active}
                                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                                className="data-[state=checked]:bg-blue-600"
+                                className="data-[state=checked]:bg-primary"
                             />
                         </div>
                     </div>
@@ -528,7 +528,7 @@ const BrandsPage = () => {
                         <Button 
                             onClick={handleSubmit} 
                             disabled={submitting}
-                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-6 shadow-md shadow-blue-100"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-bold px-6 shadow-md shadow-primary/20"
                         >
                             {submitting ? 'Processing...' : isEditMode ? 'Save Changes' : 'Create Brand'}
                         </Button>

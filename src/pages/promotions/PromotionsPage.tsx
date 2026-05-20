@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { DataTable, Column } from '@/components/ui/table/tableComponents';
+import { DataTable, Column } from '@/components/ui/table/datatable';
 import { toast } from 'sonner';
 
 interface Promotion {
@@ -132,7 +132,7 @@ const PromotionsPage = () => {
                     <h1 className="text-lg font-bold text-gray-900 tracking-tight">
                         Promotional Offers & Discounts
                     </h1>
-                    <p className="text-xs text-blue-600 mt-1">
+                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">
                         Create, manage, and track promotional offers for your shop.
                     </p>
                 </div>

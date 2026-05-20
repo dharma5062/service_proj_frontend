@@ -60,15 +60,15 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/20 px-4">
       <Card className="w-full max-w-sm shadow-xl rounded-xl border-0">
         <CardHeader>
-          <CardTitle className="text-center text-2xl font-bold text-blue-700">Sign In</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold text-primary">Sign In</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-5">
             {successMessage && (
-              <div className="bg-blue-50 border border-blue-300 px-3 py-2 rounded-md text-blue-700 text-center text-sm mb-3">
+              <div className="bg-primary/10 border border-primary/20 px-3 py-2 rounded-md text-primary text-center text-sm mb-3">
                 {successMessage}
               </div>
             )}
@@ -98,14 +98,14 @@ const Login: React.FC = () => {
                   placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md text-sm pr-10"
+                  className="h-10 border-gray-300 focus:border-primary focus:ring-primary rounded-md text-sm pr-10"
                 />
                 <button
                   type="button"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   tabIndex={-1}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-700"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -116,7 +116,7 @@ const Login: React.FC = () => {
             </div>
             <div className="flex justify-end">
               <span
-                className="text-blue-600 text-xs font-medium cursor-pointer hover:underline"
+                className="text-primary text-xs font-medium cursor-pointer hover:underline"
                 onClick={() => navigate("/forgot-password")}
               >
                 Forgot Password?
@@ -132,7 +132,7 @@ const Login: React.FC = () => {
             <p className="text-center text-xs text-gray-600 pt-3">
               Don’t have an account?{" "}
               <span
-                className="text-blue-600 font-semibold cursor-pointer hover:underline"
+                className="text-primary font-semibold cursor-pointer hover:underline"
                 onClick={() => navigate("/register")}
               >
                 Create one

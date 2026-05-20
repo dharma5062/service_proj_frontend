@@ -53,10 +53,10 @@ const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 px-4">
       <Card className="w-full max-w-sm shadow-2xl rounded-xl border-0">
         <CardHeader className="pb-4 pt-8">
-          <CardTitle className="text-center text-2xl font-bold text-blue-700">
+          <CardTitle className="text-center text-2xl font-bold text-primary">
             Forgot Password
           </CardTitle>
         </CardHeader>
@@ -64,7 +64,7 @@ const ForgotPassword: React.FC = () => {
         <CardContent>
           <form onSubmit={handleForgotPassword} className="space-y-6">
             {successMessage && (
-              <div className="bg-blue-50 border border-blue-300 px-3 py-2 rounded-md text-blue-700 text-center text-sm">
+              <div className="bg-primary/10 border border-primary/20 px-3 py-2 rounded-md text-primary text-center text-sm">
                 {successMessage}
               </div>
             )}
@@ -84,7 +84,7 @@ const ForgotPassword: React.FC = () => {
                 placeholder="Enter your registered email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-10 border-gray-300 rounded-md focus:border-blue-500 focus:ring-blue-500 text-sm"
+                className="h-10 border-gray-300 rounded-md focus:border-primary focus:ring-primary text-sm"
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? "email-error" : undefined}
               />
@@ -96,7 +96,7 @@ const ForgotPassword: React.FC = () => {
             </div>
 
             <Button
-              className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-md font-semibold text-base transition-colors duration-150 disabled:opacity-60"
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-white rounded-md font-semibold text-base transition-colors duration-150 disabled:opacity-60"
               type="submit"
               disabled={loading}
               aria-busy={loading}
@@ -107,7 +107,7 @@ const ForgotPassword: React.FC = () => {
             <p className="text-center text-xs text-gray-600 pt-3">
               Remember your password?{" "}
               <span
-                className="text-blue-600 font-semibold cursor-pointer hover:underline"
+                className="text-primary font-semibold cursor-pointer hover:underline"
                 onClick={() => navigate("/login")}
               >
                 Login

@@ -110,7 +110,7 @@ const WorkingHoursStep: React.FC<WorkingHoursStepProps> = ({ data, updateData, o
                                                     type="time"
                                                     value={data.workingHours[day].open}
                                                     onChange={(e) => handleTimeChange(day, 'open', e.target.value)}
-                                                    className="pl-9 h-9 text-sm border-gray-200 focus:border-blue-400 focus:ring-blue-400"
+                                                    className="pl-9 h-9 text-sm border-gray-200 focus:border-primary/50 focus:ring-primary/20"
                                                 />
                                             </div>
                                         ) : (
@@ -127,7 +127,7 @@ const WorkingHoursStep: React.FC<WorkingHoursStepProps> = ({ data, updateData, o
                                                     type="time"
                                                     value={data.workingHours[day].close}
                                                     onChange={(e) => handleTimeChange(day, 'close', e.target.value)}
-                                                    className="pl-9 h-9 text-sm border-gray-200 focus:border-blue-400 focus:ring-blue-400"
+                                                    className="pl-9 h-9 text-sm border-gray-200 focus:border-primary/50 focus:ring-primary/20"
                                                 />
                                             </div>
                                         ) : (
@@ -140,7 +140,7 @@ const WorkingHoursStep: React.FC<WorkingHoursStepProps> = ({ data, updateData, o
                                         <Checkbox
                                             checked={data.workingHours[day].isOpen}
                                             onCheckedChange={() => handleDayToggle(day)}
-                                            className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                         />
                                     </div>
                                 </div>
@@ -176,7 +176,7 @@ const WorkingHoursStep: React.FC<WorkingHoursStepProps> = ({ data, updateData, o
                                         <div
                                             className={cn(
                                                 "h-full rounded-full transition-all duration-300",
-                                                data.workingHours[day].isOpen ? "bg-blue-400" : "bg-gray-200"
+                                                data.workingHours[day].isOpen ? "bg-primary" : "bg-gray-200"
                                             )}
                                             style={{ width: `${getBarWidth(day)}%` }}
                                         />
@@ -190,11 +190,11 @@ const WorkingHoursStep: React.FC<WorkingHoursStepProps> = ({ data, updateData, o
 
                         {/* Summary */}
                         <div className="pt-4 border-t border-gray-100">
-                            <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                                <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex items-start gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                                <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-blue-900 mb-1">Summary</p>
-                                    <p className="text-xs text-blue-700 leading-relaxed">
+                                    <p className="text-xs font-semibold text-primary mb-1">Summary</p>
+                                    <p className="text-xs text-primary leading-relaxed">
                                         Your shop will be visible as <span className="font-semibold">Open</span> for <span className="font-semibold">{calculateHours()} hours</span> per week.
                                         {days.filter(d => !data.workingHours[d].isOpen).length > 0 && (
                                             <span> {days.filter(d => !data.workingHours[d].isOpen)[0]} is marked as holiday.</span>
@@ -226,7 +226,7 @@ const WorkingHoursStep: React.FC<WorkingHoursStepProps> = ({ data, updateData, o
                     </Button>
                     <Button
                         onClick={onNext}
-                        className="bg-blue-500 hover:bg-blue-600 text-white shadow-sm"
+                        className="bg-primary hover:bg-primary/90 text-white shadow-sm"
                     >
                         Next Step <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>

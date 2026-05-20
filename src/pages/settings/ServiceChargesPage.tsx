@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { DataTable, Column } from '@/components/ui/table/tableComponents';
+import { DataTable, Column } from '@/components/ui/table/datatable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     ServiceCharge,
@@ -41,11 +41,11 @@ interface ServiceChargeFormData {
 
 const ServiceChargesPage = () => {
     const { shopId, user, hasPermission } = useAuth();
-    const { 
-        useGetServiceCharges, 
-        useCreateServiceCharge, 
-        useUpdateServiceCharge, 
-        useDeleteServiceCharge 
+    const {
+        useGetServiceCharges,
+        useCreateServiceCharge,
+        useUpdateServiceCharge,
+        useDeleteServiceCharge
     } = useServiceChargesApi();
 
     const { data: serviceCharges = [], isLoading: loading } = useGetServiceCharges();
@@ -70,7 +70,7 @@ const ServiceChargesPage = () => {
     const [selectedCharge, setSelectedCharge] = useState<ServiceCharge | null>(null);
     const [formDialogOpen, setFormDialogOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
-    
+
     const [formData, setFormData] = useState<ServiceChargeFormData>({
         name: '',
         description: '',
@@ -108,7 +108,7 @@ const ServiceChargesPage = () => {
             dataIndex: 'amount',
             sortable: true,
             render: (value) => (
-                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 whitespace-nowrap shadow-sm inline-flex items-center">
+                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20 whitespace-nowrap shadow-sm inline-flex items-center">
                     <IndianRupee className="w-3 h-3 mr-0.5" />
                     {Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
@@ -230,7 +230,7 @@ const ServiceChargesPage = () => {
             <div className="flex justify-between items-start mb-6">
                 <div>
                     <h1 className="text-lg font-bold text-gray-900 tracking-tight">Service Charges</h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-blue-600">Manage standard charges for various services.</p>
+                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">Manage standard charges for various services.</p>
                 </div>
             </div>
 
@@ -285,7 +285,7 @@ const ServiceChargesPage = () => {
                                         </div>
                                         <div className="col-span-2">
                                             <p className="text-xs text-gray-500">Amount</p>
-                                            <p className="text-lg font-bold text-blue-600 flex items-center">
+                                            <p className="text-lg font-bold text-primary flex items-center">
                                                 <IndianRupee className="w-3.5 h-3.5 mr-0.5 pt-0.5" />
                                                 {Number(selectedCharge.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </p>

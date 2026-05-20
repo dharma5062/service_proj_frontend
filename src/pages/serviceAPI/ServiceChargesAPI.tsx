@@ -41,14 +41,19 @@ export interface ApiResponse<T> {
 }
 
 /**
- * Fetches all service charges from the backend API
+ * Fetches all service charges from the backend API scoped to the given shop.
  * @returns Promise<ServiceCharge[]> - Array of service charges
- * @throws Error if the API request fails
  */
-export const fetchServiceCharges = async (): Promise<ServiceCharge[]> => {
+export const fetchServiceCharges = async (shopId?: number): Promise<ServiceCharge[]> => {
     try {
+        const params: Record<string, any> = {};
+        if (shopId) {
+            params.shop_id = shopId;
+        }
+
         const response = await axiosInstance.get<any>(
-            '/service-charges-index'
+            '/service-charges-index',
+            { params }
         );
 
         const responseData = response.data;
@@ -221,15 +226,15 @@ export const useServiceChargesApi = () => {
 
     // ── Queries ──────────────────────────────────────────────────────────────
 
-    const useGetServiceCharges = () =>
+    const useGetServiceCharges = (options?: { enabled?: boolean }) =>
         useQuery<ServiceCharge[], Error>({
             queryKey: ['service-charges', shopId],
-            queryFn: fetchServiceCharges,
+            queryFn: () => fetchServiceCharges(shopId ?? undefined),
             staleTime: 30000,
             refetchOnWindowFocus: false,
             retry: 2,
             refetchOnMount: true,
-            enabled: !!shopId,
+            enabled: options?.enabled !== undefined ? options.enabled && !!shopId : !!shopId,
         });
 
     const useGetServiceChargeById = (id: number | null) =>
