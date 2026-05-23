@@ -106,7 +106,20 @@ const StaffPage = () => {
     const deleteEmployeeMutation = useDeleteShopEmployee();
 
     const staffList = employeesData?.data || [];
-    const totalEmployees = staffList.length;
+
+    const mappedStaffList = React.useMemo(() => {
+        return staffList.map(emp => {
+            const matchedRole = rolesList.find(r => r.id.toString() === emp.role?.toString());
+            const roleName = matchedRole ? matchedRole.name : (emp.role || '');
+            return {
+                ...emp,
+                _filter_role: emp.role?.toString() || '',
+                _search_blob: `${emp.name} ${emp.email} ${emp.phone || ''} ${roleName}`.toLowerCase()
+            };
+        });
+    }, [staffList, rolesList]);
+
+    const totalEmployees = mappedStaffList.length;
 
     const performanceData: Performance[] = [
         {
@@ -537,7 +550,6 @@ const StaffPage = () => {
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h1 className="text-lg font-bold text-gray-900 tracking-tight">Staff & Technician Management</h1>
-                        <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">Manage your shop employees and their performance.</p>
                     </div>
                     <TabsList>
                         <TabsTrigger value="staff">Staff List</TabsTrigger>
@@ -550,8 +562,20 @@ const StaffPage = () => {
                 <TabsContent value="staff">
                     <DataTable
                         columns={staffColumns}
-                        data={staffList}
+                        data={mappedStaffList}
                         title="Staff Members"
+                        filterConfig={[
+                            {
+                                key: '_filter_role',
+                                label: 'Role',
+                                type: 'select',
+                                options: rolesList.map(r => ({
+                                    label: r.name,
+                                    value: r.id.toString()
+                                }))
+                            }
+                        ]}
+                        searchKey="_search_blob"
                         searchable={true}
                         rowSelection={false}
                         showActions={true}
@@ -573,6 +597,7 @@ const StaffPage = () => {
                         }}
                         hoverable
                         bordered
+                        density="compact"
                     />
                 </TabsContent>
 

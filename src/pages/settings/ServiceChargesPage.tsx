@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -78,6 +78,23 @@ const ServiceChargesPage = () => {
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
+
+    const mappedServiceCharges = useMemo(() => {
+        return serviceCharges.map((charge) => {
+            const desc = charge.description || '';
+            const amount = Number(charge.amount);
+            let range = 'above_1000';
+            if (amount < 100) range = 'under_100';
+            else if (amount >= 100 && amount <= 500) range = '100_500';
+            else if (amount > 500 && amount <= 1000) range = '500_1000';
+
+            return {
+                ...charge,
+                _filter_amount_range: range,
+                _search_blob: `${charge.name} ${desc} ${charge.amount}`.toLowerCase(),
+            };
+        });
+    }, [serviceCharges]);
 
     const columns: Column<ServiceCharge>[] = [
         {
@@ -226,19 +243,25 @@ const ServiceChargesPage = () => {
 
     return (
         <div className="p-0">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h1 className="text-lg font-bold text-gray-900 tracking-tight">Service Charges</h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">Manage standard charges for various services.</p>
-                </div>
-            </div>
-
             {/* DataTable */}
             <DataTable
                 columns={columns}
-                data={serviceCharges}
+                data={mappedServiceCharges}
                 title="Service Charges List"
+                filterConfig={[
+                    {
+                        key: '_filter_amount_range',
+                        label: 'Amount Range',
+                        type: 'select',
+                        options: [
+                            { label: 'Under ₹100', value: 'under_100' },
+                            { label: '₹100 - ₹500', value: '100_500' },
+                            { label: '₹500 - ₹1000', value: '500_1000' },
+                            { label: 'Above ₹1000', value: 'above_1000' }
+                        ]
+                    }
+                ]}
+                searchKey="_search_blob"
                 searchable={true}
                 showActions={true}
                 showAdd={hasPermission('service_charge.create')}
@@ -250,7 +273,7 @@ const ServiceChargesPage = () => {
                 pagination={{
                     current: currentPage,
                     pageSize: pageSize,
-                    total: serviceCharges.length,
+                    total: mappedServiceCharges.length,
                     onChange: (page, size) => {
                         setCurrentPage(page);
                         setPageSize(size);
@@ -258,6 +281,7 @@ const ServiceChargesPage = () => {
                 }}
                 hoverable
                 bordered
+                density="compact"
                 loading={loading}
             />
 

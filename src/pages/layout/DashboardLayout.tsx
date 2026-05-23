@@ -18,6 +18,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from '@/AuthContext';
 import NotificationCenter from '@/pages/notifications/NotificationCenter';
+import { useNotifications } from '@/hooks/useNotifications';
 
 // Helper: derive initials from a name string
 const getInitials = (name?: string | null): string => {
@@ -30,6 +31,7 @@ const getInitials = (name?: string | null): string => {
 const DashboardLayout = () => {
     const navigate = useNavigate();
     const { user, shop, logout } = useAuth();
+    const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
 
     const displayEmail = user?.email || '';
     const displayInitials = getInitials(shop?.name || user?.name);
@@ -114,16 +116,27 @@ const DashboardLayout = () => {
                             <SheetTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-md navbar-icon-button relative">
                                     <Bell className="h-4 w-4 navbar-icon" />
-                                    <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500 border-2 border-[#1e2a3a]" />
+                                    {unreadCount > 0 && (
+                                        <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500 border border-white"></span>
+                                        </span>
+                                    )}
                                     <span className="sr-only">Notifications</span>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="right" className="w-80 p-0 sm:max-w-sm border-l shadow-2xl flex flex-col">
+                            <SheetContent side="right" className="w-[420px] sm:max-w-[420px] p-0 border-l shadow-2xl flex flex-col bg-white">
                                 <SheetHeader className="sr-only">
                                     <SheetTitle>Notifications</SheetTitle>
                                     <SheetDescription>Your recent notifications</SheetDescription>
                                 </SheetHeader>
-                                <NotificationCenter />
+                                <NotificationCenter
+                                    notifications={notifications}
+                                    unreadCount={unreadCount}
+                                    loading={loading}
+                                    markRead={markRead}
+                                    markAllRead={markAllRead}
+                                />
                             </SheetContent>
                         </Sheet>
 

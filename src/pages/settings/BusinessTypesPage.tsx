@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -86,6 +86,25 @@ const BusinessTypesPage = () => {
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
+
+    const mappedBusinessTypes = useMemo(() => {
+        return businessTypes.map((type) => {
+            const categoryName = type.category?.name || '';
+            return {
+                ...type,
+                _filter_category: categoryName,
+                _filter_active: type.active ? 'active' : 'inactive',
+                _search_blob: `${type.name} ${categoryName}`.toLowerCase(),
+            };
+        });
+    }, [businessTypes]);
+
+    const categoryOptions = useMemo(() => {
+        return categories.map((cat) => ({
+            label: cat.name,
+            value: cat.name,
+        }));
+    }, [categories]);
 
     // Load categories once on mount (for the dropdown)
     useEffect(() => {
@@ -243,21 +262,29 @@ const BusinessTypesPage = () => {
 
     return (
         <div className="p-0">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h1 className="text-lg font-bold text-gray-900 tracking-tight">Business Types</h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">
-                        Manage business types and their associated categories.
-                    </p>
-                </div>
-            </div>
-
             {/* DataTable */}
             <DataTable
                 columns={columns}
-                data={businessTypes}
+                data={mappedBusinessTypes}
                 title="Business Types List"
+                filterConfig={[
+                    {
+                        key: '_filter_category',
+                        label: 'Category',
+                        type: 'select',
+                        options: categoryOptions
+                    },
+                    {
+                        key: '_filter_active',
+                        label: 'Status',
+                        type: 'select',
+                        options: [
+                            { label: 'Active', value: 'active' },
+                            { label: 'Inactive', value: 'inactive' }
+                        ]
+                    }
+                ]}
+                searchKey="_search_blob"
                 searchable={true}
                 showActions={true}
                 showAdd={hasPermission('business_type.create')}
@@ -269,7 +296,7 @@ const BusinessTypesPage = () => {
                 pagination={{
                     current: currentPage,
                     pageSize: pageSize,
-                    total: businessTypes.length,
+                    total: mappedBusinessTypes.length,
                     onChange: (page, size) => {
                         setCurrentPage(page);
                         setPageSize(size);
@@ -277,6 +304,7 @@ const BusinessTypesPage = () => {
                 }}
                 hoverable
                 bordered
+                density="compact"
                 loading={loading}
             />
 

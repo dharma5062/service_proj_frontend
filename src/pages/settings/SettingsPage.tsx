@@ -1,9 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import {
-    FolderTree,
     FileEdit,
     Package,
-    ShoppingBag,
     Briefcase,
     IndianRupee,
     Users,
@@ -54,14 +52,14 @@ export default function SettingsPage() {
     const { isSuperAdmin, isShopOwner, hasPermission } = useAuth();
 
     const settingsOptions: SettingCardProps[] = [
-        {
-            title: "Categories",
-            description: "Manage product and service categories hierarchy.",
-            icon: FolderTree,
-            path: "/dashboard/settings/categories",
-            colorClass: "bg-primary/10 text-primary group-hover:bg-primary/20",
-            reqPerm: "category.view",
-        },
+        // {
+        //     title: "Categories",
+        //     description: "Manage product and service categories hierarchy.",
+        //     icon: FolderTree,
+        //     path: "/dashboard/settings/categories",
+        //     colorClass: "bg-primary/10 text-primary group-hover:bg-primary/20",
+        //     reqPerm: "category.view",
+        // },
         {
             title: "Company Settings",
             description: "Manage your company profile and branch locations.",
@@ -88,14 +86,14 @@ export default function SettingsPage() {
             colorClass: "bg-purple-50 text-purple-600 group-hover:bg-purple-100",
             reqPerm: "brand.view",
         },
-        {
-            title: "Products",
-            description: "Add, edit and manage your inventory items.",
-            icon: ShoppingBag,
-            path: "/dashboard/settings/product",
-            colorClass: "bg-green-50 text-green-600 group-hover:bg-green-100",
-            reqPerm: "product.view",
-        },
+        // {
+        //     title: "Products",
+        //     description: "Add, edit and manage your inventory items.",
+        //     icon: ShoppingBag,
+        //     path: "/dashboard/settings/product",
+        //     colorClass: "bg-green-50 text-green-600 group-hover:bg-green-100",
+        //     reqPerm: "product.view",
+        // },
         {
             title: "Business Types",
             description: "Define different categories of businesses.",

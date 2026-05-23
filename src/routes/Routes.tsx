@@ -19,7 +19,7 @@ import InvoiceGenerator from '@/pages/invoice/InvoiceGenerator';
 import StaffPage from '@/pages/staff/StaffPage';
 // import NotificationCenter from '@/pages/notifications/NotificationCenter';
 import ReportingPage from '@/pages/reporting/ReportingPage';
-import PromotionsPage from '@/pages/promotions/PromotionsPage';
+// import PromotionsPage from '@/pages/promotions/PromotionsPage';
 import ProductCategoriesPage from '@/pages/settings/ProductCategoriesPage';
 import ShopCategoryFormsPage from '@/pages/settings/ShopCategoryFormsPage';
 import CreateShopCategoryFormPage from '@/pages/settings/CreateShopCategoryFormPage';
@@ -60,7 +60,7 @@ const RouterComponent: React.FC = () => {
                     <Route path='staff' element={<StaffPage />} />
                     {/* <Route path='notifications' element={<NotificationCenter />} /> */}
                     <Route path='reporting' element={<ReportingPage />} />
-                    <Route path='promotions' element={<PromotionsPage />} />
+                    {/* <Route path='promotions' element={<PromotionsPage />} /> */}
                     <Route path='services' element={<ServicesPage />} />
                     <Route path='services/create' element={<CreateServiceRequest />} />
                     <Route path='services/edit/:id' element={<CreateServiceRequest />} />

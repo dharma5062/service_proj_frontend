@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/AuthContext';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +47,59 @@ const ShopCategoryFormsPage = () => {
     const [selectedFormId, setSelectedFormId] = useState<number | null>(null);
     const [viewDialogOpen, setViewDialogOpen] = useState(false);
     const [selectedForm, setSelectedForm] = useState<CategoryForm | null>(null);
+
+    const mappedCategoryForms = useMemo(() => {
+        return categoryForms.map(form => {
+            let primaryCategory = '';
+            let categoryNames: string[] = [];
+            if (Array.isArray(form.categories) && form.categories.length > 0) {
+                const leafCategories = form.categories.filter(cat =>
+                    !form.categories!.some(otherCat => otherCat.parent_id === cat.id)
+                );
+                const displayCategories = leafCategories.length > 0 ? leafCategories : form.categories;
+                categoryNames = displayCategories.map((cat: any) => cat.name);
+                primaryCategory = displayCategories[0]?.name || '';
+            } else if (form.category?.name) {
+                categoryNames = [form.category.name];
+                primaryCategory = form.category.name;
+            }
+
+            let descText = '';
+            if (form.description) {
+                if (isJsonFormData(form.description)) {
+                    const formData = deserializeDefectFormData(form.description);
+                    if (formData) {
+                        descText = `Defect Form (${formData.fields.length} fields) ${formData.deviceType || ''}`;
+                    }
+                } else {
+                    descText = String(form.description);
+                }
+            }
+
+            return {
+                ...form,
+                _filter_category: primaryCategory,
+                _search_blob: `${form.name} ${descText} ${categoryNames.join(' ')}`.toLowerCase()
+            };
+        });
+    }, [categoryForms]);
+
+    const categoryOptions = useMemo(() => {
+        const names = new Set<string>();
+        categoryForms.forEach(form => {
+            if (Array.isArray(form.categories)) {
+                form.categories.forEach((cat: any) => {
+                    if (cat?.name) names.add(cat.name);
+                });
+            } else if (form.category?.name) {
+                names.add(form.category.name);
+            }
+        });
+        return Array.from(names).sort().map(name => ({
+            label: name,
+            value: name
+        }));
+    }, [categoryForms]);
 
     const columns: Column<CategoryForm>[] = [
         {
@@ -180,19 +233,20 @@ const ShopCategoryFormsPage = () => {
 
     return (
         <div className="p-0">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h1 className="text-lg font-bold text-gray-900 tracking-tight">Defect Form Builder</h1>
-                    <p className="text-xs sm:text-sm mt-0.5 text-primary font-medium">Manage defect form builders and their configurations.</p>
-                </div>
-            </div>
-
             {/* DataTable */}
             <DataTable
                 columns={columns}
-                data={categoryForms}
+                data={mappedCategoryForms}
                 title="Defect Form Builders List"
+                filterConfig={[
+                    {
+                        key: '_filter_category',
+                        label: 'Category',
+                        type: 'select',
+                        options: categoryOptions
+                    }
+                ]}
+                searchKey="_search_blob"
                 searchable={true}
                 showActions={true}
                 showAdd={hasPermission('form.create')}
@@ -212,6 +266,7 @@ const ShopCategoryFormsPage = () => {
                 }}
                 hoverable
                 bordered
+                density="compact"
                 loading={loading}
             />
 

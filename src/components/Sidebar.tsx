@@ -6,7 +6,6 @@ import {
     LogOut,
     Users,
     BarChart3,
-    Tag,
     ChevronsUpDown,
     FolderTree,
     FileEdit,
@@ -62,17 +61,19 @@ const Sidebar = () => {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', reqPerm: null },
         { icon: Store, label: 'Services', path: '/dashboard/services', reqPerm: 'service.view' },
         { icon: Users, label: 'Staff', path: '/dashboard/staff', reqPerm: 'employee.view' },
+        { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories', reqPerm: 'category.view' },
+        { icon: ShoppingBag, label: 'Products', path: '/dashboard/settings/product', reqPerm: 'product.view' },
         // Reporting & Promotions are owner/admin level; employees need no special permission guard here
         // but we restrict them to sa/so only via the isAdminOrOwner flag
         { icon: BarChart3, label: 'Reporting', path: '/dashboard/reporting', reqPerm: null, adminOnly: true },
-        { icon: Tag, label: 'Promotions', path: '/dashboard/promotions', reqPerm: null, adminOnly: true },
+        // { icon: Tag, label: 'Promotions', path: '/dashboard/promotions', reqPerm: null, adminOnly: true },
     ];
 
     const settingsItems = [
-        { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories', reqPerm: 'category.view' },
+        // { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories', reqPerm: 'category.view' },
         { icon: FileEdit, label: 'Defect Form', path: '/dashboard/settings/category-form', reqPerm: null, adminOnly: true },
         { icon: Package, label: 'Brand', path: '/dashboard/settings/brand', reqPerm: 'brand.view' },
-        { icon: ShoppingBag, label: 'Product', path: '/dashboard/settings/product', reqPerm: 'product.view' },
+        // { icon: ShoppingBag, label: 'Product', path: '/dashboard/settings/product', reqPerm: 'product.view' },
         { icon: Briefcase, label: 'Business Types', path: '/dashboard/settings/business-types', reqPerm: 'business_type.view' },
         { icon: IndianRupee, label: 'Service Charges', path: '/dashboard/settings/service-charges', reqPerm: 'service_charge.view' },
         { icon: Users, label: 'Roles & Privileges', path: '/dashboard/settings/roles', reqPerm: 'role.view' },
