@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Bell,
     CheckCircle2,
@@ -45,6 +46,7 @@ interface NotificationCenterProps {
     loading?: boolean;
     markRead?: (id: string) => void;
     markAllRead?: () => void;
+    onClose?: () => void;
 }
 
 const NotificationCenter: React.FC<NotificationCenterProps> = ({
@@ -53,7 +55,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
     loading: propLoading,
     markRead: propMarkRead,
     markAllRead: propMarkAllRead,
+    onClose,
 }) => {
+    const navigate = useNavigate();
     const local = useNotifications();
     const [activeTab, setActiveTab] = useState<Tab>('all');
 
@@ -74,6 +78,17 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
     const handleToggleRead = (notif: Notification) => {
         if (!notif.isRead) {
             markRead(notif.id);
+        }
+
+        // Parse service request ID from notification title or description
+        const match = notif.title.match(/SR#\s*(\d+)/i) || 
+                      notif.description.match(/service request #\s*(\d+)/i) ||
+                      notif.title.match(/SR\s*#\s*(\d+)/i);
+                      
+        if (match && match[1]) {
+            const srId = match[1];
+            navigate(`/dashboard/services/view/${srId}`);
+            if (onClose) onClose();
         }
     };
 

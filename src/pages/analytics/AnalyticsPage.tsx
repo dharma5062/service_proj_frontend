@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 const COLORS = ['#1F80FF', '#149447', '#F7B318', '#C6212C', '#8b5cf6', '#64748b'];
 
-const ReportingPage = () => {
+const AnalyticsPage = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('last30days');
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<AnalyticsData | null>(null);
@@ -70,7 +70,7 @@ const ReportingPage = () => {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                     <div>
-                        <h1 className="text-base font-bold text-gray-900 tracking-tight">Reporting &amp; Analytics</h1>
+                        <h1 className="text-base font-bold text-gray-900 tracking-tight">Analytics</h1>
                         <p className="text-xs sm:text-sm mt-0.5 text-gray-500 font-medium">Gain real-time insights into your business performance.</p>
                     </div>
                     <Button onClick={handleExport} variant="outline" size="sm" className="h-7 px-2.5 text-[10px] bg-white hover:bg-gray-50 border-gray-200 text-gray-700 transition-all">
@@ -182,8 +182,8 @@ const ReportingPage = () => {
                                     <p className="text-gray-500 font-medium text-xs">No data available for this period</p>
                                 </div>
                             ) : (
-                                <div className="w-full h-[200px] outline-none">
-                                    <ResponsiveContainer width="100%" height="100%" className="outline-none">
+                                <div className="w-full outline-none" style={{ height: 200, minHeight: 200 }}>
+                                    <ResponsiveContainer width="100%" height={200} className="outline-none">
                                         <AreaChart
                                             data={data?.chartData}
                                             margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
@@ -281,7 +281,7 @@ const ReportingPage = () => {
                             ) : (
                                 <div className="flex flex-col sm:flex-row items-center gap-4">
                                     <div className="relative w-[140px] h-[140px] shrink-0">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width={140} height={140}>
                                             <PieChart>
                                                 <Pie
                                                     data={data.topServices}
@@ -293,7 +293,7 @@ const ReportingPage = () => {
                                                     dataKey="count"
                                                     stroke="none"
                                                 >
-                                                    {data.topServices.map((entry, index) => (
+                                                    {data.topServices.map((_entry, index) => (
                                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                     ))}
                                                 </Pie>
@@ -402,4 +402,4 @@ const ReportingPage = () => {
     );
 };
 
-export default ReportingPage;
+export default AnalyticsPage;

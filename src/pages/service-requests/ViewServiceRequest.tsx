@@ -18,7 +18,11 @@ import {
     FileText,
     Package,
     X,
+    Timer,
+    Send,
+    Eye,
 } from 'lucide-react';
+import { useInvoiceApi } from '@/pages/serviceAPI/InvoiceAPI';
 import {
     useServiceRequestsApi,
 } from '@/pages/serviceAPI/ServiceRequestsAPI';
@@ -41,6 +45,10 @@ import { toast } from 'sonner';
 const STATUS_STYLES: Record<string, string> = {
     in_progress: 'bg-primary/10 text-primary',
     pending: 'bg-yellow-100 text-yellow-700',
+    assigned: 'bg-blue-100 text-blue-700',
+    accepted: 'bg-indigo-100 text-indigo-700',
+    waiting_parts: 'bg-amber-100 text-amber-700',
+    ready: 'bg-teal-100 text-teal-700',
     completed: 'bg-green-100 text-green-700',
     cancelled: 'bg-red-100 text-red-700',
 };
@@ -80,6 +88,58 @@ const parseJson = (value: any): any => {
     }
 };
 
+const renderActivityDescription = (desc: string | null | undefined, isCustomer: boolean) => {
+    if (!desc) return null;
+    const trimmed = desc.trim();
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            const items = Array.isArray(parsed) ? parsed : [parsed];
+            return (
+                <div className="space-y-1 mt-1">
+                    {items.map((item: any, idx: number) => {
+                        if (item.internalNotes) {
+                            if (isCustomer) return null; // Do not show internal notes to customers
+                            return (
+                                <div key={idx} className="bg-purple-50/70 border border-purple-100 text-purple-900 rounded-lg p-2 text-xs leading-normal">
+                                    <span className="font-bold text-[9px] text-purple-700 block uppercase tracking-wider mb-0.5">Internal Note</span>
+                                    {item.internalNotes}
+                                </div>
+                            );
+                        }
+                        if (item.customerNotes || item.customer_note) {
+                            const noteText = item.customerNotes || item.customer_note;
+                            return (
+                                <div key={idx} className="bg-blue-50/70 border border-blue-100 text-blue-900 rounded-lg p-2 text-xs leading-normal">
+                                    <span className="font-bold text-[9px] text-blue-700 block uppercase tracking-wider mb-0.5">Message for Customer</span>
+                                    {noteText}
+                                </div>
+                            );
+                        }
+                        // Generic object keys fallback
+                        return (
+                            <div key={idx} className="text-xs text-gray-600 mt-1 bg-gray-50 border rounded-lg p-2">
+                                {Object.entries(item).map(([key, val]) => {
+                                    if (key === 'internalNotes' && isCustomer) return null;
+                                    return (
+                                        <p key={key}>
+                                            <span className="font-semibold uppercase text-[9px] text-gray-500 mr-1">{key.replace(/_/g, ' ')}:</span>
+                                            {String(val)}
+                                        </p>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        } catch {
+            // Fall back to plain text
+        }
+    }
+    return <p className="text-xs text-gray-600 leading-normal">{desc}</p>;
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const ViewServiceRequest = () => {
@@ -88,12 +148,16 @@ const ViewServiceRequest = () => {
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const { isSuperAdmin, isShopOwner, isCustomer, isShopEmployee, hasPermission } = useAuth();
 
-    const { useGetServiceRequestById, useAssignTechnician } = useServiceRequestsApi();
+    const { useGetServiceRequestById, useAssignTechnician, useGetServiceRequestActivities } = useServiceRequestsApi();
+    const { useGenerateInvoice, useResendInvoice } = useInvoiceApi();
+    const generateInvoiceMutation = useGenerateInvoice();
+    const resendInvoiceMutation = useResendInvoice();
     const { useGetCategoryForms } = useShopCategoryFormsApi();
     const { useGetShopEmployees } = useShopEmployeesApi();
 
     const numericId = id ? Number(id) : undefined;
     const { data: service, isLoading: loading } = useGetServiceRequestById(numericId);
+    const { data: activities = [] } = useGetServiceRequestActivities(numericId);
     const { data: categoryForms = [] } = useGetCategoryForms();
     const { data: employeesData } = useGetShopEmployees({ per_page: 100 });
     
@@ -165,6 +229,30 @@ const ViewServiceRequest = () => {
     // Parse admin notes
     let parsedInternalNotes = service.admin_note || '';
     const parsedServiceCharges: any[] = data?.selectedServiceCharges && Array.isArray(data.selectedServiceCharges) ? data.selectedServiceCharges : [];
+    const estimation = data?.estimation || null;
+
+    // Helper: format estimation for display
+    const formatEstimation = (estim: any): string => {
+        if (!estim || !estim.value) return '';
+        if (estim.type === 'days') {
+            const d = Number(estim.value);
+            return `${d} working day${d !== 1 ? 's' : ''}`;
+        }
+        if (estim.type === 'hours') {
+            const h = Number(estim.value);
+            return `${h} hour${h !== 1 ? 's' : ''}`;
+        }
+        // date type
+        try {
+            return new Date(estim.value).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric',
+            });
+        } catch {
+            return estim.value;
+        }
+    };
+
+    const estimationLabel = formatEstimation(estimation);
 
     if (service.admin_note) {
         try {
@@ -276,6 +364,105 @@ const ViewServiceRequest = () => {
                     </Button>
                 )}
             </div>
+
+            {/* ── Estimation Banner — visible to all roles ── */}
+            {estimationLabel && (
+                <div className="mb-3 rounded-lg border border-amber-200/80 bg-amber-50/40 p-2.5 px-3 flex items-center gap-2.5 shadow-sm text-xs">
+                    <Timer className="w-4 h-4 text-amber-600 shrink-0" />
+                    <div className="flex-1 flex flex-wrap items-center gap-x-2">
+                        <span className="font-bold text-amber-800 uppercase tracking-wider text-[10px]">Estimated:</span>
+                        <span className="font-medium text-amber-900">
+                            {estimation?.type === 'days' || estimation?.type === 'hours'
+                                ? `Your device will be ready in approx. ${estimationLabel}`
+                                : `Estimated to be ready by ${estimationLabel}`
+                            }
+                        </span>
+                        {estimation?.set_at && (
+                            <span className="text-[10px] text-amber-500">
+                                (Set {new Date(estimation.set_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+                            </span>
+                        )}
+                    </div>
+                    <span className="text-[9px] font-bold text-amber-700 bg-amber-100/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Live Update</span>
+                </div>
+            )}
+
+            {/* ── Invoice Action Banner — shown when service is completed ── */}
+            {status?.toLowerCase() === 'completed' && (isSuperAdmin || isShopOwner) && (() => {
+                const existingInv = (service as any)?.invoice;
+                if (existingInv) {
+                    // Invoice already generated — show resend option
+                    return (
+                        <div className="mb-3 rounded-lg border border-green-200 bg-green-50/30 p-2.5 px-3 flex items-center justify-between gap-3 shadow-sm text-xs">
+                            <div className="flex items-center gap-2.5">
+                                <FileText className="w-4 h-4 text-green-600 shrink-0" />
+                                <div className="flex items-center gap-x-2 flex-wrap">
+                                    <span className="font-bold text-green-700 uppercase tracking-wider text-[10px]">Invoice:</span>
+                                    <span className="font-semibold text-green-900">
+                                        {existingInv.invoice_number} — ₹{Number(existingInv.total_amount).toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <Button
+                                    id="view-invoice-btn"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2.5 text-xs text-green-700 border-green-300 hover:bg-green-100/60"
+                                    onClick={() => navigate(`/dashboard/invoice/view/${existingInv.id}`)}
+                                >
+                                    <Eye className="w-3.5 h-3.5 mr-1" />
+                                    View Invoice
+                                </Button>
+                                {existingInv.status !== 'paid' && (
+                                    <Button
+                                        id="resend-invoice-btn"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 px-2.5 text-xs text-blue-600 hover:bg-blue-50"
+                                        disabled={resendInvoiceMutation.isPending}
+                                        onClick={async () => {
+                                            try {
+                                                const res = await resendInvoiceMutation.mutateAsync(existingInv.id);
+                                                if (res.email_sent) {
+                                                    toast.success('Invoice email re-sent to customer!');
+                                                }
+                                            } catch (e: any) {
+                                                toast.error(e.message || 'Failed to resend');
+                                            }
+                                        }}
+                                    >
+                                        <Send className="w-3.5 h-3.5 mr-1" />
+                                        {resendInvoiceMutation.isPending ? 'Sending...' : 'Resend Email'}
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                }
+                // No invoice yet — prompt owner to generate
+                return (
+                    <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5 px-3 flex items-center justify-between gap-3 shadow-sm text-xs">
+                        <div className="flex items-center gap-2.5">
+                            <FileText className="w-4 h-4 text-primary shrink-0" />
+                            <div className="flex items-center gap-x-2">
+                                <span className="font-bold text-primary uppercase tracking-wider text-[10px]">Service Completed:</span>
+                                <span className="font-semibold text-gray-700">Ready to bill customer</span>
+                            </div>
+                        </div>
+                        <Button
+                            id="generate-invoice-btn"
+                            size="sm"
+                            className="h-7 px-2.5 text-xs bg-primary hover:bg-primary/90 gap-1"
+                            disabled={generateInvoiceMutation.isPending}
+                            onClick={() => navigate(`/dashboard/invoice/service/${service.id}`)}
+                        >
+                            <FileText className="w-3 h-3" />
+                            Generate Invoice
+                        </Button>
+                    </div>
+                );
+            })()}
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -517,16 +704,26 @@ const ViewServiceRequest = () => {
                                             <Mail className="w-3.5 h-3.5 text-gray-400" />
                                             {service.assigned_technician.email || 'No email'}
                                         </div>
+                                        {service.admin_note && typeof service.admin_note === 'string' && !service.admin_note.startsWith('[') && !service.admin_note.startsWith('{') && (
+                                            <div className="bg-amber-50/50 border border-amber-100/50 rounded-lg p-3 space-y-1.5 mt-2">
+                                                <p className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Assignment Instructions</p>
+                                                <p className="text-xs text-amber-900 leading-relaxed italic">
+                                                    "{service.admin_note}"
+                                                </p>
+                                            </div>
+                                        )}
+                                        {data?.customer_note && (
+                                            <div className="bg-blue-50/50 border border-blue-100/50 rounded-lg p-3 space-y-1.5 mt-2">
+                                                <div className="flex justify-between items-center">
+                                                    <p className="text-[10px] uppercase font-bold text-blue-600 tracking-wider">Message for Customer</p>
+                                                    <span className="text-[9px] font-semibold text-blue-500 bg-blue-100/50 px-1.5 py-0.5 rounded-full border border-blue-200/50">Visible to Customer</span>
+                                                </div>
+                                                <p className="text-xs text-blue-900 leading-relaxed italic">
+                                                    "{data.customer_note}"
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {service.admin_note && typeof service.admin_note === 'string' && !service.admin_note.startsWith('[') && !service.admin_note.startsWith('{') && (
-                                        <div className="bg-amber-50/50 border border-amber-100/50 rounded-lg p-3 space-y-1.5 mt-2">
-                                            <p className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Assignment Instructions</p>
-                                            <p className="text-xs text-amber-900 leading-relaxed italic">
-                                                "{service.admin_note}"
-                                            </p>
-                                        </div>
-                                    )}
 
                                     {canChangeTechnician && (
                                         <Button 
@@ -750,37 +947,110 @@ const ViewServiceRequest = () => {
                         <CardHeader className="pb-2 pt-3 px-4">
                             <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
                                 <Clock className="w-4 h-4 text-gray-500" />
-                                Timeline
+                                Tracking Timeline
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="px-4 pb-4">
-                            <div className="space-y-3">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
-                                    <div>
-                                        <p className="text-xs font-medium text-gray-900">Created</p>
-                                        <p className="text-xs text-gray-500">{formatDate(service.created_at)}</p>
-                                    </div>
+                            {activities.length > 0 ? (
+                                <div className="relative border-l border-gray-100 ml-3 pl-0 space-y-5 pb-1">
+                                    {activities.map((activity: any) => {
+                                        let icon = <Clock className="w-2.5 h-2.5 text-gray-500" />;
+                                        let iconBg = "bg-gray-100 text-gray-500 border-gray-200";
+
+                                        if (activity.activity_type === 'created') {
+                                            icon = <FileText className="w-2.5 h-2.5 text-green-600" />;
+                                            iconBg = "bg-green-50 text-green-600 border-green-200";
+                                        } else if (activity.activity_type === 'status_change') {
+                                            icon = <Clock className="w-2.5 h-2.5 text-blue-600" />;
+                                            iconBg = "bg-blue-50 text-blue-600 border-blue-200";
+                                        } else if (activity.activity_type === 'parts_added') {
+                                            icon = <Package className="w-2.5 h-2.5 text-orange-600" />;
+                                            iconBg = "bg-orange-50 text-orange-600 border-orange-200";
+                                        } else if (activity.activity_type === 'charges_added') {
+                                            icon = <Tag className="w-2.5 h-2.5 text-purple-600" />;
+                                            iconBg = "bg-purple-50 text-purple-600 border-purple-200";
+                                        }
+
+                                        // Customer-friendly details mappings
+                                        let displayTitle = activity.title;
+                                        let displayDesc = activity.description;
+
+                                        if (isCustomer) {
+                                            if (activity.to_status === 'waiting_parts') {
+                                                displayTitle = "Awaiting Parts";
+                                                displayDesc = "We are currently waiting for required parts to arrive.";
+                                            } else if (activity.to_status === 'accepted') {
+                                                displayTitle = "Diagnosis Started";
+                                                displayDesc = "The technician has accepted the task and is running initial diagnostics.";
+                                            } else if (activity.to_status === 'ready') {
+                                                displayTitle = "Quality Inspection";
+                                                displayDesc = "Repairs are complete. We are conducting quality control testing.";
+                                            }
+                                        }
+
+                                        return (
+                                            <div key={activity.id} className="relative pl-6 pb-2">
+                                                {/* Timeline Bullet Node */}
+                                                <div className="absolute -left-[11px] top-0.5 w-5.5 h-5.5 rounded-full border border-gray-100 shadow-sm bg-white flex items-center justify-center">
+                                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center ${iconBg}`}>
+                                                        {icon}
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <h4 className="text-xs font-semibold text-gray-900">{displayTitle}</h4>
+                                                        <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                                            {formatDate(activity.created_at)}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {displayDesc && (
+                                                        <div className="mt-0.5">
+                                                            {renderActivityDescription(displayDesc, isCustomer)}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Internal log notes / actor details */}
+                                                    {!isCustomer && activity.user && (
+                                                        <p className="text-[9px] text-gray-400 font-medium">
+                                                            Action by: {activity.user.name} ({activity.user.user_type === 'so' ? 'Shop Owner' : 'Employee'})
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                                {service.updated_at && service.updated_at !== service.created_at && (
+                            ) : (
+                                <div className="space-y-3">
                                     <div className="flex items-start gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                                        <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
                                         <div>
-                                            <p className="text-xs font-medium text-gray-900">Last Updated</p>
-                                            <p className="text-xs text-gray-500">{formatDate(service.updated_at)}</p>
+                                            <p className="text-xs font-medium text-gray-900">Created</p>
+                                            <p className="text-xs text-gray-500">{formatDate(service.created_at)}</p>
                                         </div>
                                     </div>
-                                )}
-                                {service.assigned_technician && (
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 flex-shrink-0" />
-                                        <div>
-                                            <p className="text-xs font-medium text-gray-900">Technician Assigned</p>
-                                            <p className="text-[10px] text-gray-600">Assigned to {service.assigned_technician.name}</p>
+                                    {service.updated_at && service.updated_at !== service.created_at && (
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                                            <div>
+                                                <p className="text-xs font-medium text-gray-900">Last Updated</p>
+                                                <p className="text-xs text-gray-500">{formatDate(service.updated_at)}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                    {service.assigned_technician && (
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 flex-shrink-0" />
+                                            <div>
+                                                <p className="text-xs font-medium text-gray-900">Technician Assigned</p>
+                                                <p className="text-[10px] text-gray-600">Assigned to {service.assigned_technician.name}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

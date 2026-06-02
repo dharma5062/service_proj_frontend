@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -14,6 +15,9 @@ import {
     Check,
     IndianRupee,
     Briefcase,
+    FileText,
+    ChevronDown,
+    ChevronRight,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -59,34 +63,91 @@ const Sidebar = () => {
 
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', reqPerm: null },
-        { icon: Store, label: 'Services', path: '/dashboard/services', reqPerm: 'service.view' },
+        {
+            icon: Store,
+            label: 'Services',
+            reqPerm: 'service.view',
+            isDropdown: true,
+            menuKey: 'services',
+            path: '/dashboard/services',
+            subItems: [
+                { label: 'Customers', path: '/dashboard/settings/customers', reqPerm: 'customer.view' },
+                { label: 'Invoices', path: '/dashboard/invoices', reqPerm: null },
+            ]
+        },
+        ...(isCustomer ? [
+            { icon: FileText, label: 'Invoices', path: '/dashboard/invoices', reqPerm: null }
+        ] : []),
         { icon: Users, label: 'Staff', path: '/dashboard/staff', reqPerm: 'employee.view' },
-        { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories', reqPerm: 'category.view' },
-        { icon: ShoppingBag, label: 'Products', path: '/dashboard/settings/product', reqPerm: 'product.view' },
+        { icon: FolderTree, label: 'Categories', path: '/dashboard/categories', reqPerm: 'category.view' },
+        { icon: Package, label: 'Brands', path: '/dashboard/brand', reqPerm: 'brand.view' },
+        { icon: ShoppingBag, label: 'Products', path: '/dashboard/product', reqPerm: 'product.view' },
+        { icon: FileEdit, label: 'Shop Defect Form', path: '/dashboard/shop-defect-form', reqPerm: null, adminOnly: true },
         // Reporting & Promotions are owner/admin level; employees need no special permission guard here
         // but we restrict them to sa/so only via the isAdminOrOwner flag
-        { icon: BarChart3, label: 'Reporting', path: '/dashboard/reporting', reqPerm: null, adminOnly: true },
+        { icon: BarChart3, label: 'Analytics', path: '/dashboard/analytics', reqPerm: null, adminOnly: true },
         // { icon: Tag, label: 'Promotions', path: '/dashboard/promotions', reqPerm: null, adminOnly: true },
     ];
 
     const settingsItems = [
-        // { icon: FolderTree, label: 'Categories', path: '/dashboard/settings/categories', reqPerm: 'category.view' },
-        { icon: FileEdit, label: 'Defect Form', path: '/dashboard/settings/category-form', reqPerm: null, adminOnly: true },
-        { icon: Package, label: 'Brand', path: '/dashboard/settings/brand', reqPerm: 'brand.view' },
-        // { icon: ShoppingBag, label: 'Product', path: '/dashboard/settings/product', reqPerm: 'product.view' },
+        // { icon: FolderTree, label: 'Categories', path: '/dashboard/categories', reqPerm: 'category.view' },
+        // { icon: FileEdit, label: 'Defect Form', path: '/dashboard/shop-defect-form', reqPerm: null, adminOnly: true },
+        // { icon: Package, label: 'Brand', path: '/dashboard/brand', reqPerm: 'brand.view' },
+        // { icon: ShoppingBag, label: 'Product', path: '/dashboard/product', reqPerm: 'product.view' },
         { icon: Briefcase, label: 'Business Types', path: '/dashboard/settings/business-types', reqPerm: 'business_type.view' },
         { icon: IndianRupee, label: 'Service Charges', path: '/dashboard/settings/service-charges', reqPerm: 'service_charge.view' },
+        { icon: Users, label: 'Customers', path: '/dashboard/settings/customers', reqPerm: 'customer.view' },
         { icon: Users, label: 'Roles & Privileges', path: '/dashboard/settings/roles', reqPerm: 'role.view' },
     ];
 
+    const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => {
+        const isServicesActive = ['/dashboard/services', '/dashboard/settings/customers', '/dashboard/invoices'].some(
+            p => location.pathname === p || 
+                 (p === '/dashboard/invoices' && location.pathname.startsWith('/dashboard/invoice')) || 
+                 (p === '/dashboard/services' && location.pathname.startsWith('/dashboard/services/'))
+        );
+        return {
+            services: isServicesActive,
+        };
+    });
+
+    useEffect(() => {
+        const isServicesActive = ['/dashboard/services', '/dashboard/settings/customers', '/dashboard/invoices'].some(
+            p => location.pathname === p || 
+                 (p === '/dashboard/invoices' && location.pathname.startsWith('/dashboard/invoice')) || 
+                 (p === '/dashboard/services' && location.pathname.startsWith('/dashboard/services/'))
+        );
+        if (isServicesActive) {
+            setOpenMenus(prev => ({ ...prev, services: true }));
+        }
+    }, [location.pathname]);
+
+    const toggleMenu = (menuKey: string) => {
+        setOpenMenus(prev => ({
+            ...prev,
+            [menuKey]: !prev[menuKey]
+        }));
+    };
+
     // Determines if a nav/settings item should be visible for the current user
-    const isItemVisible = (item: { label: string; reqPerm: string | null; adminOnly?: boolean }) => {
+    const isItemVisible = (item: any): boolean => {
         // adminOnly items are only shown to sa / so
         if (item.adminOnly && !isSuperAdmin && !isShopOwner) return false;
 
-        // Customers only see Dashboard and Services
+        // Customers only see Dashboard, Services, and Invoices
         if (isCustomer) {
-            return ['Dashboard', 'Services'].includes(item.label);
+            return ['Dashboard', 'Services', 'Invoices'].includes(item.label);
+        }
+
+        // If it is a dropdown, show it if the parent itself is allowed, or if any subItems are visible
+        if (item.isDropdown) {
+            const isParentAllowed = !item.reqPerm || hasPermission(item.reqPerm);
+            if (isParentAllowed) return true;
+            
+            if (item.subItems) {
+                return item.subItems.some((sub: any) => isItemVisible(sub));
+            }
+            return false;
         }
 
         // reqPerm: null means always visible (already passed adminOnly check)
@@ -96,7 +157,12 @@ const Sidebar = () => {
 
     const visibleSettingsItems = settingsItems.filter(isItemVisible);
 
-    const isActive = (path: string) => location.pathname === path;
+    const isActive = (path: string) => {
+        if (location.pathname === path) return true;
+        if (path === '/dashboard/invoices' && location.pathname.startsWith('/dashboard/invoice')) return true;
+        if (path === '/dashboard/services' && location.pathname.startsWith('/dashboard/services/')) return true;
+        return false;
+    };
 
     const handleLogout = () => {
         logout();
@@ -153,18 +219,69 @@ const Sidebar = () => {
             {/* Navigation Content */}
             <SidebarContent>
                 <SidebarMenu>
-                    {navItems.filter(isItemVisible).map((item) => (
-                        <SidebarMenuItem key={item.path}>
-                            <div
-                                title={item.label}
-                                className={`flex items-center w-full sidebar-menu-button-compact cursor-pointer ${isActive(item.path) ? 'active' : 'text-gray-500'}`}
-                                onClick={() => navigate(item.path)}
-                            >
-                                <item.icon className="sidebar-icon-compact size-4 shrink-0" />
-                                <span className="sidebar-label-compact">{item.label}</span>
-                            </div>
-                        </SidebarMenuItem>
-                    ))}
+                    {navItems.filter(isItemVisible).map((item) => {
+                        if (item.isDropdown && !isCustomer) {
+                            const isMenuOpen = !!openMenus[item.menuKey!];
+                            const isSubActive = item.subItems?.some(sub => isActive(sub.path));
+                            const isParentActive = isActive(item.path!);
+
+                            return (
+                                <SidebarMenuItem key={item.label}>
+                                    <div
+                                        title={item.label}
+                                        className={`flex items-center justify-between w-full sidebar-menu-button-compact cursor-pointer ${isSubActive || isParentActive ? 'active' : 'text-gray-500'}`}
+                                        onClick={() => {
+                                            if (item.path) navigate(item.path);
+                                            toggleMenu(item.menuKey!);
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <item.icon className="sidebar-icon-compact size-4 shrink-0" />
+                                            <span className="sidebar-label-compact">{item.label}</span>
+                                        </div>
+                                        {isMenuOpen ? (
+                                            <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                        ) : (
+                                            <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                        )}
+                                    </div>
+
+                                    {isMenuOpen && (
+                                        <div className="sidebar-submenu-compact flex flex-col">
+                                            {item.subItems
+                                                ?.filter(isItemVisible)
+                                                .map((sub) => (
+                                                    <div
+                                                        key={sub.path}
+                                                        title={sub.label}
+                                                        className={`sidebar-submenu-button-compact cursor-pointer flex items-center ${isActive(sub.path) ? 'active' : 'text-gray-500'}`}
+                                                        onClick={() => navigate(sub.path)}
+                                                    >
+                                                        <span className="sidebar-label-compact">{sub.label}</span>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+                                </SidebarMenuItem>
+                            );
+                        }
+
+                        const path = item.isDropdown && isCustomer ? '/dashboard/services' : item.path;
+                        const label = item.isDropdown && isCustomer ? 'Services' : item.label;
+
+                        return (
+                            <SidebarMenuItem key={label}>
+                                <div
+                                    title={label}
+                                    className={`flex items-center w-full sidebar-menu-button-compact cursor-pointer ${isActive(path!) ? 'active' : 'text-gray-500'}`}
+                                    onClick={() => navigate(path!)}
+                                >
+                                    <item.icon className="sidebar-icon-compact size-4 shrink-0" />
+                                    <span className="sidebar-label-compact">{label}</span>
+                                </div>
+                            </SidebarMenuItem>
+                        );
+                    })}
 
                     {/* Settings Link — only shown when the user has at least one visible settings item */}
                     {visibleSettingsItems.length > 0 && (

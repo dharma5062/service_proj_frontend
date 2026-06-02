@@ -32,6 +32,7 @@ const DashboardLayout = () => {
     const navigate = useNavigate();
     const { user, shop, logout } = useAuth();
     const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
+    const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
 
     const displayEmail = user?.email || '';
     const displayInitials = getInitials(shop?.name || user?.name);
@@ -61,7 +62,7 @@ const DashboardLayout = () => {
                 edit: 'Edit',
                 view: 'View',
                 'business-types': 'Business Types',
-                'category-form': 'Form Builder',
+                'shop-defect-form': 'Shop Defect Form',
                 'company-branches': 'Company Branches',
             };
 
@@ -112,7 +113,7 @@ const DashboardLayout = () => {
                     {/* Right side - Notifications and Profile */}
                     <div className="navbar-right flex items-center gap-1 px-4">
                         {/* Notification Sheet */}
-                        <Sheet>
+                        <Sheet open={isNotificationOpen} onOpenChange={setIsNotificationOpen}>
                             <SheetTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-md navbar-icon-button relative">
                                     <Bell className="h-4 w-4 navbar-icon" />
@@ -136,6 +137,7 @@ const DashboardLayout = () => {
                                     loading={loading}
                                     markRead={markRead}
                                     markAllRead={markAllRead}
+                                    onClose={() => setIsNotificationOpen(false)}
                                 />
                             </SheetContent>
                         </Sheet>

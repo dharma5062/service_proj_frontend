@@ -29,7 +29,7 @@ export interface CustomTableCellProps extends React.TdHTMLAttributes<HTMLTableCe
 const CustomTable = React.forwardRef<HTMLTableElement, CustomTableProps>(
   ({ className, bordered = true, ...props }, ref) => (
     <div className={cn(
-      "relative w-full overflow-auto",
+      "relative w-full overflow-auto pb-3",
       bordered && "border border-border"
     )}>
       <table

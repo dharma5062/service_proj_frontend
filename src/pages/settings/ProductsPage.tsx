@@ -298,11 +298,11 @@ const ProductsPage = () => {
     ];
 
     const handleView = (record: Product) => {
-        navigate(`/dashboard/settings/product/view/${record.id}`);
+        navigate(`/dashboard/product/view/${record.id}`);
     };
 
     const handleEdit = (record: Product) => {
-        navigate(`/dashboard/settings/product/edit/${record.id}`);
+        navigate(`/dashboard/product/edit/${record.id}`);
     };
 
     const handleDeleteClick = (record: Product) => {
@@ -326,7 +326,7 @@ const ProductsPage = () => {
     };
 
     const handleAddNew = () => {
-        navigate('/dashboard/settings/product/create');
+        navigate('/dashboard/product/create');
     };
 
     const processedProducts = useMemo(() => {

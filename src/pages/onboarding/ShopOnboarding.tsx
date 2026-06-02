@@ -127,14 +127,14 @@ const ShopOnboarding = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
+        <div className="h-screen bg-slate-50/50 flex flex-col font-sans text-gray-900 overflow-y-auto">
             <OnboardingHeader />
 
-            <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-2 py-0">
-                <div className="max-w-5xl mx-auto">
+            <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-4 md:py-6 flex flex-col justify-start">
+                <div className="w-full bg-white/60 backdrop-blur-md rounded-2xl border border-gray-100/80 p-4 md:p-6 shadow-sm flex flex-col gap-3">
                     <OnboardingStepper currentStep={currentStep} />
 
-                    <div className="mt-0">
+                    <div className="mt-1">
                         {renderStep()}
                     </div>
                 </div>

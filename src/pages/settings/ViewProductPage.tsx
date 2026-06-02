@@ -87,7 +87,7 @@ const ViewProductPage = () => {
         return (
             <div className="p-4 text-center text-sm text-gray-500">
                 Product not found.
-                <Button variant="link" onClick={() => navigate('/dashboard/settings/product')}>Go back</Button>
+                <Button variant="link" onClick={() => navigate('/dashboard/product')}>Go back</Button>
             </div>
         );
     }
@@ -116,7 +116,7 @@ const ViewProductPage = () => {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => navigate('/dashboard/settings/product')}
+                        onClick={() => navigate('/dashboard/product')}
                         className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4 text-gray-600" />
@@ -130,7 +130,7 @@ const ViewProductPage = () => {
                     size="sm"
                     variant="outline"
                     className="h-8 text-xs gap-1.5"
-                    onClick={() => navigate(`/dashboard/settings/product/edit/${product.id}`)}
+                    onClick={() => navigate(`/dashboard/product/edit/${product.id}`)}
                 >
                     <Pencil className="w-3 h-3" /> Edit Product
                 </Button>

@@ -441,9 +441,10 @@ const BrandsPage = () => {
 
             {/* Create/Edit Form Dialog */}
             <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
-                <DialogContent className="max-w-lg rounded-3xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold text-gray-900">
+                <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-5 gap-3.5 rounded-3xl">
+                    <DialogHeader className="space-y-1">
+                        <DialogTitle className="text-base font-bold flex items-center gap-1.5 text-gray-900">
+                            <ImageIcon className="h-4 w-4 text-primary" />
                             {isEditMode ? 'Edit Brand' : 'Create New Brand'}
                         </DialogTitle>
                         <DialogDescription className="text-xs text-gray-500">
@@ -451,9 +452,10 @@ const BrandsPage = () => {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-6 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="name" className="text-sm font-bold text-gray-700">
+                    <div className="space-y-3.5 py-1">
+                        {/* Name */}
+                        <div className="space-y-1">
+                            <Label htmlFor="name" className="text-[11px] font-semibold text-gray-600">
                                 Brand Name <span className="text-red-500">*</span>
                             </Label>
                             <Input
@@ -461,21 +463,22 @@ const BrandsPage = () => {
                                 placeholder="e.g., Apple, Samsung, Sony"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className={`rounded-xl h-11 ${formErrors.name ? 'border-red-500 ring-red-50' : 'border-gray-200 focus:ring-primary'}`}
+                                className={`rounded-xl h-8 text-xs placeholder:text-gray-400 ${formErrors.name ? 'border-red-500 focus-visible:ring-red-500' : 'border-gray-200 focus:ring-primary'}`}
                             />
                             {formErrors.name && (
-                                <p className="text-[10px] font-bold text-red-500 mt-1">{formErrors.name}</p>
+                                <p className="text-[10px] text-red-500 font-medium mt-0.5 leading-none">{formErrors.name}</p>
                             )}
                         </div>
 
-                        <div className="space-y-3">
-                            <Label className="text-sm font-bold text-gray-700">Brand Logo</Label>
-                            <div className="flex items-center gap-4">
-                                <div className="relative group w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 overflow-hidden transition-colors hover:border-primary/50">
+                        {/* Brand Logo */}
+                        <div className="space-y-1">
+                            <Label className="text-[11px] font-semibold text-gray-600">Brand Logo</Label>
+                            <div className="flex items-center gap-3">
+                                <div className="relative group w-14 h-14 rounded-xl border border-dashed border-gray-200 flex items-center justify-center bg-gray-50 overflow-hidden transition-colors hover:border-primary/50">
                                     {logoPreview ? (
-                                        <img src={logoPreview} alt="Preview" className="w-full h-full object-contain p-2" />
+                                        <img src={logoPreview} alt="Preview" className="w-full h-full object-contain p-1.5" />
                                     ) : (
-                                        <ImageIcon className="w-8 h-8 text-gray-300" />
+                                        <ImageIcon className="w-6 h-6 text-gray-300" />
                                     )}
                                     <input 
                                         type="file" 
@@ -485,12 +488,12 @@ const BrandsPage = () => {
                                     />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-xs font-bold text-gray-900">Upload high-quality logo</p>
-                                    <p className="text-[10px] text-gray-500 mt-1">Recommended: 400x400px WebP, PNG, or JPG. Max 5MB.</p>
+                                    <p className="text-xs font-bold text-gray-900 leading-tight">Upload logo</p>
+                                    <p className="text-[9px] text-gray-500 mt-0.5 leading-snug">Recommended: 400x400px WebP, PNG, JPG. Max 5MB.</p>
                                     <Button 
                                         variant="outline" 
                                         size="sm" 
-                                        className="mt-2 text-[10px] font-bold rounded-lg border-gray-200 hover:bg-white hover:text-primary hover:border-primary/20 h-7"
+                                        className="mt-1 text-[9px] font-bold rounded-lg border-gray-200 hover:bg-white hover:text-primary hover:border-primary/20 h-6 px-2.5"
                                         onClick={() => document.getElementById('brand_logo_input')?.click()}
                                     >
                                         Choose File
@@ -500,12 +503,13 @@ const BrandsPage = () => {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        {/* Status Switch */}
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                             <div className="space-y-0.5">
-                                <Label htmlFor="is_active" className="text-sm font-bold text-gray-700">
+                                <Label htmlFor="is_active" className="text-xs font-bold text-gray-700">
                                     Active Status
                                 </Label>
-                                <p className="text-[10px] text-gray-500">Enable this brand for selection in products</p>
+                                <p className="text-[9px] text-gray-500">Enable this brand for selection in products</p>
                             </div>
                             <Switch
                                 id="is_active"
@@ -516,19 +520,19 @@ const BrandsPage = () => {
                         </div>
                     </div>
 
-                    <DialogFooter className="gap-2 sm:gap-0">
+                    <DialogFooter className="mt-1 gap-2 sm:gap-0">
                         <Button 
                             variant="ghost" 
                             onClick={() => setFormDialogOpen(false)} 
                             disabled={submitting}
-                            className="rounded-xl text-xs font-bold"
+                            className="rounded-xl text-xs font-bold h-8"
                         >
                             Cancel
                         </Button>
                         <Button 
                             onClick={handleSubmit} 
                             disabled={submitting}
-                            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-bold px-6 shadow-md shadow-primary/20"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-bold px-4 shadow-md shadow-primary/20 h-8"
                         >
                             {submitting ? 'Processing...' : isEditMode ? 'Save Changes' : 'Create Brand'}
                         </Button>

@@ -206,10 +206,15 @@ export const createCustomer = async (
  * @returns Promise<Customer> - Single customer
  * @throws Error if the API request fails
  */
-export const fetchCustomerById = async (id: number): Promise<Customer> => {
+export const fetchCustomerById = async (id: number, shopId?: number | null): Promise<Customer> => {
     try {
         const response = await axiosInstance.get<any>(
-            `/customers-show/${id}`
+            `/customers-show/${id}`,
+            {
+                params: {
+                    ...(shopId !== undefined && shopId !== null && { shop_id: shopId })
+                }
+            }
         );
 
         const responseData = response.data;
@@ -222,6 +227,10 @@ export const fetchCustomerById = async (id: number): Promise<Customer> => {
             else if ('id' in responseData.data) {
                 return responseData.data as Customer;
             }
+        }
+        // Handle direct response fields
+        else if (responseData && responseData.success && responseData.customer) {
+            return responseData.customer as Customer;
         }
         // Handle direct object response
         else if (responseData && 'id' in responseData) {
@@ -311,6 +320,68 @@ export const approveInvite = async (token: string): Promise<ApiResponse<Customer
     }
 };
 
+export interface UpdateCustomerPayload {
+    name: string;
+    email: string;
+    phone: string;
+    address?: string;
+}
+
+/**
+ * Updates an existing customer's details
+ */
+export const updateCustomer = async (
+    id: number,
+    payload: UpdateCustomerPayload
+): Promise<ApiResponse<Customer>> => {
+    try {
+        const response = await axiosInstance.put<ApiResponse<Customer>>(
+            `/customers-update/${id}`,
+            payload
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error(`Error updating customer ${id}:`, error);
+
+        if (error instanceof AxiosError) {
+            throw new Error(
+                error.response?.data?.message ||
+                `Failed to update customer: ${error.message}`
+            );
+        }
+
+        throw error;
+    }
+};
+
+/**
+ * Deletes/detaches a customer from the shop
+ */
+export const deleteCustomer = async (id: number, shopId: number): Promise<ApiResponse<void>> => {
+    try {
+        const response = await axiosInstance.delete<ApiResponse<void>>(
+            `/customers-delete/${id}`,
+            {
+                params: { shop_id: shopId }
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error(`Error deleting customer ${id}:`, error);
+
+        if (error instanceof AxiosError) {
+            throw new Error(
+                error.response?.data?.message ||
+                `Failed to delete customer: ${error.message}`
+            );
+        }
+
+        throw error;
+    }
+};
+
 // ─── TanStack Query Hooks ─────────────────────────────────────────────────────
 
 export const useCustomersApi = () => {
@@ -329,7 +400,7 @@ export const useCustomersApi = () => {
     const useGetCustomerById = (id: number | undefined) =>
         useQuery<Customer, Error>({
             queryKey: ['customers', id, shopId],
-            queryFn: () => fetchCustomerById(id!),
+            queryFn: () => fetchCustomerById(id!, shopId),
             enabled: !!id && !!shopId,
         });
 
@@ -345,6 +416,22 @@ export const useCustomersApi = () => {
     const useCreateCustomer = () =>
         useMutation<ApiResponse<Customer>, Error, CreateCustomerPayload>({
             mutationFn: (payload) => createCustomer(payload),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['customers', shopId] });
+            },
+        });
+
+    const useUpdateCustomer = () =>
+        useMutation<ApiResponse<Customer>, Error, { id: number; payload: UpdateCustomerPayload }>({
+            mutationFn: ({ id, payload }) => updateCustomer(id, payload),
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['customers', shopId] });
+            },
+        });
+
+    const useDeleteCustomer = () =>
+        useMutation<ApiResponse<void>, Error, number>({
+            mutationFn: (id) => deleteCustomer(id, shopId!),
             onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['customers', shopId] });
             },
@@ -371,6 +458,8 @@ export const useCustomersApi = () => {
         useGetCustomerById,
         useSearchCustomers,
         useCreateCustomer,
+        useUpdateCustomer,
+        useDeleteCustomer,
         useSendInvite,
         useApproveInvite,
     };

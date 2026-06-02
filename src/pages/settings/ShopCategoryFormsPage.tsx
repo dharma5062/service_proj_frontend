@@ -190,7 +190,7 @@ const ShopCategoryFormsPage = () => {
     };
 
     const handleEdit = (record: CategoryForm) => {
-        navigate(`/dashboard/settings/category-form/edit/${record.id}`);
+        navigate(`/dashboard/shop-defect-form/edit/${record.id}`);
     };
 
     const handleDeleteClick = (record: CategoryForm) => {
@@ -214,7 +214,7 @@ const ShopCategoryFormsPage = () => {
     };
 
     const handleAddNew = () => {
-        navigate('/dashboard/settings/category-form/create');
+        navigate('/dashboard/shop-defect-form/create');
     };
 
     const getFieldIcon = (type: string) => {

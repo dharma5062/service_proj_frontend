@@ -144,6 +144,7 @@ const CreateServiceRequest = () => {
     const [model, setModel] = useState('');
     const [problemPreset, setProblemPreset] = useState('');
     const [internalNotes, setInternalNotes] = useState('');
+    const [customerNote, setCustomerNote] = useState('');
     const [tags, setTags] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -230,6 +231,7 @@ const CreateServiceRequest = () => {
                 if (parsed.model) setModel(parsed.model);
                 if (parsed.problemPreset) setProblemPreset(parsed.problemPreset);
                 if (parsed.internalNotes) setInternalNotes(parsed.internalNotes);
+                if (parsed.customerNote) setCustomerNote(parsed.customerNote);
                 if (parsed.tags) setTags(parsed.tags);
                 if (parsed.selectedParentCategoryId) setSelectedParentCategoryId(parsed.selectedParentCategoryId);
                 if (parsed.categoryHierarchy) setCategoryHierarchy(parsed.categoryHierarchy);
@@ -274,6 +276,7 @@ const CreateServiceRequest = () => {
             model,
             problemPreset,
             internalNotes,
+            customerNote,
             tags,
             selectedParentCategoryId,
             categoryHierarchy,
@@ -300,6 +303,7 @@ const CreateServiceRequest = () => {
                 model,
                 problemPreset,
                 internalNotes,
+                customerNote,
                 tags,
                 selectedParentCategoryId,
                 categoryHierarchy,
@@ -317,7 +321,7 @@ const CreateServiceRequest = () => {
     }, [
         isEditMode, DRAFT_KEY,
         selectedCustomer, productCategory, productType, brand, model,
-        problemPreset, internalNotes, tags,
+        problemPreset, internalNotes, customerNote, tags,
         selectedParentCategoryId, categoryHierarchy, parts, defectFormValues,
         selectedServiceCharges, serviceDiscount, gstType, gstPercentage
     ]);
@@ -559,6 +563,7 @@ const CreateServiceRequest = () => {
             if (data.serviceDiscount !== undefined) setServiceDiscount(Number(data.serviceDiscount));
             if (data.gstType) setGstType(data.gstType);
             if (data.gstPercentage !== undefined) setGstPercentage(Number(data.gstPercentage));
+            if (data.customer_note) setCustomerNote(data.customer_note);
         }
 
         if (sr.service_details) {
@@ -863,7 +868,8 @@ const CreateServiceRequest = () => {
                 serviceTax,
                 serviceSectionTotal,
                 grandTotal: finalGrandTotal, // final total for the whole request
-                tags
+                tags,
+                customer_note: customerNote
             };
             const adminNotePayload = JSON.stringify([{ internalNotes: internalNotes || '' }]);
 
@@ -1992,7 +1998,7 @@ const CreateServiceRequest = () => {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3 px-3 pb-3">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-3">
                                     <div className="flex flex-col gap-1">
                                         <label className="text-xs font-medium text-gray-700">Tags</label>
                                         <Input
@@ -2002,16 +2008,29 @@ const CreateServiceRequest = () => {
                                             onChange={(e) => setTags(e.target.value)}
                                         />
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs font-medium text-gray-700">
-                                            Internal Notes
-                                        </label>
-                                        <Textarea
-                                            placeholder="Add any internal notes here..."
-                                            className="min-h-[80px] bg-gray-50 text-sm resize-none border-gray-200 focus-visible:ring-primary/20"
-                                            value={internalNotes}
-                                            onChange={(e) => setInternalNotes(e.target.value)}
-                                        />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="flex flex-col gap-1">
+                                            <label className="text-xs font-medium text-gray-700">
+                                                Internal Notes
+                                            </label>
+                                            <Textarea
+                                                placeholder="Add any internal notes here..."
+                                                className="min-h-[80px] bg-gray-50 text-sm resize-none border-gray-200 focus-visible:ring-primary/20"
+                                                value={internalNotes}
+                                                onChange={(e) => setInternalNotes(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <label className="text-xs font-medium text-gray-700">
+                                                Message for Customer
+                                            </label>
+                                            <Textarea
+                                                placeholder="Add a message or updates visible to the customer..."
+                                                className="min-h-[80px] bg-gray-50 text-sm resize-none border-gray-200 focus-visible:ring-primary/20"
+                                                value={customerNote}
+                                                onChange={(e) => setCustomerNote(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </CardContent>

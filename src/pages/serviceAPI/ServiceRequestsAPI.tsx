@@ -58,6 +58,26 @@ export interface ServiceRequest {
     updated_at?: string;
 }
 
+export interface ServiceRequestActivity {
+    id: number;
+    service_id: number;
+    user_id: number;
+    activity_type: string;
+    from_status?: string | null;
+    to_status?: string | null;
+    title: string;
+    description?: string | null;
+    meta_data?: any;
+    created_at: string;
+    updated_at: string;
+    user?: {
+        id: number;
+        name: string;
+        email?: string;
+        user_type: string;
+    } | null;
+}
+
 export interface CreateServicePayload {
     shop_id?: number;
     form_id?: number;
@@ -318,6 +338,25 @@ const buildFormData = (payload: CreateServicePayload | UpdateServicePayload): Fo
     return formData;
 };
 
+/**
+ * Fetches all activity logs for a service request
+ */
+export const fetchServiceRequestActivities = async (id: number | string): Promise<ServiceRequestActivity[]> => {
+    try {
+        const response = await axiosInstance.get(`/service-requests/${id}/activities`);
+        return response.data?.data ?? [];
+    } catch (error) {
+        console.error(`Error fetching service request activities ${id}:`, error);
+        if (error instanceof AxiosError) {
+            throw new Error(
+                error.response?.data?.message ||
+                `Failed to fetch service request activities: ${error.message}`
+            );
+        }
+        throw error;
+    }
+};
+
 // ─── TanStack Query Hooks ─────────────────────────────────────────────────────
 
 export const useServiceRequestsApi = () => {
@@ -352,6 +391,7 @@ export const useServiceRequestsApi = () => {
             onSuccess: (_data, variables) => {
                 queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
                 queryClient.invalidateQueries({ queryKey: ['service-requests', variables.id], exact: false });
+                queryClient.invalidateQueries({ queryKey: ['service-request-activities', variables.id], exact: false });
             },
         });
 
@@ -370,7 +410,15 @@ export const useServiceRequestsApi = () => {
             onSuccess: (_data, variables) => {
                 queryClient.invalidateQueries({ queryKey: ['service-requests', variables.service_id], exact: false });
                 queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
+                queryClient.invalidateQueries({ queryKey: ['service-request-activities', variables.service_id], exact: false });
             },
+        });
+
+    const useGetServiceRequestActivities = (id: number | string | undefined) =>
+        useQuery<ServiceRequestActivity[], Error>({
+            queryKey: ['service-request-activities', id, shopId],
+            queryFn: () => fetchServiceRequestActivities(id!),
+            enabled: !!id && !!shopId,
         });
 
     return {
@@ -380,5 +428,6 @@ export const useServiceRequestsApi = () => {
         useUpdateServiceRequest,
         useDeleteServiceRequest,
         useAssignTechnician,
+        useGetServiceRequestActivities,
     };
 };

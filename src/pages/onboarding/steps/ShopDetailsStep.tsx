@@ -104,98 +104,86 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <div className="mb-4">
-                <h2 className="text-lg font-bold text-gray-900 tracking-tight">Tell us about your shop</h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Please provide the basic details to get your shop listed on wService.</p>
+                <h2 className="text-base font-bold text-gray-900 tracking-tight">Tell us about your shop</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Please provide the basic details to get your shop listed on wService.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
                 {/* Left Column - Form Fields */}
                 <div className="lg:col-span-2 space-y-3">
-                    <div className="space-y-3">
-                        <Label htmlFor="shopName" className="text-sm font-semibold text-gray-700">Shop Name</Label>
+                    <div className="space-y-1">
+                        <Label htmlFor="shopName" className="text-xs font-semibold text-gray-600">Shop Name</Label>
                         <div className="relative">
-                            <Store className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Store className="absolute left-3 top-[10px] h-4 w-4 text-gray-400" />
                             <Input
                                 id="shopName"
                                 name="shopName"
                                 value={data.shopName}
                                 onChange={handleInputChange}
-                                className={cn("pl-10 h-10 bg-gray-50 border-gray-200 focus:bg-white transition-colors", errors.shopName && "border-red-500")}
+                                className={cn("pl-9 h-9 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors text-sm", errors.shopName && "border-red-500")}
                                 placeholder="e.g. QuickFix Electronics"
                             />
                         </div>
-                        {errors.shopName && <span className="text-xs text-red-500 pl-1">{errors.shopName}</span>}
+                        {errors.shopName && <span className="text-[11px] text-red-500 pl-1">{errors.shopName}</span>}
                     </div>
 
-                    {/* <div className="space-y-2">
-                        <Label htmlFor="tagline" className="text-sm font-semibold text-gray-700">Tagline (Optional)</Label>
-                        <Textarea
-                            id="tagline"
-                            name="tagline"
-                            value={data.tagline || ''}
-                            onChange={handleInputChange}
-                            className="min-h-[60px] bg-gray-50 border-gray-200 focus:bg-white transition-colors"
-                            placeholder="A short description about your shop..."
-                        />
-                    </div> */}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="shopOwnerName" className="text-sm font-semibold text-gray-700">Owner Name</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        <div className="space-y-1">
+                            <Label htmlFor="shopOwnerName" className="text-xs font-semibold text-gray-600">Owner Name</Label>
                             <div className="relative">
-                                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <User className="absolute left-3 top-[10px] h-4 w-4 text-gray-400" />
                                 <Input
                                     id="shopOwnerName"
                                     name="shopOwnerName"
                                     value={data.shopOwnerName}
                                     onChange={handleInputChange}
-                                    className={cn("pl-10 h-10 bg-gray-50 border-gray-200 focus:bg-white transition-colors", errors.shopOwnerName && "border-red-500")}
+                                    className={cn("pl-9 h-9 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors text-sm", errors.shopOwnerName && "border-red-500")}
                                     placeholder="John Doe"
                                 />
                             </div>
-                            {errors.shopOwnerName && <span className="text-xs text-red-500 pl-1">{errors.shopOwnerName}</span>}
+                            {errors.shopOwnerName && <span className="text-[11px] text-red-500 pl-1">{errors.shopOwnerName}</span>}
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="phoneNumber" className="text-sm font-semibold text-gray-700">Phone Number</Label>
+                        <div className="space-y-1">
+                            <Label htmlFor="phoneNumber" className="text-xs font-semibold text-gray-600">Phone Number</Label>
                             <div className="relative">
-                                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Phone className="absolute left-3 top-[10px] h-4 w-4 text-gray-400" />
                                 <Input
                                     id="phoneNumber"
                                     name="phoneNumber"
                                     value={data.phoneNumber}
                                     onChange={handleInputChange}
-                                    className={cn("pl-10 h-10 bg-gray-50 border-gray-200 focus:bg-white transition-colors", errors.phoneNumber && "border-red-500")}
+                                    className={cn("pl-9 h-9 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors text-sm", errors.phoneNumber && "border-red-500")}
                                     placeholder="+1 (555) 000-0000"
                                 />
                             </div>
-                            {errors.phoneNumber && <span className="text-xs text-red-500 pl-1">{errors.phoneNumber}</span>}
+                            {errors.phoneNumber && <span className="text-[11px] text-red-500 pl-1">{errors.phoneNumber}</span>}
                         </div>
                     </div>
 
                     {/* Business Email and Business Type Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="email" className="text-sm font-semibold text-gray-700">Business Email</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        <div className="space-y-1">
+                            <Label htmlFor="email" className="text-xs font-semibold text-gray-600">Business Email</Label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Mail className="absolute left-3 top-[10px] h-4 w-4 text-gray-400" />
                                 <Input
                                     id="email"
                                     name="email"
                                     value={data.email}
                                     onChange={handleInputChange}
-                                    className={cn("pl-10 h-10 bg-gray-50 border-gray-200 focus:bg-white transition-colors", errors.email && "border-red-500")}
+                                    className={cn("pl-9 h-9 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors text-sm", errors.email && "border-red-500")}
                                     placeholder="contact@shopname.com"
                                 />
                             </div>
-                            {errors.email && <span className="text-xs text-red-500 pl-1">{errors.email}</span>}
+                            {errors.email && <span className="text-[11px] text-red-500 pl-1">{errors.email}</span>}
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="businessType" className="text-sm font-semibold text-gray-700">Business Type</Label>
+                        <div className="space-y-1">
+                            <Label htmlFor="businessType" className="text-xs font-semibold text-gray-600">Business Type</Label>
                             <div className="relative">
-                                <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                                <Briefcase className="absolute left-3 top-[10px] h-4 w-4 text-gray-400 z-10" />
                                 <Select
                                     value={data.businessTypeId?.toString() || ""}
                                     onValueChange={(value) => {
@@ -206,7 +194,7 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
                                     }}
                                     disabled={loadingBusinessTypes}
                                 >
-                                    <SelectTrigger className={cn("pl-10 h-10 bg-gray-50 border-gray-200 focus:bg-white transition-colors", errors.businessTypeId && "border-red-500")}>
+                                    <SelectTrigger className={cn("pl-9 h-9 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors text-sm", errors.businessTypeId && "border-red-500")}>
                                         <SelectValue placeholder={loadingBusinessTypes ? "Loading..." : "Select Business Type"} />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -218,36 +206,36 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
                                     </SelectContent>
                                 </Select>
                             </div>
-                            {errors.businessTypeId && <span className="text-xs text-red-500 pl-1">{errors.businessTypeId}</span>}
+                            {errors.businessTypeId && <span className="text-[11px] text-red-500 pl-1">{errors.businessTypeId}</span>}
                         </div>
                     </div>
 
                     {/* Shop Address and GST Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="address" className="text-sm font-semibold text-gray-700">Shop Address</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        <div className="space-y-1">
+                            <Label htmlFor="address" className="text-xs font-semibold text-gray-600">Shop Address</Label>
                             <div className="relative">
-                                <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <MapPin className="absolute left-3 top-[10px] h-4 w-4 text-gray-400" />
                                 <Input
                                     id="address"
                                     name="address"
                                     value={data.address}
                                     onChange={handleInputChange}
-                                    className="pl-10 h-10 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                    className="pl-9 h-9 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors text-sm"
                                     placeholder="123 Main St, Suite 100, City, State, Zip"
                                 />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="gstNumber" className="text-sm font-semibold text-gray-700">GST / Tax ID (Optional)</Label>
+                        <div className="space-y-1">
+                            <Label htmlFor="gstNumber" className="text-xs font-semibold text-gray-600">GST / Tax ID (Optional)</Label>
                             <div className="relative">
-                                <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <FileText className="absolute left-3 top-[10px] h-4 w-4 text-gray-400" />
                                 <Input
                                     id="gstNumber"
                                     name="gstNumber"
                                     value={data.gstNumber}
                                     onChange={handleInputChange}
-                                    className="pl-10 h-10 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                    className="pl-9 h-9 bg-gray-50/50 border-gray-200 focus:bg-white transition-colors text-sm"
                                     placeholder="GST123456789"
                                 />
                             </div>
@@ -256,13 +244,12 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
                 </div>
 
                 {/* Right Column - Image Upload */}
-                <div className="lg:col-span-1">
-                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">Shop Logo</Label>
+                <div className="lg:col-span-1 flex flex-col">
+                    <Label className="text-xs font-semibold text-gray-600 mb-1.5 block">Shop Logo</Label>
                     <div
                         className={cn(
-                            "border-2 border-dashed rounded-xl p-6 h-[280px] flex flex-col items-center justify-center text-center transition-all cursor-pointer",
-                            dragging ? "border-primary bg-primary/5" : "border-gray-200 hover:border-primary/50 hover:bg-gray-50",
-                            data.shopLogoPreview ? "bg-white" : "bg-gray-50"
+                            "border-2 border-dashed rounded-xl p-4 h-[210px] flex flex-col items-center justify-center text-center transition-all cursor-pointer bg-gray-50/40 relative overflow-hidden",
+                            dragging ? "border-primary bg-primary/5" : "border-gray-200 hover:border-primary/50 hover:bg-gray-50/80"
                         )}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
@@ -276,21 +263,21 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
                                     alt="Shop Logo"
                                     className="max-h-full max-w-full object-contain rounded-md"
                                 />
-                                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-md text-white">
-                                    <Upload className="w-8 h-8 mb-2" />
-                                    <span className="text-sm font-medium">Change Logo</span>
+                                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-md text-white backdrop-blur-[1px]">
+                                    <Upload className="w-6 h-6 mb-1" />
+                                    <span className="text-xs font-semibold">Change Logo</span>
                                 </div>
                             </div>
                         ) : (
                             <>
-                                <div className="bg-primary/10 p-4 rounded-full mb-4">
-                                    <Upload className="w-8 h-8 text-primary" />
+                                <div className="bg-primary/5 p-3 rounded-full mb-2.5 text-primary">
+                                    <Upload className="w-6 h-6" />
                                 </div>
-                                <h3 className="text-sm font-bold text-gray-900 mb-1">Click to upload or drag and drop</h3>
-                                <p className="text-xs text-gray-500 mb-4">SVG, PNG, JPG or GIF (max. 3MB)</p>
-                                <Button type="button" variant="outline" size="sm" className="pointer-events-none">
+                                <h3 className="text-xs font-bold text-gray-800 mb-0.5">Click to upload or drag & drop</h3>
+                                <p className="text-[10px] text-gray-400 mb-3">SVG, PNG, JPG (max 3MB)</p>
+                                <span className="text-[10px] font-semibold text-primary bg-primary/5 border border-primary/10 px-2.5 py-1 rounded hover:bg-primary/10 transition-colors">
                                     Select File
-                                </Button>
+                                </span>
                             </>
                         )}
                         <input
@@ -304,10 +291,10 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
                 </div>
 
                 {/* Footer Buttons */}
-                <div className="md:col-span-3 pt-6 border-t border-gray-100 flex justify-end gap-3">
-                    <Button type="button" variant="ghost" onClick={() => { }}>Cancel</Button>
-                    <Button type="submit" className="bg-primary hover:bg-primary/90 text-white min-w-[120px]">
-                        Next Step <ArrowRight className="ml-2 h-4 w-4" />
+                <div className="lg:col-span-3 pt-4 border-t border-gray-100 flex justify-end gap-2.5">
+                    <Button type="button" variant="ghost" size="sm" className="h-9 px-4 text-xs font-semibold text-gray-500 hover:text-gray-900">Cancel</Button>
+                    <Button type="submit" size="sm" className="h-9 bg-primary hover:bg-primary/95 text-white font-semibold text-xs px-5 shadow-sm shadow-primary/10 transition-all flex items-center gap-1">
+                        Next Step <ArrowRight className="h-3.5 w-3.5" />
                     </Button>
                 </div>
 

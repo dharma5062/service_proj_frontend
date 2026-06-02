@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import { toast } from 'sonner';
-import { Zap, AlertCircle, Eye, Edit, Trash2, CheckCircle, FileEdit, Search, Plus } from 'lucide-react';
+import { Zap, AlertCircle, Eye, Edit, Trash2, CheckCircle, FileEdit, Search, Plus, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProductsApi } from '@/pages/serviceAPI/ProductsAPI';
@@ -114,6 +114,9 @@ const ServicesPage = () => {
     const [selectedCustomizeRecord, setSelectedCustomizeRecord] = useState<ServiceRequest | null>(null);
     const [customizeNotes, setCustomizeNotes] = useState('');
     const [customizeStatus, setCustomizeStatus] = useState('');
+    const [customerNote, setCustomerNote] = useState('');
+    const [estimationType, setEstimationType] = useState<'days' | 'hours' | 'date'>('days');
+    const [estimationValue, setEstimationValue] = useState('');
 
     // Parts & Charges State for Customize Dialog
     const [customizeParts, setCustomizeParts] = useState<any[]>([]);
@@ -142,17 +145,19 @@ const ServicesPage = () => {
             key: 'images',
             title: 'Images',
             dataIndex: 'data',
+            width: '60px',
+            align: 'center',
             render: (_value, record) => {
                 const data = parseJson(record.data);
                 const images = data?.images || [];
                 if (images.length > 0) {
                     return (
-                        <div className="w-10 h-10 rounded overflow-hidden border border-gray-200">
+                        <div className="w-8 h-8 rounded overflow-hidden border border-gray-200 inline-block">
                             <img src={images[0]} alt="inspection" className="w-full h-full object-cover" />
                         </div>
                     );
                 }
-                return <div className="w-10 h-10 rounded bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] text-gray-400">No Img</div>;
+                return <div className="w-8 h-8 rounded bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] text-gray-400 inline-flex">No Img</div>;
             },
         },
         {
@@ -168,7 +173,7 @@ const ServicesPage = () => {
                 return (
                     <div>
                         <p className="text-xs font-semibold text-gray-900">{capitalizeWords(typeName)}</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">SR{String(record.id).padStart(3, '0')}</p>
+                        <p className="text-[10px] text-gray-500 mt-0">SR{String(record.id).padStart(3, '0')}</p>
                     </div>
                 );
             },
@@ -185,7 +190,7 @@ const ServicesPage = () => {
                     <div>
                         <p className="text-xs font-semibold text-gray-900">{capitalizeWords(customer.name)}</p>
                         {customer.phone && (
-                            <p className="text-[11px] text-gray-500 mt-0.5">{customer.phone}</p>
+                            <p className="text-[10px] text-gray-500 mt-0">{customer.phone}</p>
                         )}
                     </div>
                 );
@@ -208,7 +213,7 @@ const ServicesPage = () => {
                     <div>
                         <p className="text-xs font-semibold text-gray-900">{capitalizeWords(productName) || '-'}</p>
                         {brandName && (
-                            <p className="text-[11px] text-gray-500 mt-0.5">{capitalizeWords(brandName)}</p>
+                            <p className="text-[10px] text-gray-500 mt-0">{capitalizeWords(brandName)}</p>
                         )}
                     </div>
                 );
@@ -226,7 +231,7 @@ const ServicesPage = () => {
                     <div>
                         <p className="text-xs font-semibold text-gray-900">{capitalizeWords(technician.name)}</p>
                         {technician.role && (
-                            <p className="text-[10px] text-primary mt-0.5 font-medium border border-primary/20 bg-primary/10 px-1.5 py-0.5 rounded-full inline-block">{capitalizeWords(technician.role)}</p>
+                            <p className="text-[10px] text-primary mt-0 font-medium border border-primary/20 bg-primary/10 px-1.5 py-0 rounded-full inline-block">{capitalizeWords(technician.role)}</p>
                         )}
                     </div>
                 );
@@ -244,9 +249,12 @@ const ServicesPage = () => {
                 let colorClass = 'bg-gray-200';
                 let indicatorClass = 'bg-gray-500';
 
-                if (status === 'pending') { progress = 25; colorClass = 'bg-[#C6212C]/20'; indicatorClass = 'bg-[#C6212C]'; }
-                else if (status === 'assigned') { progress = 50; colorClass = 'bg-blue-100'; indicatorClass = 'bg-blue-500'; }
-                else if (status === 'in_progress') { progress = 75; colorClass = 'bg-[#F7B318]/20'; indicatorClass = 'bg-[#F7B318]'; }
+                if (status === 'pending') { progress = 10; colorClass = 'bg-[#C6212C]/20'; indicatorClass = 'bg-[#C6212C]'; }
+                else if (status === 'assigned') { progress = 25; colorClass = 'bg-blue-100'; indicatorClass = 'bg-blue-500'; }
+                else if (status === 'accepted') { progress = 40; colorClass = 'bg-indigo-100'; indicatorClass = 'bg-indigo-500'; }
+                else if (status === 'waiting_parts') { progress = 55; colorClass = 'bg-amber-100'; indicatorClass = 'bg-amber-500'; }
+                else if (status === 'in_progress') { progress = 70; colorClass = 'bg-[#F7B318]/20'; indicatorClass = 'bg-[#F7B318]'; }
+                else if (status === 'ready') { progress = 85; colorClass = 'bg-teal-100'; indicatorClass = 'bg-teal-500'; }
                 else if (status === 'completed') { progress = 100; colorClass = 'bg-green-100'; indicatorClass = 'bg-green-500'; }
                 else if (status === 'cancelled') { progress = 100; colorClass = 'bg-red-100'; indicatorClass = 'bg-red-500'; }
 
@@ -258,11 +266,11 @@ const ServicesPage = () => {
 
                 return (
                     <div className="w-24 group relative" title={tooltipContent}>
-                        <div className="flex justify-between items-center mb-1">
+                        <div className="flex justify-between items-center mb-0.5">
                             <span className="text-[10px] font-semibold text-gray-700">{displayLabel}</span>
                             <span className="text-[9px] text-gray-500">{progress}%</span>
                         </div>
-                        <div className={`h-1.5 w-full rounded-full ${colorClass} overflow-hidden`}>
+                        <div className={`h-1 w-full rounded-full ${colorClass} overflow-hidden`}>
                             <div className={`h-full ${indicatorClass} rounded-full transition-all duration-300`} style={{ width: `${progress}%` }}></div>
                         </div>
                     </div>
@@ -311,7 +319,7 @@ const ServicesPage = () => {
                                 <CheckCircle className="h-3.5 w-3.5 text-green-600" />
                             </Button>
                         )}
-                        {isShopEmployee && (status === 'in_progress' || status === 'assigned') && (
+                        {isShopEmployee && status !== 'completed' && status !== 'cancelled' && (
                             <Button size="sm" variant="ghost" onClick={() => handleCustomize(record)} className="h-6 w-6 p-0 hover:bg-purple-100" title="Customize Defect Form / Update">
                                 <FileEdit className="h-3.5 w-3.5 text-purple-600" />
                             </Button>
@@ -361,15 +369,15 @@ const ServicesPage = () => {
             try {
                 const parsed = JSON.parse(notes);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                     notes = parsed[0].internalNotes || JSON.stringify(parsed);
+                    notes = parsed[0].internalNotes || JSON.stringify(parsed);
                 } else if (parsed.internalNotes) {
-                     notes = parsed.internalNotes;
+                    notes = parsed.internalNotes;
                 }
             } catch (e) {
                 // Ignore parsing errors, fallback to string
             }
         }
-        
+
         if (notes.trim().toLowerCase() === 'demo') {
             notes = '';
         }
@@ -382,9 +390,22 @@ const ServicesPage = () => {
             const dataObj = typeof record.data === 'string' ? parseJson(record.data) : record.data;
             setCustomizeParts(dataObj?.parts || []);
             setCustomizeServiceCharges(dataObj?.selectedServiceCharges || []);
+            setCustomerNote(dataObj?.customer_note || '');
+            // Load estimation
+            const estim = dataObj?.estimation;
+            if (estim && estim.value) {
+                setEstimationType(estim.type || 'days');
+                setEstimationValue(estim.value || '');
+            } else {
+                setEstimationType('days');
+                setEstimationValue('');
+            }
         } else {
             setCustomizeParts([]);
             setCustomizeServiceCharges([]);
+            setCustomerNote('');
+            setEstimationType('days');
+            setEstimationValue('');
         }
 
         setIsCustomizeDialogOpen(true);
@@ -394,22 +415,28 @@ const ServicesPage = () => {
         if (!selectedCustomizeRecord) return;
         try {
             // merge data
-            const oldData = typeof selectedCustomizeRecord.data === 'string' 
-                ? parseJson(selectedCustomizeRecord.data) 
+            const oldData = typeof selectedCustomizeRecord.data === 'string'
+                ? parseJson(selectedCustomizeRecord.data)
                 : (selectedCustomizeRecord.data || {});
-                
+
             const newData = {
                 ...oldData,
                 parts: customizeParts,
-                selectedServiceCharges: customizeServiceCharges
+                selectedServiceCharges: customizeServiceCharges,
+                customer_note: customerNote,
+                estimation: estimationValue.trim()
+                    ? { type: estimationType, value: estimationValue.trim(), set_at: new Date().toISOString() }
+                    : null,
             };
+
+            const adminNotePayload = JSON.stringify([{ internalNotes: customizeNotes || '' }]);
 
             await updateServiceRequestMutation.mutateAsync({
                 id: selectedCustomizeRecord.id,
                 payload: {
                     customer_id: selectedCustomizeRecord.customer_id || selectedCustomizeRecord.customer?.id || 0,
                     service_status: customizeStatus,
-                    admin_note: customizeNotes,
+                    admin_note: adminNotePayload,
                     data: JSON.stringify(newData)
                 }
             });
@@ -428,10 +455,10 @@ const ServicesPage = () => {
                 id: record.id,
                 payload: {
                     customer_id: record.customer_id || record.customer?.id || 0,
-                    service_status: 'in_progress',
+                    service_status: 'accepted',
                 }
             });
-            toast.success('Service request accepted and marked as In Progress!');
+            toast.success('Service request accepted and marked as Diagnosis Started!');
         } catch (error) {
             toast.error('Failed to accept service request', {
                 description: error instanceof Error ? error.message : 'Unknown error',
@@ -562,16 +589,187 @@ const ServicesPage = () => {
                         <DialogTitle className="text-sm">Update Working Conditions & Parts</DialogTitle>
                     </DialogHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-                        {/* Left Column: Parts & Charges */}
-                        <div className="space-y-3">
-                            {/* Parts */}
+                        {/* Left Column: Status, Estimation & Notes */}
+                        <div className="space-y-3 flex flex-col">
+                            {/* Service Status */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-semibold text-gray-700">Service Status</Label>
+                                <Select value={customizeStatus} onValueChange={setCustomizeStatus}>
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="assigned">Assigned</SelectItem>
+                                        <SelectItem value="accepted">Diagnosis Started</SelectItem>
+                                        <SelectItem value="waiting_parts">Awaiting Parts</SelectItem>
+                                        <SelectItem value="in_progress">In Progress</SelectItem>
+                                        <SelectItem value="ready">Quality Inspection</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Estimated Completion */}
+                            <div className="space-y-2 border rounded-md p-2.5 bg-amber-50/40 border-amber-100">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                                        <Timer className="h-3 w-3 text-amber-500" />
+                                        Estimated Completion
+                                    </Label>
+                                    <span className="text-[9px] font-semibold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full border border-amber-200">Visible to Customer</span>
+                                </div>
+
+                                {/* Type toggle */}
+                                <div className="flex gap-1">
+                                    
+                                    <button
+                                        type="button"
+                                        onClick={() => { setEstimationType('hours'); setEstimationValue(''); }}
+                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${
+                                            estimationType === 'hours'
+                                                ? 'bg-amber-500 text-white border-amber-500'
+                                                : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'
+                                        }`}
+                                    >
+                                        By Hours
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setEstimationType('days'); setEstimationValue(''); }}
+                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${
+                                            estimationType === 'days'
+                                                ? 'bg-amber-500 text-white border-amber-500'
+                                                : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'
+                                        }`}
+                                    >
+                                        By Days
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setEstimationType('date'); setEstimationValue(''); }}
+                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${
+                                            estimationType === 'date'
+                                                ? 'bg-amber-500 text-white border-amber-500'
+                                                : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'
+                                        }`}
+                                    >
+                                        By Date
+                                    </button>
+                                </div>
+
+                                {/* Input */}
+                                {estimationType === 'days' && (
+                                    <div className="flex items-center gap-2">
+                                        <Select value={estimationValue} onValueChange={setEstimationValue}>
+                                            <SelectTrigger className="w-32 h-8 text-xs bg-white border-gray-200 focus:ring-1 focus:ring-amber-300">
+                                                <SelectValue placeholder="Select days" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 30 }, (_, i) => {
+                                                    const val = (i + 1).toString();
+                                                    return (
+                                                        <SelectItem key={val} value={val}>
+                                                            {val} Day{val !== '1' ? 's' : ''}
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                        <span className="text-xs text-gray-500">working days</span>
+                                        {estimationValue && (
+                                            <span className="text-[10px] text-amber-700 font-medium italic ml-auto">
+                                                ~{estimationValue} day{Number(estimationValue) !== 1 ? 's' : ''}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {estimationType === 'hours' && (
+                                    <div className="flex items-center gap-2">
+                                        <Select value={estimationValue} onValueChange={setEstimationValue}>
+                                            <SelectTrigger className="w-32 h-8 text-xs bg-white border-gray-200 focus:ring-1 focus:ring-amber-300">
+                                                <SelectValue placeholder="Select hours" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 48 }, (_, i) => {
+                                                    const val = (i + 1).toString();
+                                                    return (
+                                                        <SelectItem key={val} value={val}>
+                                                            {val} Hour{val !== '1' ? 's' : ''}
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                        <span className="text-xs text-gray-500">hours</span>
+                                        {estimationValue && (
+                                            <span className="text-[10px] text-amber-700 font-medium italic ml-auto">
+                                                ~{estimationValue} hour{Number(estimationValue) !== 1 ? 's' : ''}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {estimationType === 'date' && (
+                                    <input
+                                        type="date"
+                                        value={estimationValue}
+                                        min={new Date().toISOString().split('T')[0]}
+                                        onChange={(e) => setEstimationValue(e.target.value)}
+                                        className="w-full h-8 border rounded px-2 text-xs border-gray-200 focus:outline-none focus:ring-1 focus:ring-amber-300"
+                                    />
+                                )}
+
+                                {/* Clear button */}
+                                {estimationValue && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setEstimationValue('')}
+                                        className="text-[10px] text-gray-400 hover:text-red-500 transition-colors"
+                                    >
+                                        ✕ Clear estimation
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Working Conditions & Notes */}
+                            <div className="space-y-1.5 flex-1 flex flex-col">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-xs font-semibold text-gray-700">Working Conditions & Notes</Label>
+                                    <span className="text-[9px] font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100">Internal Only</span>
+                                </div>
+                                <Textarea
+                                    placeholder="Add working conditions & notes (visible to owner & staff)..."
+                                    className="h-28 text-xs resize-none border-gray-200 focus-visible:ring-primary/20 flex-1"
+                                    value={customizeNotes}
+                                    onChange={(e) => setCustomizeNotes(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Right Column: Message, Parts & Charges */}
+                        <div className="space-y-3 flex flex-col">
+                            {/* Message for Customer */}
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-xs font-semibold text-gray-700">Message for Customer</Label>
+                                    <span className="text-[9px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">Visible to Customer</span>
+                                </div>
+                                <Textarea
+                                    placeholder="Add message or status updates for the customer..."
+                                    className="h-20 text-xs resize-none border-gray-200 focus-visible:ring-primary/20"
+                                    value={customerNote}
+                                    onChange={(e) => setCustomerNote(e.target.value)}
+                                />
+                            </div>
+
+                            {/* Parts & Materials */}
                             <div className="border rounded-md p-2.5 bg-gray-50/50 space-y-2">
                                 <Label className="text-xs font-semibold text-gray-700">Parts & Materials</Label>
                                 <div className="relative">
                                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
-                                    <Input 
-                                        className="h-7 pl-6 text-xs" 
-                                        placeholder="Search parts..." 
+                                    <Input
+                                        className="h-7 pl-6 text-xs"
+                                        placeholder="Search parts..."
                                         value={partSearchQuery}
                                         onChange={(e) => setPartSearchQuery(e.target.value)}
                                     />
@@ -623,9 +821,9 @@ const ServicesPage = () => {
                                 <Label className="text-xs font-semibold text-gray-700">Service Charges</Label>
                                 <div className="relative">
                                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
-                                    <Input 
-                                        className="h-7 pl-6 text-xs" 
-                                        placeholder="Search or add manual charge..." 
+                                    <Input
+                                        className="h-7 pl-6 text-xs"
+                                        placeholder="Search or add manual charge..."
                                         value={chargeSearchQuery}
                                         onChange={(e) => setChargeSearchQuery(e.target.value)}
                                         onKeyDown={(e) => {
@@ -673,30 +871,6 @@ const ServicesPage = () => {
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Right Column: Status & Notes */}
-                        <div className="space-y-3 flex flex-col">
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-semibold text-gray-700">Service Status</Label>
-                                <Select value={customizeStatus} onValueChange={setCustomizeStatus}>
-                                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="assigned">Assigned</SelectItem>
-                                        <SelectItem value="in_progress">In Progress</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1.5 flex-1 flex flex-col">
-                                <Label className="text-xs font-semibold text-gray-700">Working Conditions & Notes</Label>
-                                <Textarea
-                                    placeholder="Add working conditions & notes..."
-                                    className="flex-1 min-h-[150px] text-xs resize-none"
-                                    value={customizeNotes}
-                                    onChange={(e) => setCustomizeNotes(e.target.value)}
-                                />
                             </div>
                         </div>
                     </div>

@@ -369,7 +369,7 @@ const CreateProductPage = () => {
                 await createProductMutation.mutateAsync(payload);
                 toast.success('Product created successfully');
             }
-            navigate('/dashboard/settings/product');
+            navigate('/dashboard/product');
         } catch (error) {
             toast.error(`Failed to ${isEditMode ? 'update' : 'create'} product`, {
                 description: error instanceof Error ? error.message : 'Unknown error',
@@ -384,7 +384,7 @@ const CreateProductPage = () => {
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
                 <button
-                    onClick={() => navigate('/dashboard/settings/product')}
+                    onClick={() => navigate('/dashboard/product')}
                     className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4 text-gray-600" />
@@ -841,7 +841,7 @@ const CreateProductPage = () => {
                 <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate('/dashboard/settings/product')}
+                    onClick={() => navigate('/dashboard/product')}
                     disabled={submitting}
                 >
                     Cancel

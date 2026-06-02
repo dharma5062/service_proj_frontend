@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { CreateShopPayload, useShopsApi } from '@/pages/serviceAPI/ShopsAPI';
 import { useProductCategoriesApi, ProductCategory } from '@/pages/serviceAPI/ProductCategoriesAPI';
 import { User, useAuth } from '@/AuthContext';
+import { cn } from '@/lib/utils';
 
 interface ReviewStepProps {
     data: OnboardingData;
@@ -112,9 +113,9 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
 
     return (
         <div className="space-y-4">
-            <div className="mb-4">
-                <h2 className="text-lg font-bold text-gray-900 tracking-tight">Review & Confirm</h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+            <div className="mb-2">
+                <h2 className="text-base font-bold text-gray-900 tracking-tight">Review & Confirm</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
                     Please double-check all your information before completing the setup. You can always edit this later in settings.
                 </p>
             </div>
@@ -122,107 +123,109 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
                 {/* Shop Profile Review */}
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                    <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center gap-2">
-                            <Store className="h-5 w-5 text-primary" />
-                            <h3 className="font-bold text-gray-900">Shop Profile</h3>
+                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-1.5">
+                                <Store className="h-4 w-4 text-primary" />
+                                <h3 className="font-bold text-xs text-gray-700 uppercase tracking-wide">Shop Profile</h3>
+                            </div>
+                            <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-bold text-xs" onClick={() => onEditSection(1)}>
+                                Edit
+                            </Button>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-medium" onClick={() => onEditSection(1)}>
-                            Edit
-                        </Button>
-                    </div>
 
-                    <div className="space-y-3 text-sm">
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                            <span className="text-gray-500">Shop Name</span>
-                            <span className="font-medium text-gray-900">{data.shopName}</span>
-                        </div>
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                            <span className="text-gray-500">Owner</span>
-                            <span className="font-medium text-gray-900">{data.shopOwnerName}</span>
-                        </div>
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                            <span className="text-gray-500">Email</span>
-                            <span className="font-medium text-gray-900">{data.email}</span>
-                        </div>
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                            <span className="text-gray-500">Phone</span>
-                            <span className="font-medium text-gray-900">{data.phoneNumber}</span>
-                        </div>
-                        <div className="flex justify-between py-2">
-                            <span className="text-gray-500">Address</span>
-                            <span className="font-medium text-gray-900 text-right max-w-[200px] truncate">{data.address || 'N/A'}</span>
+                        <div className="space-y-2 text-xs">
+                            <div className="flex justify-between py-1.5 border-b border-gray-50">
+                                <span className="text-gray-400 font-medium">Shop Name</span>
+                                <span className="font-semibold text-gray-800">{data.shopName}</span>
+                            </div>
+                            <div className="flex justify-between py-1.5 border-b border-gray-50">
+                                <span className="text-gray-400 font-medium">Owner</span>
+                                <span className="font-semibold text-gray-800">{data.shopOwnerName}</span>
+                            </div>
+                            <div className="flex justify-between py-1.5 border-b border-gray-50">
+                                <span className="text-gray-400 font-medium">Email</span>
+                                <span className="font-semibold text-gray-800">{data.email}</span>
+                            </div>
+                            <div className="flex justify-between py-1.5 border-b border-gray-50">
+                                <span className="text-gray-400 font-medium">Phone</span>
+                                <span className="font-semibold text-gray-800">{data.phoneNumber}</span>
+                            </div>
+                            <div className="flex justify-between py-1.5">
+                                <span className="text-gray-400 font-medium">Address</span>
+                                <span className="font-semibold text-gray-800 text-right max-w-[220px] truncate">{data.address || 'N/A'}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Categories Review */}
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                    <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center gap-2">
-                            <LayoutGrid className="h-5 w-5 text-primary" />
-                            <h3 className="font-bold text-gray-900">Selected Services</h3>
+                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-1.5">
+                                <LayoutGrid className="h-4 w-4 text-primary" />
+                                <h3 className="font-bold text-xs text-gray-700 uppercase tracking-wide">Selected Services</h3>
+                            </div>
+                            <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-bold text-xs" onClick={() => onEditSection(3)}>
+                                Edit
+                            </Button>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-medium" onClick={() => onEditSection(3)}>
-                            Edit
-                        </Button>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        {selectedCategories.length === 0 ? (
-                            <p className="text-sm text-gray-500 col-span-2">Loading categories...</p>
-                        ) : (
-                            selectedCategories.map((category, index) => (
-                                <div key={index} className="flex flex-col items-center p-3 bg-white rounded-lg border border-gray-200 text-center">
-                                    {category.image_url && (
-                                        <div className="w-12 h-12 rounded-lg overflow-hidden mb-2 bg-gray-100">
+                        <div className="flex flex-wrap gap-1.5">
+                            {selectedCategories.length === 0 ? (
+                                <p className="text-xs text-gray-400">Loading categories...</p>
+                            ) : (
+                                selectedCategories.map((category, index) => (
+                                    <div key={index} className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-100 rounded-lg">
+                                        {category.image_url && (
                                             <img
                                                 src={category.image_url}
                                                 alt={category.name}
-                                                className="w-full h-full object-cover"
+                                                className="w-4 h-4 rounded-sm object-cover flex-shrink-0"
                                             />
-                                        </div>
-                                    )}
-                                    <span className="text-xs font-medium text-gray-900">{category.name}</span>
-                                </div>
-                            ))
-                        )}
+                                        )}
+                                        <span className="text-[10px] font-bold text-gray-700">{category.name}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Business Hours Review */}
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 lg:col-span-2">
-                    <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center gap-2">
-                            <Clock className="h-5 w-5 text-primary" />
-                            <h3 className="font-bold text-gray-900">Business Hours</h3>
+                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm lg:col-span-2">
+                    <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center gap-1.5">
+                            <Clock className="h-4 w-4 text-primary" />
+                            <h3 className="font-bold text-xs text-gray-700 uppercase tracking-wide">Business Hours</h3>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-medium" onClick={() => onEditSection(2)}>
+                        <Button variant="ghost" size="sm" className="text-primary h-auto p-0 hover:text-primary/80 font-bold text-xs" onClick={() => onEditSection(2)}>
                             Edit
                         </Button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Weekdays (Mon-Fri)</span>
-                            <span className="font-medium text-gray-900">
+                    <div className="grid grid-cols-3 gap-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100 text-xs">
+                        <div className="flex flex-col gap-0.5 border-r border-gray-100 pr-2">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Weekdays (Mon-Fri)</span>
+                            <span className="font-bold text-gray-800">
                                 {data.workingHours['Monday'].isOpen
                                     ? `${data.workingHours['Monday'].open} - ${data.workingHours['Monday'].close}`
                                     : 'Closed'}
                             </span>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Saturday</span>
-                            <span className="font-medium text-gray-900">
+                        <div className="flex flex-col gap-0.5 border-r border-gray-100 px-2">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Saturday</span>
+                            <span className="font-bold text-gray-800">
                                 {data.workingHours['Saturday'].isOpen
                                     ? `${data.workingHours['Saturday'].open} - ${data.workingHours['Saturday'].close}`
                                     : 'Closed'}
                             </span>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Sunday</span>
-                            <span className="font-medium text-red-500">
+                        <div className="flex flex-col gap-0.5 pl-2">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Sunday</span>
+                            <span className={cn("font-bold", data.workingHours['Sunday'].isOpen ? "text-gray-800" : "text-red-500")}>
                                 {data.workingHours['Sunday'].isOpen
                                     ? `${data.workingHours['Sunday'].open} - ${data.workingHours['Sunday'].close}`
                                     : 'Closed'}
@@ -232,26 +235,32 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
                 </div>
             </div>
 
-            <div className="bg-white border-t border-gray-100 pt-6">
-                <div className="flex items-start gap-3 mb-6">
-                    <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-1" />
-                    <label htmlFor="terms" className="text-sm text-gray-600 leading-relaxed cursor-pointer">
-                        I agree to wService's <a href="#" className="text-primary hover:underline">Terms of Service</a> and <a href="#" className="text-primary hover:underline">Privacy Policy</a>.
+            <div className="bg-white border-t border-gray-100 pt-4 mt-6">
+                <div className="flex items-start gap-2.5 mb-4">
+                    <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-0.5" />
+                    <label htmlFor="terms" className="text-xs text-gray-500 leading-relaxed cursor-pointer font-medium select-none">
+                        I agree to wService's <a href="#" className="text-primary hover:underline font-semibold">Terms of Service</a> and <a href="#" className="text-primary hover:underline font-semibold">Privacy Policy</a>.
                         I confirm that the information provided is accurate.
                     </label>
                 </div>
 
-                <div className="flex justify-between">
-                    <Button variant="ghost" onClick={onBack} className="text-gray-600 hover:text-gray-900">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                <div className="flex justify-between items-center">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onBack}
+                        className="h-9 text-xs font-semibold text-gray-500 hover:text-gray-900 flex items-center gap-1"
+                    >
+                        <ArrowLeft className="h-3.5 w-3.5" /> Back
                     </Button>
                     <Button
+                        size="sm"
                         onClick={handleComplete}
                         disabled={isSubmitting || !agreed}
-                        className="bg-primary hover:bg-primary/90 text-white min-w-[160px]"
+                        className="h-9 bg-primary hover:bg-primary/95 text-white font-semibold text-xs px-6 shadow-sm shadow-primary/10 transition-all flex items-center gap-1"
                     >
                         {isSubmitting ? 'Setting up...' : 'Complete Setup'}
-                        {!isSubmitting && <Check className="ml-2 h-4 w-4" />}
+                        {!isSubmitting && <Check className="h-3.5 w-3.5" />}
                     </Button>
                 </div>
             </div>

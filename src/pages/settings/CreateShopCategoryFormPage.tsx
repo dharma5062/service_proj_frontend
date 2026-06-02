@@ -367,7 +367,7 @@ const CreateShopCategoryFormPage = () => {
                 toast.success('Defect form builder created successfully');
             }
 
-            navigate('/dashboard/settings/category-form');
+            navigate('/dashboard/shop-defect-form');
         } catch (error: any) {
             const errorMessage = error?.response?.data?.message || error.message || 'Unknown error';
 
@@ -1175,7 +1175,7 @@ const CreateShopCategoryFormPage = () => {
                     <div className="flex justify-end gap-3 mt-6">
                         <Button
                             variant="outline"
-                            onClick={() => navigate('/dashboard/settings/category-form')}
+                            onClick={() => navigate('/dashboard/shop-defect-form')}
                             disabled={submitting}
                         >
                             Discard

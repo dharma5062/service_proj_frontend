@@ -342,9 +342,10 @@ const ServiceChargesPage = () => {
 
             {/* Create/Edit Form Dialog */}
             <Dialog open={formDialogOpen} onOpenChange={setFormDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="text-base font-bold">
+                <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-5 gap-3.5">
+                    <DialogHeader className="space-y-1">
+                        <DialogTitle className="text-base font-bold flex items-center gap-1.5 text-gray-900">
+                            <IndianRupee className="h-4 w-4 text-primary" />
                             {isEditMode ? 'Edit Service Charge' : 'Add New Service Charge'}
                         </DialogTitle>
                         <DialogDescription className="text-xs text-gray-500">
@@ -352,10 +353,10 @@ const ServiceChargesPage = () => {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-2">
+                    <div className="space-y-3 py-1">
                         {/* Name */}
-                        <div className="space-y-2">
-                            <Label htmlFor="name" className="text-sm font-medium">
+                        <div className="space-y-1">
+                            <Label htmlFor="name" className="text-[11px] font-semibold text-gray-600">
                                 Charge Name <span className="text-red-500">*</span>
                             </Label>
                             <Input
@@ -363,56 +364,56 @@ const ServiceChargesPage = () => {
                                 placeholder="e.g., Installation Fee, Service Call"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className={formErrors.name ? 'border-red-500' : ''}
+                                className={`h-8 text-xs placeholder:text-gray-400 ${formErrors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                             />
                             {formErrors.name && (
-                                <p className="text-xs text-red-500">{formErrors.name}</p>
+                                <p className="text-[10px] text-red-500 font-medium mt-0.5 leading-none">{formErrors.name}</p>
                             )}
                         </div>
 
                         {/* Amount */}
-                        <div className="space-y-2">
-                            <Label htmlFor="amount" className="text-sm font-medium">
+                        <div className="space-y-1">
+                            <Label htmlFor="amount" className="text-[11px] font-semibold text-gray-600">
                                 Amount <span className="text-red-500">*</span>
                             </Label>
                             <div className="relative">
-                                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                                 <Input
                                     id="amount"
                                     type="number"
                                     placeholder="0.00"
                                     step="0.01"
-                                    className={`pl-10 ${formErrors.amount ? 'border-red-500' : ''}`}
+                                    className={`h-8 text-xs pl-8 placeholder:text-gray-400 ${formErrors.amount ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                     value={formData.amount}
                                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                                 />
                             </div>
                             {formErrors.amount && (
-                                <p className="text-xs text-red-500">{formErrors.amount}</p>
+                                <p className="text-[10px] text-red-500 font-medium mt-0.5 leading-none">{formErrors.amount}</p>
                             )}
                         </div>
 
                         {/* Description */}
-                        <div className="space-y-2">
-                            <Label htmlFor="description" className="text-sm font-medium">
+                        <div className="space-y-1">
+                            <Label htmlFor="description" className="text-[11px] font-semibold text-gray-600">
                                 Description
                             </Label>
                             <Textarea
                                 id="description"
                                 placeholder="Briefly describe what this charge covers..."
-                                className="resize-none"
+                                className="resize-none text-xs min-h-[50px] py-1.5 placeholder:text-gray-400"
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                rows={4}
+                                rows={2}
                             />
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setFormDialogOpen(false)} disabled={submitting}>
+                    <DialogFooter className="mt-1 gap-2 sm:gap-0">
+                        <Button variant="outline" size="sm" className="h-8 text-xs px-3" onClick={() => setFormDialogOpen(false)} disabled={submitting}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSubmit} disabled={submitting}>
+                        <Button size="sm" className="h-8 text-xs px-3" onClick={handleSubmit} disabled={submitting}>
                             {submitting ? 'Saving...' : isEditMode ? 'Update Charge' : 'Create Charge'}
                         </Button>
                     </DialogFooter>

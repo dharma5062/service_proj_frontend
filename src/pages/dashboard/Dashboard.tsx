@@ -26,10 +26,14 @@ const Dashboard = () => {
     // ─── Stats Calculation ────────────────────────────────────────────────────
     const stats = useMemo(() => {
         const total = filteredRequests.length;
-        const pending = filteredRequests.filter(r => (r.service_status || r.status) === 'pending').length;
-        const assigned = filteredRequests.filter(r => (r.service_status || r.status) === 'assigned').length;
-        const inProgress = filteredRequests.filter(r => (r.service_status || r.status) === 'in_progress').length;
-        const completed = filteredRequests.filter(r => (r.service_status || r.status) === 'completed').length;
+        const getStatus = (r: ServiceRequest) => (r.service_status || r.status || 'pending').toLowerCase();
+        
+        const pending = filteredRequests.filter(r => getStatus(r) === 'pending').length;
+        const assigned = filteredRequests.filter(r => getStatus(r) === 'assigned').length;
+        const inProgress = filteredRequests.filter(r => 
+            ['accepted', 'waiting_parts', 'in_progress', 'ready'].includes(getStatus(r))
+        ).length;
+        const completed = filteredRequests.filter(r => getStatus(r) === 'completed').length;
 
         return [
             { title: "Total Services", value: total.toString(), trend: 'up', icon: Clock, color: 'primary' },
@@ -96,9 +100,12 @@ const Dashboard = () => {
                 let colorClass = 'bg-gray-200';
                 let indicatorClass = 'bg-gray-500';
 
-                if (status === 'pending') { progress = 25; colorClass = 'bg-[#C6212C]/20'; indicatorClass = 'bg-[#C6212C]'; }
-                else if (status === 'assigned') { progress = 50; colorClass = 'bg-blue-100'; indicatorClass = 'bg-blue-500'; }
-                else if (status === 'in_progress') { progress = 75; colorClass = 'bg-[#F7B318]/20'; indicatorClass = 'bg-[#F7B318]'; }
+                if (status === 'pending') { progress = 10; colorClass = 'bg-[#C6212C]/20'; indicatorClass = 'bg-[#C6212C]'; }
+                else if (status === 'assigned') { progress = 25; colorClass = 'bg-blue-100'; indicatorClass = 'bg-blue-500'; }
+                else if (status === 'accepted') { progress = 40; colorClass = 'bg-indigo-100'; indicatorClass = 'bg-indigo-500'; }
+                else if (status === 'waiting_parts') { progress = 55; colorClass = 'bg-amber-100'; indicatorClass = 'bg-amber-500'; }
+                else if (status === 'in_progress') { progress = 70; colorClass = 'bg-[#F7B318]/20'; indicatorClass = 'bg-[#F7B318]'; }
+                else if (status === 'ready') { progress = 85; colorClass = 'bg-teal-100'; indicatorClass = 'bg-teal-500'; }
                 else if (status === 'completed') { progress = 100; colorClass = 'bg-green-100'; indicatorClass = 'bg-green-500'; }
                 else if (status === 'cancelled') { progress = 100; colorClass = 'bg-red-100'; indicatorClass = 'bg-red-500'; }
 

@@ -123,56 +123,55 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
 
     return (
         <div className="space-y-4">
-            <div className="mb-4">
-                <h2 className="text-lg font-bold text-gray-900 tracking-tight">
-                    {businessType ? `Select ${businessType.category.name} Services` : 'What services do you offer?'}
+            <div className="mb-2">
+                <h2 className="text-base font-bold text-gray-900 tracking-tight">
+                    {businessType ? `Select ${businessType.category?.name || ''} Services` : 'What services do you offer?'}
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5">
                     {businessType
-                        ? `Choose specific ${businessType.category.name.toLowerCase()} services for your ${businessType.name} business`
+                        ? `Choose specific ${(businessType.category?.name || '').toLowerCase()} services for your ${businessType.name} business`
                         : 'Select the main categories for your shop'
                     }
                 </p>
             </div>
 
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center gap-2 text-sm px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
-                {breadcrumb.map((crumb, index) => (
-                    <React.Fragment key={index}>
-                        {index > 0 && <ChevronRight className="h-4 w-4 text-gray-400" />}
-                        <button
-                            onClick={() => handleBreadcrumbClick(index)}
-                            className={cn(
-                                "font-medium transition-colors hover:text-primary",
-                                index === breadcrumb.length - 1 ? "text-primary" : "text-gray-600"
-                            )}
-                        >
-                            {index === 0 ? <Home className="h-4 w-4 inline" /> : crumb.name}
-                        </button>
-                    </React.Fragment>
-                ))}
-            </div>
-
-            {/* Selected Categories Count */}
-            {selectedCategoryIds.length > 0 && (
-                <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-center">
-                    <span className="text-primary font-medium">
-                        {selectedCategoryIds.length} {selectedCategoryIds.length === 1 ? 'category' : 'categories'} selected
-                    </span>
+            {/* Breadcrumb Navigation & Selection Count */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-gray-50/50 rounded-xl border border-gray-100">
+                <div className="flex items-center gap-1.5 text-xs">
+                    {breadcrumb.map((crumb, index) => (
+                        <React.Fragment key={index}>
+                            {index > 0 && <ChevronRight className="h-3.5 w-3.5 text-gray-400" />}
+                            <button
+                                onClick={() => handleBreadcrumbClick(index)}
+                                className={cn(
+                                    "font-semibold transition-colors hover:text-primary flex items-center gap-1",
+                                    index === breadcrumb.length - 1 ? "text-primary" : "text-gray-500"
+                                )}
+                            >
+                                {index === 0 ? <Home className="h-3.5 w-3.5" /> : crumb.name}
+                            </button>
+                        </React.Fragment>
+                    ))}
                 </div>
-            )}
+
+                {selectedCategoryIds.length > 0 && (
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full shadow-sm">
+                        {selectedCategoryIds.length} {selectedCategoryIds.length === 1 ? 'service' : 'services'} selected
+                    </span>
+                )}
+            </div>
 
             {/* Categories Grid */}
             {loading ? (
                 <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
             ) : currentCategories.length === 0 ? (
                 <div className="text-center py-12">
-                    <p className="text-gray-500">No categories found</p>
+                    <p className="text-xs text-gray-400 font-semibold">No categories found</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
                     {currentCategories.map((category) => {
                         const isSelectable = isSelectableCategory();
                         const isSelected = selectedCategoryIds.includes(category.id);
@@ -184,15 +183,15 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
                                 key={category.id}
                                 onClick={() => handleCategoryClick(category)}
                                 className={cn(
-                                    "relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer h-36",
+                                    "relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer h-[110px] select-none shadow-sm hover:scale-[1.01] active:scale-[0.99]",
                                     isSelected && isSelectable
-                                        ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary"
-                                        : "border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm"
+                                        ? "border-primary bg-primary/[0.03] ring-1 ring-primary/30"
+                                        : "border-gray-100 bg-white hover:border-primary/40 hover:bg-gray-50/50"
                                 )}
                             >
                                 {/* Category Image */}
                                 {category.image_url && (
-                                    <div className="w-16 h-16 rounded-lg overflow-hidden mb-2 bg-gray-100">
+                                    <div className="w-11 h-11 rounded-lg overflow-hidden mb-2 bg-gray-50 border border-gray-100 flex-shrink-0">
                                         <img
                                             src={category.image_url}
                                             alt={category.name}
@@ -203,7 +202,7 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
 
                                 {/* Category Name */}
                                 <span className={cn(
-                                    "font-medium text-sm text-center line-clamp-2",
+                                    "font-bold text-xs text-center line-clamp-2 px-1",
                                     isSelected && isSelectable ? "text-primary" : "text-gray-700"
                                 )}>
                                     {category.name}
@@ -211,14 +210,14 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
 
                                 {/* Indicator for expandable categories (only at root level) */}
                                 {canExpand && (
-                                    <ChevronRight className="absolute top-2 right-2 h-4 w-4 text-gray-400" />
+                                    <ChevronRight className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-gray-400" />
                                 )}
 
                                 {/* Selection Checkmark (for subcategories at level 2) */}
                                 {isSelected && isSelectable && (
-                                    <div className="absolute top-2 right-2 bg-primary rounded-full p-1">
-                                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    <div className="absolute top-1.5 right-1.5 bg-primary rounded-full p-0.5 shadow-sm">
+                                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
                                         </svg>
                                     </div>
                                 )}
@@ -228,18 +227,27 @@ const CategoriesStep: React.FC<CategoriesStepProps> = ({ data, updateData, onNex
                 </div>
             )}
 
-            <div className="text-center">
-                <p className="text-sm text-gray-500">
-                    Don't see your category? <a href="#" className="text-primary font-medium hover:underline">Request New Category</a>
+            <div className="text-center pt-2">
+                <p className="text-[11px] text-gray-400">
+                    Don't see your category? <a href="#" className="text-primary font-bold hover:underline transition-colors">Request New Category</a>
                 </p>
             </div>
 
-            <div className="flex justify-between pt-8 border-t border-gray-100">
-                <Button variant="ghost" onClick={onBack} className="text-gray-600 hover:text-gray-900">
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onBack}
+                    className="h-9 text-xs font-semibold text-gray-500 hover:text-gray-900 flex items-center gap-1"
+                >
+                    <ArrowLeft className="h-3.5 w-3.5" /> Back
                 </Button>
-                <Button onClick={handleNext} className="bg-primary hover:bg-primary/90 text-white min-w-[120px]">
-                    Next Step <ArrowRight className="ml-2 h-4 w-4" />
+                <Button
+                    size="sm"
+                    onClick={handleNext}
+                    className="h-9 bg-primary hover:bg-primary/95 text-white font-semibold text-xs px-5 shadow-sm shadow-primary/10 transition-all flex items-center gap-1"
+                >
+                    Next Step <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
             </div>
         </div>
