@@ -239,7 +239,7 @@ const ReviewStep: React.FC<ReviewStepProps> = ({ data, onBack, onEditSection, us
                 <div className="flex items-start gap-2.5 mb-4">
                     <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(checked as boolean)} className="mt-0.5" />
                     <label htmlFor="terms" className="text-xs text-gray-500 leading-relaxed cursor-pointer font-medium select-none">
-                        I agree to wService's <a href="#" className="text-primary hover:underline font-semibold">Terms of Service</a> and <a href="#" className="text-primary hover:underline font-semibold">Privacy Policy</a>.
+                        I agree to wFixma's <a href="#" className="text-primary hover:underline font-semibold">Terms of Service</a> and <a href="#" className="text-primary hover:underline font-semibold">Privacy Policy</a>.
                         I confirm that the information provided is accurate.
                     </label>
                 </div>

@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/AuthContext';
 import { useInvoiceApi, Invoice } from '@/pages/serviceAPI/InvoiceAPI';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTable, Column } from '@/components/ui/table/datatable';
 import {
@@ -18,26 +17,23 @@ import {
     Calendar,
     IndianRupee,
     CreditCard,
+    TrendingUp,
+    Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
-    draft: { label: 'Draft', className: 'bg-gray-100 text-gray-600', icon: <Clock className="w-3 h-3" /> },
-    sent: { label: 'Sent', className: 'bg-blue-100 text-blue-700', icon: <MailCheck className="w-3 h-3" /> },
-    paid: { label: 'Paid', className: 'bg-green-100 text-green-700', icon: <CheckCircle2 className="w-3 h-3" /> },
-    cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-600', icon: <XCircle className="w-3 h-3" /> },
+const STATUS_CONFIG: Record<string, { label: string; className: string; dotColor: string; icon: React.ReactNode }> = {
+    draft:     { label: 'Draft',     className: 'bg-amber-50 text-amber-700 border-amber-200',   dotColor: 'bg-amber-400', icon: <Clock className="w-3 h-3" /> },
+    sent:      { label: 'Sent',      className: 'bg-blue-50 text-blue-700 border-blue-200',       dotColor: 'bg-blue-500',  icon: <MailCheck className="w-3 h-3" /> },
+    paid:      { label: 'Paid',      className: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotColor: 'bg-emerald-500', icon: <CheckCircle2 className="w-3 h-3" /> },
+    cancelled: { label: 'Cancelled', className: 'bg-red-50 text-red-700 border-red-200',           dotColor: 'bg-red-500',   icon: <XCircle className="w-3 h-3" /> },
 };
 
 const getStatusConfig = (status: string) =>
-    STATUS_CONFIG[status] ?? { label: status, className: 'bg-gray-100 text-gray-600', icon: null };
+    STATUS_CONFIG[status] ?? { label: status, className: 'bg-gray-50 text-gray-600 border-gray-200', dotColor: 'bg-gray-400', icon: null };
 
-const formatCurrency = (amount: string | number, currency = 'INR') => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    const symbol = currency === 'INR' ? '₹' : currency + ' ';
-    return symbol + num.toFixed(2);
-};
 
 const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return '—';
@@ -47,6 +43,15 @@ const formatDate = (dateStr?: string | null) => {
         });
     } catch { return dateStr; }
 };
+
+// ─── Tab filter config ─────────────────────────────────────────────────────────
+const TAB_FILTERS = [
+    { value: '',          label: 'All',       activeClass: 'border-[#1F80FF] text-[#1F80FF] bg-blue-50/60',  dotClass: 'bg-gray-400' },
+    { value: 'sent',      label: 'Sent',      activeClass: 'border-blue-500 text-blue-700 bg-blue-50/60',    dotClass: 'bg-blue-500' },
+    { value: 'paid',      label: 'Paid',      activeClass: 'border-emerald-500 text-emerald-700 bg-emerald-50/60', dotClass: 'bg-emerald-500' },
+    { value: 'draft',     label: 'Draft',     activeClass: 'border-amber-500 text-amber-700 bg-amber-50/60',  dotClass: 'bg-amber-400' },
+    { value: 'cancelled', label: 'Cancelled', activeClass: 'border-red-500 text-red-700 bg-red-50/60',       dotClass: 'bg-red-500' },
+];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -84,7 +89,6 @@ const InvoicesListPage = () => {
 
     const canResend = isShopOwner || isSuperAdmin;
 
-    // Search blob mapping for DataTable internal search
     const mappedInvoices = useMemo(() => {
         return invoices.map((inv) => ({
             ...inv,
@@ -92,24 +96,74 @@ const InvoicesListPage = () => {
         }));
     }, [invoices]);
 
-    // DataTable columns definition
+    // ── Revenue stats ──
+    const paidInvoices = invoices.filter(i => i.status === 'paid');
+    const sentInvoices = invoices.filter(i => i.status === 'sent');
+    const totalRevenue = paidInvoices.reduce((s, i) => s + parseFloat(String(i.total_amount)), 0);
+    const pendingRevenue = sentInvoices.reduce((s, i) => s + parseFloat(String(i.total_amount)), 0);
+
+    // ── Stats cards ──
+    const statsCards = [
+        {
+            label: 'Total Invoices',
+            value: totalCount,
+            icon: <Layers className="w-4 h-4" />,
+            gradient: 'from-blue-500 to-blue-600',
+            bg: 'bg-blue-50',
+            text: 'text-blue-700',
+            border: 'border-blue-100',
+            subtxt: `${invoices.length} loaded`,
+        },
+        {
+            label: 'Sent',
+            value: sentInvoices.length,
+            icon: <MailCheck className="w-4 h-4" />,
+            gradient: 'from-indigo-500 to-indigo-600',
+            bg: 'bg-indigo-50',
+            text: 'text-indigo-700',
+            border: 'border-indigo-100',
+            subtxt: 'Awaiting payment',
+        },
+        {
+            label: 'Paid',
+            value: paidInvoices.length,
+            icon: <CheckCircle2 className="w-4 h-4" />,
+            gradient: 'from-emerald-500 to-emerald-600',
+            bg: 'bg-emerald-50',
+            text: 'text-emerald-700',
+            border: 'border-emerald-100',
+            subtxt: 'Completed',
+        },
+        {
+            label: 'Revenue',
+            value: '₹' + totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 }),
+            icon: <TrendingUp className="w-4 h-4" />,
+            gradient: 'from-pink-500 to-rose-500',
+            bg: 'bg-pink-50',
+            text: 'text-pink-700',
+            border: 'border-pink-100',
+            subtxt: pendingRevenue > 0 ? `₹${pendingRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })} pending` : 'All collected',
+        },
+    ];
+
+    // ── DataTable columns ──
     const columns: Column<Invoice>[] = useMemo(() => {
         const cols: Column<Invoice>[] = [
             {
                 key: 'invoice_number',
-                title: 'Invoice #',
+                title: 'Invoice',
                 dataIndex: 'invoice_number',
                 sortable: true,
                 render: (_: any, inv: Invoice) => (
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <FileText className="w-4 h-4 text-primary" />
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 bg-gradient-to-br from-[#1F80FF] to-[#0055cc] rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <FileText className="w-3.5 h-3.5 text-white" />
                         </div>
                         <div>
-                            <p className="font-semibold text-gray-900 text-xs font-mono tracking-tight">
+                            <p className="font-bold text-gray-900 text-xs font-mono tracking-tight">
                                 {inv.invoice_number}
                             </p>
-                            <p className="text-[10px] text-gray-400">SR #{inv.service_id}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">SR #{inv.service_id}</p>
                         </div>
                     </div>
                 )
@@ -120,7 +174,9 @@ const InvoicesListPage = () => {
                     title: 'Customer',
                     render: (_: any, inv: Invoice) => (
                         <div className="flex items-center gap-2">
-                            <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <div className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <User className="w-3.5 h-3.5 text-gray-500" />
+                            </div>
                             <div>
                                 <p className="font-semibold text-gray-900 text-xs leading-tight">
                                     {inv.customer?.name ?? '—'}
@@ -135,8 +191,8 @@ const InvoicesListPage = () => {
                 key: 'device',
                 title: 'Device',
                 render: (_: any, inv: Invoice) => (
-                    <div className="flex items-center gap-2">
-                        <Smartphone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <div className="flex items-center gap-1.5">
+                        <Smartphone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                         <span className="text-xs text-gray-700 font-medium">
                             {inv.service?.product?.name ?? inv.service?.brand?.name ?? '—'}
                         </span>
@@ -147,8 +203,8 @@ const InvoicesListPage = () => {
                 key: 'date',
                 title: 'Date',
                 render: (_: any, inv: Invoice) => (
-                    <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                         <div>
                             <p className="text-xs text-gray-600 font-medium">{formatDate(inv.created_at)}</p>
                             {inv.sent_at && (
@@ -160,12 +216,15 @@ const InvoicesListPage = () => {
             },
             {
                 key: 'total',
-                title: 'Total',
+                title: 'Amount',
                 align: 'right' as const,
                 render: (_: any, inv: Invoice) => (
-                    <span className="font-bold text-gray-900 text-xs">
-                        {formatCurrency(inv.total_amount, inv.currency)}
-                    </span>
+                    <div className="flex items-center gap-1 justify-end">
+                        <IndianRupee className="w-3 h-3 text-gray-400" />
+                        <span className="font-black text-gray-900 text-xs">
+                            {parseFloat(String(inv.total_amount)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
                 )
             },
             {
@@ -175,10 +234,10 @@ const InvoicesListPage = () => {
                 render: (_: any, inv: Invoice) => {
                     const sc = getStatusConfig(inv.status);
                     return (
-                        <Badge className={`${sc.className} gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-sm`}>
-                            {sc.icon}
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold ${sc.className}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${sc.dotColor}`} />
                             {sc.label}
-                        </Badge>
+                        </span>
                     );
                 }
             },
@@ -194,10 +253,10 @@ const InvoicesListPage = () => {
                                 id={`view-invoice-${inv.id}`}
                                 variant="outline"
                                 size="sm"
-                                className="h-5 px-1.5 text-[9px] gap-0.5"
+                                className="h-7 px-2.5 text-[10px] gap-1 rounded-lg border-gray-200 hover:border-[#1F80FF] hover:text-[#1F80FF] hover:bg-blue-50 font-semibold transition-all"
                                 onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
                             >
-                                <Eye className="w-2.5 h-2.5" />
+                                <Eye className="w-3 h-3" />
                                 View
                             </Button>
                             {canResend && inv.status !== 'paid' && (
@@ -205,11 +264,11 @@ const InvoicesListPage = () => {
                                     id={`resend-invoice-${inv.id}`}
                                     variant="ghost"
                                     size="sm"
-                                    className="h-5 px-1.5 text-[9px] gap-0.5 text-blue-600 hover:bg-blue-50"
+                                    className="h-7 px-2.5 text-[10px] gap-1 rounded-lg text-blue-600 hover:bg-blue-50 font-semibold transition-all"
                                     disabled={isResending}
                                     onClick={() => handleResend(inv)}
                                 >
-                                    <Send className="w-2.5 h-2.5" />
+                                    <Send className="w-3 h-3" />
                                     Resend
                                 </Button>
                             )}
@@ -217,10 +276,10 @@ const InvoicesListPage = () => {
                                 <Button
                                     id={`pay-invoice-${inv.id}`}
                                     size="sm"
-                                    className="h-5 px-1.5 text-[9px] gap-0.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                    className="h-7 px-2.5 text-[10px] gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-sm font-bold transition-all"
                                     onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
                                 >
-                                    <CreditCard className="w-2.5 h-2.5" />
+                                    <CreditCard className="w-3 h-3" />
                                     Pay Now
                                 </Button>
                             )}
@@ -233,79 +292,43 @@ const InvoicesListPage = () => {
     }, [isCustomer, canResend, resendMutation.isPending]);
 
     return (
-        <div className="p-0 space-y-6">
+        <div className="p-0 space-y-5">
 
             {/* ── Page Header ── */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b pb-5">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-5 border-b border-gray-100">
                 <div>
-                    <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-primary" />
-                        {isCustomer ? 'My Invoices' : 'Invoices'}
-                    </h1>
-                    <p className="text-xs text-gray-500 mt-1">
-                        {isCustomer
-                            ? 'View and pay your service invoices'
-                            : 'Manage and send invoices to customers'}
-                    </p>
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 bg-gradient-to-br from-[#1F80FF] to-[#0055cc] rounded-xl flex items-center justify-center shadow-sm">
+                            <FileText className="w-4.5 h-4.5 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-extrabold text-gray-900 tracking-tight leading-tight">
+                                {isCustomer ? 'My Invoices' : 'Invoices'}
+                            </h1>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                                {isCustomer
+                                    ? 'View and pay your service invoices'
+                                    : 'Manage and send invoices to customers'}
+                            </p>
+                        </div>
+                    </div>
                 </div>
+
+                {/* ── Stats Cards ── */}
                 {!isCustomer && (
-                    <div className="flex flex-wrap gap-2.5 items-center">
-                        {[
-                            {
-                                label: 'Total Invoices',
-                                value: totalCount,
-                                textColor: 'text-gray-900',
-                                borderClass: 'border-indigo-100 hover:border-indigo-300',
-                                iconBg: 'bg-indigo-50',
-                                iconColor: 'text-indigo-600',
-                                labelColor: 'text-indigo-600',
-                                icon: <FileText className="w-4 h-4" />
-                            },
-                            {
-                                label: 'Sent',
-                                value: invoices.filter(i => i.status === 'sent').length,
-                                textColor: 'text-gray-900',
-                                borderClass: 'border-blue-100 hover:border-blue-300',
-                                iconBg: 'bg-blue-50',
-                                iconColor: 'text-blue-600',
-                                labelColor: 'text-blue-600',
-                                icon: <MailCheck className="w-4 h-4" />
-                            },
-                            {
-                                label: 'Paid',
-                                value: invoices.filter(i => i.status === 'paid').length,
-                                textColor: 'text-gray-900',
-                                borderClass: 'border-emerald-100 hover:border-emerald-300',
-                                iconBg: 'bg-emerald-50',
-                                iconColor: 'text-emerald-600',
-                                labelColor: 'text-emerald-600',
-                                icon: <CheckCircle2 className="w-4 h-4" />
-                            },
-                            {
-                                label: 'Revenue',
-                                value: '₹' + invoices.filter(i => i.status === 'paid').reduce((s, i) => s + parseFloat(String(i.total_amount)), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }),
-                                textColor: 'text-gray-900',
-                                borderClass: 'border-pink-100 hover:border-pink-300',
-                                iconBg: 'bg-pink-50',
-                                iconColor: 'text-pink-600',
-                                labelColor: 'text-pink-600',
-                                icon: <IndianRupee className="w-4 h-4" />
-                            },
-                        ].map(({ label, value, textColor, borderClass, iconBg, iconColor, labelColor, icon }) => (
+                    <div className="flex flex-wrap gap-2 items-center">
+                        {statsCards.map(({ label, value, icon, bg, text, border, subtxt }) => (
                             <div
                                 key={label}
-                                className={`flex items-center bg-white border rounded-xl p-2 px-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer min-w-[130px] ${borderClass}`}
+                                className={`flex items-center gap-3 bg-white border rounded-xl px-3.5 py-2.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default min-w-[130px] ${border}`}
                             >
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bg} ${text}`}>
                                     {icon}
                                 </div>
-                                <div className="flex flex-col items-start ml-2.5 leading-tight">
-                                    <p className={`text-[9px] font-bold uppercase tracking-wider ${labelColor}`}>
-                                        {label}
-                                    </p>
-                                    <p className={`text-sm font-extrabold mt-0.5 ${textColor}`}>
-                                        {value}
-                                    </p>
+                                <div className="leading-tight">
+                                    <p className={`text-[9px] font-bold uppercase tracking-wider ${text}`}>{label}</p>
+                                    <p className="text-sm font-extrabold text-gray-900 mt-0.5">{value}</p>
+                                    <p className="text-[9px] text-gray-400">{subtxt}</p>
                                 </div>
                             </div>
                         ))}
@@ -313,31 +336,36 @@ const InvoicesListPage = () => {
                 )}
             </div>
 
-            {/* ── Status Tabs ── */}
-            <div className="flex justify-start border-b border-gray-100 pb-1">
-                <div className="flex gap-1.5 flex-wrap">
-                    {['', 'sent', 'paid', 'draft', 'cancelled'].map((s) => {
-                        const count = s === '' 
-                            ? totalCount 
-                            : invoices.filter(i => i.status === s).length;
-                        return (
-                            <button
-                                key={s}
-                                onClick={() => { setStatusFilter(s); setPage(1); }}
-                                className={`px-3 py-1.5 rounded-t-lg text-xs font-semibold border-b-2 transition-all ${
-                                    statusFilter === s
-                                        ? 'border-primary text-primary bg-primary/5'
-                                        : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-200'
-                                }`}
-                            >
-                                {s === '' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-                                <span className="ml-1.5 text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
-                                    {count}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
+            {/* ── Status Filter Tabs ── */}
+            <div className="flex justify-start gap-1 border-b border-gray-100 pb-0">
+                {TAB_FILTERS.map((tab) => {
+                    const count = tab.value === ''
+                        ? totalCount
+                        : invoices.filter(i => i.status === tab.value).length;
+                    const isActive = statusFilter === tab.value;
+                    return (
+                        <button
+                            key={tab.value}
+                            id={`filter-tab-${tab.value || 'all'}`}
+                            onClick={() => { setStatusFilter(tab.value); setPage(1); }}
+                            className={`relative flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all duration-200 ${
+                                isActive
+                                    ? tab.activeClass
+                                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                            } rounded-t-lg`}
+                        >
+                            {isActive && tab.value && (
+                                <span className={`w-1.5 h-1.5 rounded-full ${tab.dotClass}`} />
+                            )}
+                            {tab.label}
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                isActive ? 'bg-white/80 text-gray-700' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                                {count}
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* ── Data Table ── */}

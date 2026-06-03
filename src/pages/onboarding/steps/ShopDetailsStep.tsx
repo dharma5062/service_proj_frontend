@@ -107,7 +107,7 @@ const ShopDetailsStep: React.FC<ShopDetailsStepProps> = ({ data, updateData, onN
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <div className="mb-4">
                 <h2 className="text-base font-bold text-gray-900 tracking-tight">Tell us about your shop</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Please provide the basic details to get your shop listed on wService.</p>
+                <p className="text-xs text-gray-500 mt-0.5">Please provide the basic details to get your shop listed on wFixma.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-5">

@@ -31,26 +31,20 @@ import {
     useShopCategoryFormsApi,
 } from '@/pages/serviceAPI/ShopCategoryFormsAPI';
 import { useShopEmployeesApi } from '@/pages/serviceAPI/ShopEmployeesAPI';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<string, string> = {
-    in_progress: 'bg-primary/10 text-primary',
-    pending: 'bg-yellow-100 text-yellow-700',
-    assigned: 'bg-blue-100 text-blue-700',
-    accepted: 'bg-indigo-100 text-indigo-700',
-    waiting_parts: 'bg-amber-100 text-amber-700',
-    ready: 'bg-teal-100 text-teal-700',
-    completed: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700',
+    pending: 'bg-orange-100 text-orange-700 border border-orange-200',
+    assigned: 'bg-blue-100 text-blue-700 border border-blue-200',
+    accepted: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+    waiting_parts: 'bg-amber-100 text-amber-700 border border-amber-200',
+    in_progress: 'bg-purple-100 text-purple-700 border border-purple-200',
+    ready: 'bg-teal-100 text-teal-700 border border-teal-200',
+    completed: 'bg-green-100 text-green-700 border border-green-200',
+    paid: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+    cancelled: 'bg-red-100 text-red-700 border border-red-200',
 };
 
 const getStatusStyle = (status?: string) => {
@@ -148,10 +142,11 @@ const ViewServiceRequest = () => {
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const { isSuperAdmin, isShopOwner, isCustomer, isShopEmployee, hasPermission } = useAuth();
 
-    const { useGetServiceRequestById, useAssignTechnician, useGetServiceRequestActivities } = useServiceRequestsApi();
+    const { useGetServiceRequestById, useGetServiceRequestActivities, useUpdateServiceRequest } = useServiceRequestsApi();
     const { useGenerateInvoice, useResendInvoice } = useInvoiceApi();
     const generateInvoiceMutation = useGenerateInvoice();
     const resendInvoiceMutation = useResendInvoice();
+    const updateServiceRequestMutation = useUpdateServiceRequest();
     const { useGetCategoryForms } = useShopCategoryFormsApi();
     const { useGetShopEmployees } = useShopEmployeesApi();
 
@@ -159,37 +154,30 @@ const ViewServiceRequest = () => {
     const { data: service, isLoading: loading } = useGetServiceRequestById(numericId);
     const { data: activities = [] } = useGetServiceRequestActivities(numericId);
     const { data: categoryForms = [] } = useGetCategoryForms();
-    const { data: employeesData } = useGetShopEmployees({ per_page: 100 });
+    useGetShopEmployees({ per_page: 100 });
     
-    const assignMutation = useAssignTechnician();
 
-    const [isAssigning, setIsAssigning] = useState(false);
-    const [selectedTechId, setSelectedTechId] = useState<string>('');
-    const [isChangingTech, setIsChangingTech] = useState(false);
+    const [] = useState(false);
+    const [] = useState<string>('');
+    const [isChangingTech] = useState(false);
 
     const canChangeTechnician = (isSuperAdmin || isShopOwner) && service?.service_status?.toLowerCase() !== 'completed' && service?.status?.toLowerCase() !== 'completed';
 
-    // Allow all shop employees to be assigned, as roles are fully customizable
-    const technicians = employeesData?.data || [];
-
-    const handleAssignTechnician = async () => {
-        if (!selectedTechId || !numericId) return;
-        
-        setIsAssigning(true);
+    const handleAccept = async () => {
+        if (!service) return;
         try {
-            await assignMutation.mutateAsync({
-                service_id: numericId,
-                user_id: Number(selectedTechId)
+            await updateServiceRequestMutation.mutateAsync({
+                id: service.id,
+                payload: {
+                    customer_id: service.customer_id || service.customer?.id || 0,
+                    service_status: 'accepted',
+                }
             });
-            toast.success('Technician assigned successfully');
-            setIsChangingTech(false);
-            setSelectedTechId('');
-            // The query will automatically invalidate and refresh the details
-            // navigate('/dashboard/services'); // Stay on the page to see the details
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to assign technician');
-        } finally {
-            setIsAssigning(false);
+            toast.success('Service request accepted and marked as Diagnosis Started!');
+        } catch (error) {
+            toast.error('Failed to accept service request', {
+                description: error instanceof Error ? error.message : 'Unknown error',
+            });
         }
     };
 
@@ -353,16 +341,28 @@ const ViewServiceRequest = () => {
                         </p>
                     </div>
                 </div>
-                {(canChangeTechnician || (isShopEmployee && hasPermission('service.update'))) && (
-                    <Button
-                        size="sm"
-                        onClick={() => navigate(`/dashboard/services/edit/${service.id}`)}
-                        className="h-8 gap-1.5"
-                    >
-                        <Pencil className="w-3.5 h-3.5" />
-                        Edit
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    {isShopEmployee && status === 'assigned' && (
+                        <Button
+                            size="sm"
+                            onClick={handleAccept}
+                            className="h-8 gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Accept Request
+                        </Button>
+                    )}
+                    {(canChangeTechnician || (isShopEmployee && hasPermission('service.update'))) && (
+                        <Button
+                            size="sm"
+                            onClick={() => navigate(`/dashboard/services/edit/${service.id}`)}
+                            className="h-8 gap-1.5"
+                        >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Edit
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* ── Estimation Banner — visible to all roles ── */}
@@ -730,10 +730,7 @@ const ViewServiceRequest = () => {
                                             variant="outline" 
                                             size="sm" 
                                             className="w-full text-xs h-8 border-dashed hover:border-primary/40 hover:text-primary"
-                                            onClick={() => {
-                                                setSelectedTechId(String(service.assigned_technician?.id || ''));
-                                                setIsChangingTech(true);
-                                            }}
+                                            onClick={() => navigate(`/dashboard/services/assign-technician/${service.id}`)}
                                         >
                                             Change Technician
                                         </Button>
@@ -741,45 +738,14 @@ const ViewServiceRequest = () => {
                                 </div>
                             ) : (
                                 canChangeTechnician ? (
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <p className="text-xs text-gray-500">
-                                                {isChangingTech ? 'Select a different technician for this request.' : 'Assign a technician to work on this request.'}
-                                            </p>
-                                            <div className="flex gap-2">
-                                                <Select 
-                                                    value={selectedTechId} 
-                                                    onValueChange={setSelectedTechId}
-                                                >
-                                                    <SelectTrigger className="w-full h-9 text-xs">
-                                                        <SelectValue placeholder="Select Technician" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {technicians.map((tech) => (
-                                                            <SelectItem key={tech.id} value={String(tech.id)} className="text-xs">
-                                                                {tech.name} ({tech.role})
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                {isChangingTech && (
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
-                                                        className="h-9 w-9 text-gray-400"
-                                                        onClick={() => setIsChangingTech(false)}
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
+                                    <div className="text-center py-5 bg-gray-50 rounded-lg border border-dashed">
+                                        <User className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                                        <p className="text-xs text-gray-500 font-medium mb-3">No technician assigned yet</p>
                                         <Button 
-                                            className="w-full h-8 text-xs bg-primary hover:bg-primary/90" 
-                                            onClick={handleAssignTechnician}
-                                            disabled={!selectedTechId || isAssigning || (isChangingTech && selectedTechId === String(service.assigned_technician?.id))}
+                                            className="h-8 text-xs bg-primary hover:bg-primary/90" 
+                                            onClick={() => navigate(`/dashboard/services/assign-technician/${service.id}`)}
                                         >
-                                            {isAssigning ? 'Assigning...' : isChangingTech ? 'Update Assignment' : 'Assign Technician'}
+                                            Assign Technician
                                         </Button>
                                     </div>
                                 ) : (
@@ -969,6 +935,9 @@ const ViewServiceRequest = () => {
                                         } else if (activity.activity_type === 'charges_added') {
                                             icon = <Tag className="w-2.5 h-2.5 text-purple-600" />;
                                             iconBg = "bg-purple-50 text-purple-600 border-purple-200";
+                                        } else if (activity.activity_type === 'technician_assigned') {
+                                            icon = <User className="w-2.5 h-2.5 text-indigo-600" />;
+                                            iconBg = "bg-indigo-50 text-indigo-600 border-indigo-200";
                                         }
 
                                         // Customer-friendly details mappings

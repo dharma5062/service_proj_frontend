@@ -429,3 +429,119 @@
 .recharts-wrapper * {
   outline: none !important;
 }
+
+/* ===========================
+   INVOICE PRINT / PDF STYLES
+   =========================== */
+
+@media print {
+  /* Hide everything except the invoice document */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Show only the invoice document */
+  #invoice-document,
+  #invoice-document * {
+    visibility: visible !important;
+  }
+
+  #invoice-document {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 2cm 2.2cm !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    font-size: 11pt !important;
+    color: #111 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page settings */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  /* Remove the colored gradient header bg */
+  #invoice-document .print\:hidden {
+    display: none !important;
+  }
+
+  /* Typography */
+  #invoice-document h2 {
+    font-size: 20pt;
+    font-weight: 900;
+  }
+
+  #invoice-document h3, #invoice-document h4 {
+    font-size: 10pt;
+    letter-spacing: 0.1em;
+  }
+
+  /* Table print tweaks */
+  #invoice-document table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  #invoice-document thead tr {
+    border-bottom: 2px solid #374151 !important;
+  }
+
+  #invoice-document th {
+    background: transparent !important;
+    color: #374151 !important;
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 8px !important;
+    border-bottom: 1px solid #d1d5db !important;
+  }
+
+  #invoice-document td {
+    padding: 6px 8px !important;
+    font-size: 10pt;
+    border-bottom: 1px solid #f3f4f6 !important;
+  }
+
+  #invoice-document tbody tr:last-child td {
+    border-bottom: 1px solid #d1d5db !important;
+  }
+
+  /* Totals section */
+  #invoice-document .print\:border-t-2 {
+    border-top: 2px solid #374151 !important;
+  }
+
+  /* Color badges for type - simplified for print */
+  #invoice-document .rounded-full {
+    background: transparent !important;
+    color: #374151 !important;
+    padding: 0 !important;
+  }
+
+  /* Remove box shadows / rounded corners on print */
+  #invoice-document .rounded-xl,
+  #invoice-document .rounded-lg,
+  #invoice-document .shadow-sm,
+  #invoice-document .shadow-md {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Total row - blue gradient becomes bordered box */
+  #invoice-document .from-\[\#1F80FF\] {
+    background: transparent !important;
+    border-top: 2px solid #374151 !important;
+    color: #111 !important;
+    padding: 8px 0 !important;
+  }
+}

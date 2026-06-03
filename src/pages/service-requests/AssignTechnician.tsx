@@ -75,7 +75,7 @@ const AssignTechnician = () => {
             return;
         }
 
-        // If the technician is already assigned and hasn't changed, just navigate to the view page
+        // If the technician is already assigned and hasn't changed, just navigate back
         if (service?.assigned_technician?.id?.toString() === selectedTechId) {
             navigate('/dashboard/services');
             return;
@@ -88,7 +88,7 @@ const AssignTechnician = () => {
                 admin_note: description
             });
             toast.success('Technician assigned successfully');
-            // After assignment, redirect to the Service Requests list
+            // After assignment, redirect back to the service list page
             navigate('/dashboard/services');
         } catch (error) {
             toast.error('Failed to assign technician');
@@ -120,7 +120,7 @@ const AssignTechnician = () => {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => navigate('/dashboard/services')}
+                        onClick={() => navigate(`/dashboard/services/view/${numericId}`)}
                         className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4 text-gray-600" />

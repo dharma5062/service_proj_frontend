@@ -11,7 +11,7 @@ const OnboardingHeader = () => {
                         </svg>
                     </div>
                     <div>
-                        <span className="font-bold text-lg text-gray-900 tracking-tight">wService</span>
+                        <span className="font-bold text-lg text-gray-900 tracking-tight">wFixma</span>
                         <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600 rounded">Partner Portal</span>
                     </div>
                 </div>

@@ -15,6 +15,7 @@ export interface PublicInvoiceData {
   customer_phone: string;
   shop_name: string;
   device_name: string;
+  payments?: any[];
 }
 
 export interface VerifyTokenResponse {
@@ -26,7 +27,7 @@ export interface VerifyTokenResponse {
 
 export interface InitiatePaymentPayload {
   token: string;
-  gateway: 'razorpay' | 'cashfree';
+  gateway: 'razorpay' | 'cashfree' | 'cash_in_hand';
 }
 
 export interface InitiateRazorpayResponse {
@@ -46,11 +47,17 @@ export interface InitiateCashfreeResponse {
   env: 'sandbox' | 'production';
 }
 
-export type InitiatePaymentResponse = InitiateRazorpayResponse | InitiateCashfreeResponse;
+export interface InitiateCashInHandResponse {
+  status: boolean;
+  gateway: 'cash_in_hand';
+  message: string;
+}
+
+export type InitiatePaymentResponse = InitiateRazorpayResponse | InitiateCashfreeResponse | InitiateCashInHandResponse;
 
 export interface VerifyPaymentPayload {
   token: string;
-  gateway: 'razorpay' | 'cashfree';
+  gateway: 'razorpay' | 'cashfree' | 'cash_in_hand';
   razorpay_order_id?: string;
   razorpay_payment_id?: string;
   razorpay_signature?: string;
@@ -81,6 +88,11 @@ export const verifyPayment = async (payload: VerifyPaymentPayload): Promise<Veri
   return response.data;
 };
 
+export const approveCashPayment = async (invoiceId: number): Promise<{ status: boolean; message: string }> => {
+  const response = await axiosInstance.post(`/invoice/${invoiceId}/approve-cash`);
+  return response.data;
+};
+
 // ==========================================
 // Hooks
 // ==========================================
@@ -102,5 +114,11 @@ export const useInitiatePayment = () => {
 export const useVerifyPayment = () => {
   return useMutation({
     mutationFn: verifyPayment,
+  });
+};
+
+export const useApproveCashPayment = () => {
+  return useMutation({
+    mutationFn: approveCashPayment,
   });
 };

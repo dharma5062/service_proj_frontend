@@ -883,18 +883,16 @@ const CreateServiceRequest = () => {
                 service_details: JSON.stringify(serviceDetails),
                 data: JSON.stringify(dataPayload),
                 admin_note: adminNotePayload,
-                service_status: 'pending',
+                service_status: isEditMode && existingServiceRequest?.service_status 
+                    ? existingServiceRequest.service_status 
+                    : 'pending',
                 images: imageFiles.length > 0 ? imageFiles : undefined,
             };
 
             if (isEditMode && id) {
                 await updateServiceRequestMutation.mutateAsync({ id, payload });
                 toast.success('Service request updated successfully');
-                if (isShopEmployee) {
-                    navigate('/dashboard/services');
-                } else {
-                    navigate(`/dashboard/services/assign-technician/${id}`);
-                }
+                navigate('/dashboard/services');
             } else {
                 const response = await createServiceRequestMutation.mutateAsync(payload);
                 toast.success('Service request created successfully');

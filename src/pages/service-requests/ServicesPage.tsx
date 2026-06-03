@@ -82,8 +82,15 @@ const ServicesPage = () => {
         let result = [...rawServiceRequests];
 
         // 1. Permission-based filtering
+        // Fix #5: SE with service.update permission sees ALL shop SRs (backend already scopes to their shops).
+        // SE without service.update sees ONLY their personally assigned SRs.
         if (isShopEmployee && user?.id) {
-            result = result.filter(req => req.assigned_technician?.id === user.id);
+            const canUpdateAll = hasPermission('service.update');
+            if (!canUpdateAll) {
+                // Restricted SE — only show SRs where they are the assigned technician
+                result = result.filter(req => req.assigned_technician?.id === user.id);
+            }
+            // Else: SE has update permission — show all shop SRs (backend scoped)
         } else if (isCustomer && user?.id) {
             result = result.filter(req => req.customer?.id === user.id);
         }
@@ -95,7 +102,7 @@ const ServicesPage = () => {
             _filter_tech: req.assigned_technician ? 'assigned' : 'unassigned',
             _search_blob: `SR${String(req.id).padStart(3, '0')} ${req.customer?.name || ''} ${req.customer?.phone || ''} ${req.assigned_technician?.name || ''} ${req.form?.name || ''} ${req.product?.name || ''} ${req.brand?.name || ''}`.toLowerCase()
         })).sort((a, b) => b.id - a.id);
-    }, [rawServiceRequests, isShopEmployee, isCustomer, user?.id]);
+    }, [rawServiceRequests, isShopEmployee, isCustomer, hasPermission, user?.id]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -152,12 +159,12 @@ const ServicesPage = () => {
                 const images = data?.images || [];
                 if (images.length > 0) {
                     return (
-                        <div className="w-8 h-8 rounded overflow-hidden border border-gray-200 inline-block">
+                        <div className="w-6 h-6 rounded overflow-hidden border border-gray-200 inline-block">
                             <img src={images[0]} alt="inspection" className="w-full h-full object-cover" />
                         </div>
                     );
                 }
-                return <div className="w-8 h-8 rounded bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] text-gray-400 inline-flex">No Img</div>;
+                return <div className="w-6 h-6 rounded bg-gray-50 border border-gray-100 flex items-center justify-center text-[9px] text-gray-400 inline-flex">No Img</div>;
             },
         },
         {
@@ -171,9 +178,9 @@ const ServicesPage = () => {
                 const typeName = formName || details?.serviceType || details?.productType || 'Unknown Defect';
 
                 return (
-                    <div>
-                        <p className="text-xs font-semibold text-gray-900">{capitalizeWords(typeName)}</p>
-                        <p className="text-[10px] text-gray-500 mt-0">SR{String(record.id).padStart(3, '0')}</p>
+                    <div className="leading-tight">
+                        <p className="text-[11px] font-semibold text-gray-900">{capitalizeWords(typeName)}</p>
+                        <p className="text-[9px] text-gray-500 mt-0.5">SR{String(record.id).padStart(3, '0')}</p>
                     </div>
                 );
             },
@@ -187,10 +194,10 @@ const ServicesPage = () => {
                 const customer = record.customer;
                 if (!customer) return <span className="text-xs text-gray-400">-</span>;
                 return (
-                    <div>
-                        <p className="text-xs font-semibold text-gray-900">{capitalizeWords(customer.name)}</p>
+                    <div className="leading-tight">
+                        <p className="text-[11px] font-semibold text-gray-900">{capitalizeWords(customer.name)}</p>
                         {customer.phone && (
-                            <p className="text-[10px] text-gray-500 mt-0">{customer.phone}</p>
+                            <p className="text-[9px] text-gray-500 mt-0.5">{customer.phone}</p>
                         )}
                     </div>
                 );
@@ -210,10 +217,10 @@ const ServicesPage = () => {
                 }
 
                 return (
-                    <div>
-                        <p className="text-xs font-semibold text-gray-900">{capitalizeWords(productName) || '-'}</p>
+                    <div className="leading-tight">
+                        <p className="text-[11px] font-semibold text-gray-900">{capitalizeWords(productName) || '-'}</p>
                         {brandName && (
-                            <p className="text-[10px] text-gray-500 mt-0">{capitalizeWords(brandName)}</p>
+                            <p className="text-[9px] text-gray-500 mt-0.5">{capitalizeWords(brandName)}</p>
                         )}
                     </div>
                 );
@@ -228,10 +235,10 @@ const ServicesPage = () => {
                 const technician = record.assigned_technician;
                 if (!technician) return <span className="text-xs text-gray-400">Not Assigned</span>;
                 return (
-                    <div>
-                        <p className="text-xs font-semibold text-gray-900">{capitalizeWords(technician.name)}</p>
+                    <div className="leading-tight">
+                        <p className="text-[11px] font-semibold text-gray-900">{capitalizeWords(technician.name)}</p>
                         {technician.role && (
-                            <p className="text-[10px] text-primary mt-0 font-medium border border-primary/20 bg-primary/10 px-1.5 py-0 rounded-full inline-block">{capitalizeWords(technician.role)}</p>
+                            <p className="text-[9px] text-primary mt-0.5 font-medium border border-primary/20 bg-primary/10 px-1.5 py-0 rounded-full inline-block">{capitalizeWords(technician.role)}</p>
                         )}
                     </div>
                 );
@@ -249,14 +256,15 @@ const ServicesPage = () => {
                 let colorClass = 'bg-gray-200';
                 let indicatorClass = 'bg-gray-500';
 
-                if (status === 'pending') { progress = 10; colorClass = 'bg-[#C6212C]/20'; indicatorClass = 'bg-[#C6212C]'; }
-                else if (status === 'assigned') { progress = 25; colorClass = 'bg-blue-100'; indicatorClass = 'bg-blue-500'; }
-                else if (status === 'accepted') { progress = 40; colorClass = 'bg-indigo-100'; indicatorClass = 'bg-indigo-500'; }
-                else if (status === 'waiting_parts') { progress = 55; colorClass = 'bg-amber-100'; indicatorClass = 'bg-amber-500'; }
-                else if (status === 'in_progress') { progress = 70; colorClass = 'bg-[#F7B318]/20'; indicatorClass = 'bg-[#F7B318]'; }
-                else if (status === 'ready') { progress = 85; colorClass = 'bg-teal-100'; indicatorClass = 'bg-teal-500'; }
-                else if (status === 'completed') { progress = 100; colorClass = 'bg-green-100'; indicatorClass = 'bg-green-500'; }
-                else if (status === 'cancelled') { progress = 100; colorClass = 'bg-red-100'; indicatorClass = 'bg-red-500'; }
+                if (status === 'pending')            { progress = 10;  colorClass = 'bg-orange-100';  indicatorClass = 'bg-orange-500'; }
+                else if (status === 'assigned')      { progress = 25;  colorClass = 'bg-blue-100';    indicatorClass = 'bg-blue-500'; }
+                else if (status === 'accepted')      { progress = 40;  colorClass = 'bg-indigo-100';  indicatorClass = 'bg-indigo-500'; }
+                else if (status === 'waiting_parts') { progress = 55;  colorClass = 'bg-amber-100';   indicatorClass = 'bg-amber-500'; }
+                else if (status === 'in_progress')   { progress = 70;  colorClass = 'bg-purple-100';  indicatorClass = 'bg-purple-500'; }
+                else if (status === 'ready')         { progress = 85;  colorClass = 'bg-teal-100';    indicatorClass = 'bg-teal-500'; }
+                else if (status === 'completed')     { progress = 100; colorClass = 'bg-green-100';   indicatorClass = 'bg-green-500'; }
+                else if (status === 'paid')          { progress = 100; colorClass = 'bg-emerald-100'; indicatorClass = 'bg-emerald-600'; }
+                else if (status === 'cancelled')     { progress = 100; colorClass = 'bg-red-100';     indicatorClass = 'bg-red-500'; }
 
                 const displayLabel = formatStatusLabel(status);
 
@@ -287,8 +295,8 @@ const ServicesPage = () => {
                 if (data?.selectedServiceCharges && Array.isArray(data.selectedServiceCharges)) {
                     cost = data.selectedServiceCharges.reduce((sum: number, charge: any) => sum + Number(charge.amount || 0), 0);
                 }
-                if (cost === 0) return <span className="text-xs text-gray-400">-</span>;
-                return <span className="text-xs font-bold text-gray-900">₹{cost.toFixed(2)}</span>;
+                if (cost === 0) return <span className="text-[11px] text-gray-400">-</span>;
+                return <span className="text-[11px] font-bold text-gray-900">₹{cost.toFixed(2)}</span>;
             }
         },
         {
@@ -308,34 +316,34 @@ const ServicesPage = () => {
             render: (_, record) => {
                 const status = (record.service_status || record.status || 'pending').toLowerCase();
                 return (
-                    <div className="flex items-center justify-center gap-1.5">
-                        <Button size="sm" variant="ghost" onClick={() => handleView(record)} className="h-6 w-6 p-0 hover:bg-blue-100" title="View Details">
-                            <Eye className="h-3.5 w-3.5 text-blue-600" />
+                    <div className="flex items-center justify-center gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleView(record)} className="h-5 w-5 p-0 hover:bg-blue-100" title="View Details">
+                            <Eye className="h-3 w-3 text-blue-600" />
                         </Button>
 
                         {/* Shop Employee Actions */}
                         {isShopEmployee && status === 'assigned' && (
-                            <Button size="sm" variant="ghost" onClick={() => handleAccept(record)} className="h-6 w-6 p-0 hover:bg-green-100" title="Accept Service Request">
-                                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                            <Button size="sm" variant="ghost" onClick={() => handleAccept(record)} className="h-5 w-5 p-0 hover:bg-green-100" title="Accept Service Request">
+                                <CheckCircle className="h-3 w-3 text-green-600" />
                             </Button>
                         )}
-                        {isShopEmployee && status !== 'completed' && status !== 'cancelled' && (
-                            <Button size="sm" variant="ghost" onClick={() => handleCustomize(record)} className="h-6 w-6 p-0 hover:bg-purple-100" title="Customize Defect Form / Update">
-                                <FileEdit className="h-3.5 w-3.5 text-purple-600" />
+                        {isShopEmployee && status !== 'completed' && status !== 'cancelled' && status !== 'paid' && (
+                            <Button size="sm" variant="ghost" onClick={() => handleCustomize(record)} className="h-5 w-5 p-0 hover:bg-purple-100" title="Customize Defect Form / Update">
+                                <FileEdit className="h-3 w-3 text-purple-600" />
                             </Button>
                         )}
 
                         {/* Standard Edit for SA/SO or generic update */}
                         {!isCustomer && hasPermission('service.update') && !isShopEmployee && (
-                            <Button size="sm" variant="ghost" onClick={() => handleEdit(record)} className="h-6 w-6 p-0 hover:bg-green-100" title="Edit Request">
-                                <Edit className="h-3.5 w-3.5 text-green-600" />
+                            <Button size="sm" variant="ghost" onClick={() => handleEdit(record)} className="h-5 w-5 p-0 hover:bg-green-100" title="Edit Request">
+                                <Edit className="h-3 w-3 text-green-600" />
                             </Button>
                         )}
 
                         {/* Standard Delete */}
                         {!isCustomer && hasPermission('service.delete') && (
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteClick(record)} className="h-6 w-6 p-0 hover:bg-red-100" title="Delete Request">
-                                <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                            <Button size="sm" variant="ghost" onClick={() => handleDeleteClick(record)} className="h-5 w-5 p-0 hover:bg-red-100" title="Delete Request">
+                                <Trash2 className="h-3 w-3 text-red-600" />
                             </Button>
                         )}
                     </div>
@@ -369,8 +377,8 @@ const ServicesPage = () => {
             try {
                 const parsed = JSON.parse(notes);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    notes = parsed[0].internalNotes || JSON.stringify(parsed);
-                } else if (parsed.internalNotes) {
+                    notes = parsed[0].internalNotes !== undefined ? parsed[0].internalNotes : JSON.stringify(parsed);
+                } else if (parsed.internalNotes !== undefined) {
                     notes = parsed.internalNotes;
                 }
             } catch (e) {
@@ -522,9 +530,15 @@ const ServicesPage = () => {
                         label: 'Service Status',
                         type: 'select',
                         options: [
-                            { label: 'Pending', value: 'pending' },
-                            { label: 'In Progress', value: 'in_progress' },
-                            { label: 'Completed', value: 'completed' }
+                            { label: 'Pending',          value: 'pending' },
+                            { label: 'Assigned',         value: 'assigned' },
+                            { label: 'Diagnosis Started',value: 'accepted' },
+                            { label: 'Awaiting Parts',   value: 'waiting_parts' },
+                            { label: 'In Progress',      value: 'in_progress' },
+                            { label: 'Quality Check',    value: 'ready' },
+                            { label: 'Completed',        value: 'completed' },
+                            { label: 'Paid',             value: 'paid' },
+                            { label: 'Cancelled',        value: 'cancelled' },
                         ]
                     },
                     {
@@ -533,7 +547,7 @@ const ServicesPage = () => {
                         type: 'select',
                         options: [
                             { label: 'Unassigned', value: 'unassigned' },
-                            { label: 'Assigned', value: 'assigned' }
+                            { label: 'Assigned',   value: 'assigned' }
                         ]
                     }
                 ]}
