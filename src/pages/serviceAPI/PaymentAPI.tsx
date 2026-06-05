@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axiosInstance';
 
 // ==========================================
@@ -53,7 +53,10 @@ export interface InitiateCashInHandResponse {
   message: string;
 }
 
-export type InitiatePaymentResponse = InitiateRazorpayResponse | InitiateCashfreeResponse | InitiateCashInHandResponse;
+export type InitiatePaymentResponse =
+  | InitiateRazorpayResponse
+  | InitiateCashfreeResponse
+  | InitiateCashInHandResponse;
 
 export interface VerifyPaymentPayload {
   token: string;
@@ -65,6 +68,25 @@ export interface VerifyPaymentPayload {
 }
 
 export interface VerifyPaymentResponse {
+  status: boolean;
+  message: string;
+}
+
+// OTP types
+export interface SendCashOtpResponse {
+  status: boolean;
+  message: string;
+  email_sent: boolean;
+  email_error?: string | null;
+  expires_at?: string;
+}
+
+export interface VerifyCashOtpPayload {
+  invoiceId: number;
+  otp: string;
+}
+
+export interface VerifyCashOtpResponse {
   status: boolean;
   message: string;
 }
@@ -88,6 +110,17 @@ export const verifyPayment = async (payload: VerifyPaymentPayload): Promise<Veri
   return response.data;
 };
 
+export const sendCashOtp = async (invoiceId: number): Promise<SendCashOtpResponse> => {
+  const response = await axiosInstance.post(`/invoice/${invoiceId}/send-cash-otp`);
+  return response.data;
+};
+
+export const verifyCashOtp = async ({ invoiceId, otp }: VerifyCashOtpPayload): Promise<VerifyCashOtpResponse> => {
+  const response = await axiosInstance.post(`/invoice/${invoiceId}/verify-cash-otp`, { otp });
+  return response.data;
+};
+
+// @deprecated — use OTP flow instead
 export const approveCashPayment = async (invoiceId: number): Promise<{ status: boolean; message: string }> => {
   const response = await axiosInstance.post(`/invoice/${invoiceId}/approve-cash`);
   return response.data;
@@ -101,7 +134,7 @@ export const useVerifyPayToken = (token: string) => {
   return useQuery({
     queryKey: ['payToken', token],
     queryFn: () => verifyPayToken(token),
-    retry: false, // Don't retry on 404
+    retry: false,
   });
 };
 
@@ -117,6 +150,29 @@ export const useVerifyPayment = () => {
   });
 };
 
+export const useSendCashOtp = (invoiceId?: number) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => sendCashOtp(invoiceId!),
+    onSuccess: () => {
+      // Refresh invoice data so payment record is up to date
+      queryClient.invalidateQueries({ queryKey: ['invoice', invoiceId] });
+    },
+  });
+};
+
+export const useVerifyCashOtp = (invoiceId?: number) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (otp: string) => verifyCashOtp({ invoiceId: invoiceId!, otp }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoice', invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+};
+
+// @deprecated — kept for backward compat
 export const useApproveCashPayment = () => {
   return useMutation({
     mutationFn: approveCashPayment,

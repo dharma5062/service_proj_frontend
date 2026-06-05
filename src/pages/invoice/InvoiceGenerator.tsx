@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/AuthContext';
 import { useInvoiceApi } from '@/pages/serviceAPI/InvoiceAPI';
 import { useServiceRequestsApi } from '@/pages/serviceAPI/ServiceRequestsAPI';
-import { useApproveCashPayment } from '@/pages/serviceAPI/PaymentAPI';
+import { useSendCashOtp, useVerifyCashOtp } from '@/pages/serviceAPI/PaymentAPI';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,11 @@ import {
     CreditCard,
     Sparkles,
     Banknote,
+    KeyRound,
+    MailCheck,
+    X,
+    AlertCircle,
+    Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -52,6 +57,121 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; 
 
 const getStatusStyle = (status: string) =>
     STATUS_STYLES[status] ?? { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-400', label: status?.toUpperCase() };
+
+// ── Cash Confirmation Modal ──────────────────────────────────────────────────
+
+interface CashConfirmModalProps {
+  isOpen: boolean;
+  amount: number;
+  currency: string;
+  shopName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isLoading: boolean;
+}
+
+const CashConfirmModal = ({
+  isOpen,
+  amount,
+  currency,
+  shopName,
+  onConfirm,
+  onCancel,
+  isLoading,
+}: CashConfirmModalProps) => {
+  if (!isOpen) return null;
+
+  const currencySymbol = currency === 'INR' ? '₹' : currency + ' ';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      {/* Modal */}
+      <div className="relative z-10 w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                <Banknote className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Cash Payment</p>
+                <p className="text-xs text-emerald-100">Confirmation required</p>
+              </div>
+            </div>
+            <button
+              onClick={onCancel}
+              className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          {/* Amount highlight */}
+          <div className="text-center py-3 bg-emerald-50 rounded-xl border border-emerald-100">
+            <p className="text-xs text-emerald-600 font-medium mb-1">Amount to Pay at Shop</p>
+            <p className="text-3xl font-black text-emerald-700">
+              {currencySymbol}{Number(amount).toFixed(2)}
+            </p>
+          </div>
+
+          {/* Shop info */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span>Pay in person at <strong className="text-gray-800">{shopName}</strong></span>
+          </div>
+
+          {/* Info box */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-1.5">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-800">How this works:</p>
+                <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc list-inside">
+                  <li>Visit the shop and hand over the cash</li>
+                  <li>Shop staff will send a verification OTP to your email</li>
+                  <li>Share the OTP with the staff to complete payment</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 pb-5 flex gap-3">
+          <Button
+            variant="outline"
+            className="flex-1 h-10 text-sm rounded-xl border-gray-200"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="flex-1 h-10 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+            onClick={onConfirm}
+            disabled={isLoading}
+            id="confirm-cash-at-shop"
+          >
+            {isLoading ? (
+              <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Processing...</>
+            ) : (
+              'Yes, Pay at Shop →'
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -87,11 +207,11 @@ const InvoiceGenerator = () => {
 
     const generateMutation = useGenerateInvoice();
     const resendMutation = useResendInvoice();
-    const approveCashPaymentMutation = useApproveCashPayment();
 
     const [taxAmount, setTaxAmount] = useState('0');
     const [discountAmount, setDiscountAmount] = useState('0');
     const [notes, setNotes] = useState('');
+    const [warrantyDays, setWarrantyDays] = useState('');
     const [currency] = useState('INR');
 
     // ─── Payment state ─────────────────────────────────────────────────────────
@@ -99,6 +219,54 @@ const InvoiceGenerator = () => {
     const [gateway, setGateway] = useState<'razorpay' | 'cashfree' | 'cash_in_hand'>('razorpay');
     const [paymentSuccess, setPaymentSuccess] = useState(false);
     const [isPaying, setIsPaying] = useState(false);
+    const [showCashModal, setShowCashModal] = useState(false);
+
+    // ─── OTP state (cash in hand) ──────────────────────────────────────────────
+    const [otpSent, setOtpSent] = useState(false);
+    const [otpValue, setOtpValue] = useState('');
+    const [otpExpiresAt, setOtpExpiresAt] = useState<string | null>(null);
+
+    const displayInvoiceForOtp = (invoice ?? (service as any)?.invoice ?? null);
+    const sendOtpMutation    = useSendCashOtp(displayInvoiceForOtp?.id);
+    const verifyOtpMutation  = useVerifyCashOtp(displayInvoiceForOtp?.id);
+
+    const handleSendOtp = async () => {
+        if (!displayInvoiceForOtp?.id) return;
+        try {
+            const res = await sendOtpMutation.mutateAsync();
+            if (res.status) {
+                toast.success(res.message || 'OTP sent to customer email!');
+                setOtpSent(true);
+                setOtpExpiresAt(res.expires_at ?? null);
+                setOtpValue('');
+            } else {
+                toast.error(res.message || 'Failed to send OTP.');
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to send OTP.');
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        if (!otpValue || otpValue.length !== 6) {
+            toast.error('Please enter the 6-digit OTP.');
+            return;
+        }
+        try {
+            const res = await verifyOtpMutation.mutateAsync(otpValue);
+            if (res.status) {
+                toast.success('✅ ' + (res.message || 'Payment verified! Invoice marked as paid.'));
+                setOtpSent(false);
+                setOtpValue('');
+                setPaymentSuccess(true);
+                refetchInvoice();
+            } else {
+                toast.error(res.message || 'OTP verification failed.');
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'OTP verification failed.');
+        }
+    };
 
     const serviceData = (service?.data as any) ?? {};
     const parts: any[] = Array.isArray(serviceData.parts) ? serviceData.parts : [];
@@ -124,6 +292,7 @@ const InvoiceGenerator = () => {
                     discount_amount: discount,
                     notes: notes.trim() || undefined,
                     currency,
+                    warranty_days: warrantyDays ? parseInt(warrantyDays, 10) : undefined,
                 },
             });
 
@@ -155,9 +324,44 @@ const InvoiceGenerator = () => {
     };
 
     // ─── Customer Pay Now handler ──────────────────────────────────────────────
+    const executeCashPayment = async () => {
+        const payToken = displayInvoice?.pay_token;
+        if (!payToken || !displayInvoice) return;
+
+        setIsPaying(true);
+        try {
+            const axiosInstance = (await import('@/lib/axiosInstance')).default;
+            const initiateRes = await axiosInstance.post('/pay/initiate', { token: payToken, gateway: 'cash_in_hand' });
+            const initData = initiateRes.data;
+
+            if (!initData?.status) {
+                toast.error(initData?.message || 'Failed to initiate payment.');
+                setIsPaying(false);
+                setShowCashModal(false);
+                return;
+            }
+
+            toast.success(initData?.message || 'Cash payment request recorded. Visit the shop to complete your payment.');
+            setPaymentSuccess(true);
+            setPaymentOpen(false);
+            setShowCashModal(false);
+            refetchInvoice();
+            setIsPaying(false);
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to initiate payment.');
+            setIsPaying(false);
+            setShowCashModal(false);
+        }
+    };
+
     const handlePay = async () => {
         const payToken = displayInvoice?.pay_token;
         if (!payToken || !displayInvoice) return;
+
+        if (gateway === 'cash_in_hand') {
+            setShowCashModal(true);
+            return;
+        }
 
         setIsPaying(true);
         try {
@@ -267,12 +471,6 @@ const InvoiceGenerator = () => {
                         }
                     }
                 });
-            } else if (gateway === 'cash_in_hand') {
-                toast.success(initData?.message || 'Cash in Hand selected. Please pay at the shop.');
-                setPaymentSuccess(true);
-                setPaymentOpen(false);
-                refetchInvoice();
-                setIsPaying(false);
             }
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to initiate payment.');
@@ -308,6 +506,17 @@ const InvoiceGenerator = () => {
         !pendingCashPayment;
 
     return (
+        <>
+            {/* Cash Confirmation Modal */}
+            <CashConfirmModal
+                isOpen={showCashModal}
+                amount={Number(displayInvoice?.total_amount || 0)}
+                currency={displayInvoice?.currency || 'INR'}
+                shopName={displayInvoice?.shop?.name || 'the service center'}
+                onConfirm={executeCashPayment}
+                onCancel={() => setShowCashModal(false)}
+                isLoading={isPaying}
+            />
         <div className="max-w-4xl mx-auto p-2 md:p-4 space-y-4">
 
             {/* ── Top Toolbar ── */}
@@ -430,12 +639,13 @@ const InvoiceGenerator = () => {
 
                         {/* ── Info Cards overlapping header (screen only) ── */}
                         <div className="print:hidden relative -mt-8 mx-4 mb-4">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                                 {[
                                     { icon: <Hash className="w-3.5 h-3.5" />, label: 'Invoice No', value: displayInvoice?.invoice_number || 'Pending', color: 'text-blue-600', bg: 'bg-blue-50' },
                                     { icon: <CalendarDays className="w-3.5 h-3.5" />, label: 'Issue Date', value: new Date(displayInvoice?.created_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), color: 'text-purple-600', bg: 'bg-purple-50' },
                                     { icon: <Wrench className="w-3.5 h-3.5" />, label: 'Service Ref', value: `SR #${service.id}`, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                                     { icon: <Package className="w-3.5 h-3.5" />, label: 'Device', value: service.product?.name ?? service.brand?.name ?? '—', color: 'text-orange-600', bg: 'bg-orange-50' },
+                                    { icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'Warranty', value: displayInvoice?.warranty_days ? `${displayInvoice.warranty_days} Days` : 'None', color: 'text-indigo-600', bg: 'bg-indigo-50' },
                                 ].map(({ icon, label, value, color, bg }) => (
                                     <div key={label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-2.5">
                                         <div className={`w-7 h-7 rounded-lg ${bg} ${color} flex items-center justify-center flex-shrink-0`}>
@@ -562,16 +772,31 @@ const InvoiceGenerator = () => {
                             {/* Notes Section */}
                             <div className="flex-1 space-y-3">
                                 {!hasInvoice && canGenerate && isCompleted && (
-                                    <div className="print:hidden bg-gray-50 rounded-xl p-3.5 border border-gray-100 space-y-1.5">
-                                        <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
-                                            Notes to Customer
-                                        </Label>
-                                        <Input
-                                            placeholder="E.g. Thank you for your business!"
-                                            value={notes}
-                                            onChange={e => setNotes(e.target.value)}
-                                            className="bg-white border-gray-200 shadow-sm h-8 text-xs"
-                                        />
+                                    <div className="print:hidden grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                                                Notes to Customer
+                                            </Label>
+                                            <Input
+                                                placeholder="E.g. Thank you for your business!"
+                                                value={notes}
+                                                onChange={e => setNotes(e.target.value)}
+                                                className="bg-white border-gray-200 shadow-sm h-8 text-xs"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                                                Warranty Period (Days)
+                                            </Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                placeholder="E.g. 30"
+                                                value={warrantyDays}
+                                                onChange={e => setWarrantyDays(e.target.value)}
+                                                className="bg-white border-gray-200 shadow-sm h-8 text-xs"
+                                            />
+                                        </div>
                                     </div>
                                 )}
 
@@ -727,53 +952,127 @@ const InvoiceGenerator = () => {
 
                 {/* ── Customer: Pending Cash Payment ── */}
                 {isCustomer && pendingCashPayment && !paymentSuccess && (
-                    <div className="flex items-center gap-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                        <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Clock className="w-5 h-5 text-amber-600" />
+                    <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                        <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Clock className="w-4 h-4 text-amber-600" />
                         </div>
                         <div>
                             <p className="text-sm font-bold text-amber-800">Cash Payment Pending</p>
-                            <p className="text-xs text-amber-600 mt-0.5">You have selected to pay by cash. Please make the payment at the shop to complete this invoice.</p>
+                            <p className="text-xs text-amber-600 mt-0.5">
+                                You have selected to pay by cash. Visit the shop and hand the amount to the staff.
+                                They will send a 6-digit OTP to your email — share it with them to confirm payment.
+                            </p>
                         </div>
                     </div>
                 )}
 
-                {/* ── Shop Owner: Approve Cash Payment ── */}
+                {/* ── Shop Owner: OTP-Based Cash Verification ── */}
                 {canGenerate && pendingCashPayment && displayInvoice?.status === 'sent' && !paymentSuccess && (
-                    <div className="flex flex-col sm:flex-row justify-between items-center bg-white border border-emerald-200 rounded-xl p-4 shadow-sm gap-3">
-                        <div className="flex items-center gap-2.5 text-sm text-gray-600">
-                            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <div className="bg-white border border-emerald-200 rounded-xl overflow-hidden shadow-sm">
+
+                        {/* Header bar */}
+                        <div className="flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border-b border-emerald-100">
+                            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <Banknote className="w-4 h-4 text-emerald-600" />
                             </div>
-                            <div>
-                                <p className="font-semibold text-gray-800 text-xs">Cash Payment Pending</p>
-                                <p className="text-[11px] text-gray-400">Customer opted to pay cash at the center.</p>
+                            <div className="flex-1">
+                                <p className="text-xs font-bold text-emerald-900">Cash Payment Pending — OTP Verification Required</p>
+                                <p className="text-[10px] text-emerald-600 mt-0.5">
+                                    Customer: <strong>{displayInvoice?.customer?.name ?? '—'}</strong> ·
+                                    Amount: <strong>
+                                        {displayInvoice?.currency === 'INR' ? '₹' : displayInvoice?.currency + ' '}
+                                        {Number(displayInvoice?.total_amount ?? 0).toFixed(2)}
+                                    </strong>
+                                </p>
                             </div>
                         </div>
-                        <Button
-                            id="approve-cash-btn"
-                            size="sm"
-                            onClick={async () => {
-                                try {
-                                    const res = await approveCashPaymentMutation.mutateAsync(displayInvoice.id);
-                                    if (res.status) {
-                                        toast.success('Cash payment approved!');
-                                        refetchInvoice();
-                                    } else {
-                                        toast.error(res.message);
-                                    }
-                                } catch (err: any) {
-                                    toast.error(err.response?.data?.message || 'Failed to approve cash payment');
-                                }
-                            }}
-                            disabled={approveCashPaymentMutation.isPending}
-                            className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-6 shadow-sm h-9 text-xs gap-2 rounded-xl transition-all"
-                        >
-                            {approveCashPaymentMutation.isPending
-                                ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Approving...</>
-                                : <><CheckCircle2 className="w-3.5 h-3.5" /> Approve Payment</>
-                            }
-                        </Button>
+
+                        <div className="p-4 space-y-3">
+                            {!otpSent ? (
+                                /* Step 1: Send OTP */
+                                <>
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-semibold text-gray-700">Step 1 — Collect cash from customer</p>
+                                        <p className="text-[11px] text-gray-500">
+                                            Once you have received the cash, click below to send a verification OTP to the customer's registered email.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        id="send-cash-otp-btn"
+                                        size="sm"
+                                        onClick={handleSendOtp}
+                                        disabled={sendOtpMutation.isPending}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-9 text-xs gap-2 rounded-lg transition-all"
+                                    >
+                                        {sendOtpMutation.isPending
+                                            ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sending OTP...</>
+                                            : <><MailCheck className="w-3.5 h-3.5" /> Send Verification OTP to Customer</>
+                                        }
+                                    </Button>
+                                </>
+                            ) : (
+                                /* Step 2: Enter OTP */
+                                <>
+                                    <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
+                                        <MailCheck className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-xs font-semibold text-blue-800">OTP sent to customer's email</p>
+                                            <p className="text-[10px] text-blue-600 mt-0.5">
+                                                Ask the customer to check their email and share the 6-digit code.
+                                                {otpExpiresAt && (
+                                                    <span className="ml-1 text-amber-600 font-medium">
+                                                        · Expires at {new Date(otpExpiresAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                                            <KeyRound className="w-3 h-3 inline mr-1" />Enter 6-Digit OTP from Customer
+                                        </Label>
+                                        <Input
+                                            id="cash-otp-input"
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={6}
+                                            placeholder="e.g. 4 8 2 9 1 7"
+                                            value={otpValue}
+                                            onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                            className="text-center text-xl font-bold tracking-[0.5em] h-12 border-gray-300 focus:border-emerald-500 focus:ring-emerald-200 bg-white"
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <Button
+                                            id="verify-cash-otp-btn"
+                                            size="sm"
+                                            onClick={handleVerifyOtp}
+                                            disabled={verifyOtpMutation.isPending || otpValue.length !== 6}
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-2 rounded-lg transition-all disabled:opacity-50"
+                                        >
+                                            {verifyOtpMutation.isPending
+                                                ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying...</>
+                                                : <><ShieldCheck className="w-3.5 h-3.5" /> Verify & Complete Payment</>
+                                            }
+                                        </Button>
+                                        <Button
+                                            id="resend-cash-otp-btn"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleSendOtp}
+                                            disabled={sendOtpMutation.isPending}
+                                            className="h-9 text-xs px-3 rounded-lg border-gray-200 text-gray-600 hover:text-emerald-700 hover:border-emerald-300"
+                                        >
+                                            {sendOtpMutation.isPending
+                                                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                : <><RefreshCw className="w-3.5 h-3.5" /> Resend</>}
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -950,6 +1249,7 @@ const InvoiceGenerator = () => {
                 )}
             </div>
         </div>
+        </>
     );
 };
 

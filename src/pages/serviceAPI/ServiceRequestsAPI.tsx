@@ -115,7 +115,7 @@ export interface ServiceApiResponse<T = any> {
  */
 export const fetchServiceRequests = async (shopId?: number | null): Promise<ServiceRequest[]> => {
     try {
-        const params: Record<string, any> = {};
+        const params: Record<string, any> = { per_page: 1000 };
         if (shopId) {
             params.shop_id = shopId;
         }

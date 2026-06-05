@@ -39,6 +39,7 @@ import {
     ServiceRequest,
     useServiceRequestsApi,
 } from '@/pages/serviceAPI/ServiceRequestsAPI';
+import { ReopenRequestsTab } from './ReopenRequestsTab';
 
 // ─── Status helpers ──────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ const capitalizeWords = (str?: string) => {
 
 const ServicesPage = () => {
     const navigate = useNavigate();
-    const { shopId, hasPermission, user, isShopEmployee, isCustomer } = useAuth();
+    const { shopId, hasPermission, user, isShopEmployee, isCustomer, isShopOwner, isSuperAdmin } = useAuth();
     const { useGetServiceRequests, useDeleteServiceRequest, useUpdateServiceRequest } = useServiceRequestsApi();
     const { data: rawServiceRequests = [], isLoading: loading } = useGetServiceRequests();
     const deleteServiceRequestMutation = useDeleteServiceRequest();
@@ -115,6 +116,9 @@ const ServicesPage = () => {
     // Delete dialog
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
+
+    // View mode for Active vs Reopen requests
+    const [viewMode, setViewMode] = useState<'active' | 'reopen'>('active');
 
     // Customize Dialog State
     const [isCustomizeDialogOpen, setIsCustomizeDialogOpen] = useState(false);
@@ -502,15 +506,9 @@ const ServicesPage = () => {
         toast.info('Exporting data...');
     };
 
-
-    // ── Render ───────────────────────────────────────────────────────────────
-
-    return (
-        <div className="p-0">
-            {/* DataTable */}
-            <DataTable
-                title="Active Service Requests"
-                headerStats={[
+    const renderDataTable = () => (
+        <DataTable
+            headerStats={[
                     {
                         label: 'Total Requests',
                         value: serviceRequests.length,
@@ -530,15 +528,17 @@ const ServicesPage = () => {
                         label: 'Service Status',
                         type: 'select',
                         options: [
-                            { label: 'Pending',          value: 'pending' },
-                            { label: 'Assigned',         value: 'assigned' },
-                            { label: 'Diagnosis Started',value: 'accepted' },
-                            { label: 'Awaiting Parts',   value: 'waiting_parts' },
-                            { label: 'In Progress',      value: 'in_progress' },
-                            { label: 'Quality Check',    value: 'ready' },
-                            { label: 'Completed',        value: 'completed' },
-                            { label: 'Paid',             value: 'paid' },
-                            { label: 'Cancelled',        value: 'cancelled' },
+                            { label: 'Pending',           value: 'pending' },
+                            { label: 'Assigned',          value: 'assigned' },
+                            { label: 'Diagnosis Started', value: 'accepted' },
+                            { label: 'Awaiting Parts',    value: 'waiting_parts' },
+                            { label: 'In Progress',       value: 'in_progress' },
+                            { label: 'Quality Check',     value: 'ready' },
+                            { label: 'Completed',         value: 'completed' },
+                            { label: 'Paid',              value: 'paid' },
+                            { label: 'Reopen Requested',  value: 'reopen_requested' },
+                            { label: 'Reopened',          value: 'reopened' },
+                            { label: 'Cancelled',         value: 'cancelled' },
                         ]
                     },
                     {
@@ -571,9 +571,29 @@ const ServicesPage = () => {
                 }}
                 hoverable
                 bordered
-                loading={loading}
-                density="compact"
-            />
+            loading={loading}
+            density="compact"
+            title={(isShopOwner || isSuperAdmin || isShopEmployee) ? (
+                <div className="flex gap-4 items-center">
+                    <button className="text-sm font-bold border-b-2 border-primary text-primary px-1 pb-1">Active Service Requests</button>
+                    <button 
+                        className="text-sm font-bold text-muted-foreground hover:text-foreground px-1 pb-1 transition-colors"
+                        onClick={() => setViewMode('reopen')}
+                    >
+                        Reopen Requests
+                    </button>
+                </div>
+            ) : "Active Service Requests"}
+        />
+    );
+
+    return (
+        <div className="p-0">
+            {((isShopOwner || isSuperAdmin || isShopEmployee) && viewMode === 'reopen') ? (
+                <ReopenRequestsTab onSwitchBack={() => setViewMode('active')} />
+            ) : (
+                renderDataTable()
+            )}
 
             {/* Delete Confirmation Dialog */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -611,7 +631,9 @@ const ServicesPage = () => {
                                 <Select value={customizeStatus} onValueChange={setCustomizeStatus}>
                                     <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="assigned">Assigned</SelectItem>
+                                        {(selectedCustomizeRecord?.service_status?.toLowerCase() === 'assigned' || selectedCustomizeRecord?.status?.toLowerCase() === 'assigned' || customizeStatus === 'assigned') && (
+                                            <SelectItem value="assigned">Assigned</SelectItem>
+                                        )}
                                         <SelectItem value="accepted">Diagnosis Started</SelectItem>
                                         <SelectItem value="waiting_parts">Awaiting Parts</SelectItem>
                                         <SelectItem value="in_progress">In Progress</SelectItem>
@@ -762,19 +784,7 @@ const ServicesPage = () => {
 
                         {/* Right Column: Message, Parts & Charges */}
                         <div className="space-y-3 flex flex-col">
-                            {/* Message for Customer */}
-                            <div className="space-y-1.5">
-                                <div className="flex justify-between items-center">
-                                    <Label className="text-xs font-semibold text-gray-700">Message for Customer</Label>
-                                    <span className="text-[9px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">Visible to Customer</span>
-                                </div>
-                                <Textarea
-                                    placeholder="Add message or status updates for the customer..."
-                                    className="h-20 text-xs resize-none border-gray-200 focus-visible:ring-primary/20"
-                                    value={customerNote}
-                                    onChange={(e) => setCustomerNote(e.target.value)}
-                                />
-                            </div>
+
 
                             {/* Parts & Materials */}
                             <div className="border rounded-md p-2.5 bg-gray-50/50 space-y-2">
@@ -885,6 +895,20 @@ const ServicesPage = () => {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+
+                            {/* Message for Customer */}
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-xs font-semibold text-gray-700">Message for Customer</Label>
+                                    <span className="text-[9px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">Visible to Customer</span>
+                                </div>
+                                <Textarea
+                                    placeholder="Add message or status updates for the customer..."
+                                    className="h-20 text-xs resize-none border-gray-200 focus-visible:ring-primary/20"
+                                    value={customerNote}
+                                    onChange={(e) => setCustomerNote(e.target.value)}
+                                />
                             </div>
                         </div>
                     </div>

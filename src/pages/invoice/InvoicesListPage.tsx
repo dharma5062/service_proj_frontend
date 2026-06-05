@@ -61,11 +61,10 @@ const InvoicesListPage = () => {
     const { useGetInvoices, useResendInvoice } = useInvoiceApi();
 
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [statusFilter, setStatusFilter] = useState('');
 
     const { data: paginated, isLoading } = useGetInvoices({
-        per_page: 15,
-        page,
         ...(statusFilter ? { status: statusFilter } : {}),
     });
 
@@ -377,15 +376,17 @@ const InvoicesListPage = () => {
                 searchAlign="left"
                 pagination={{
                     current: page,
-                    pageSize: 15,
-                    total: totalCount,
-                    onChange: (newPage) => setPage(newPage),
+                    pageSize: pageSize,
+                    total: mappedInvoices.length,
+                    onChange: (newPage, newPageSize) => {
+                        setPage(newPage);
+                        setPageSize(newPageSize);
+                    },
                 }}
                 hoverable
                 bordered
                 density="compact"
                 loading={isLoading}
-                serverSidePagination={true}
             />
         </div>
     );

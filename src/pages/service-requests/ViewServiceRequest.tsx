@@ -31,6 +31,8 @@ import {
     useShopCategoryFormsApi,
 } from '@/pages/serviceAPI/ShopCategoryFormsAPI';
 import { useShopEmployeesApi } from '@/pages/serviceAPI/ShopEmployeesAPI';
+import { useServiceReopenApi } from '@/pages/serviceAPI/ServiceReopenAPI';
+import { SubmitReopenModal } from './SubmitReopenModal';
 import { toast } from 'sonner';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -45,6 +47,8 @@ const STATUS_STYLES: Record<string, string> = {
     completed: 'bg-green-100 text-green-700 border border-green-200',
     paid: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
     cancelled: 'bg-red-100 text-red-700 border border-red-200',
+    reopen_requested: 'bg-pink-100 text-pink-700 border border-pink-200',
+    reopened: 'bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200',
 };
 
 const getStatusStyle = (status?: string) => {
@@ -157,8 +161,9 @@ const ViewServiceRequest = () => {
     useGetShopEmployees({ per_page: 100 });
     
 
-    const [] = useState(false);
-    const [] = useState<string>('');
+    const { useGetReopenRequests } = useServiceReopenApi();
+    const { data: reopenHistoryData } = useGetReopenRequests({ service_id: numericId });
+    const [reopenModalOpen, setReopenModalOpen] = useState(false);
     const [isChangingTech] = useState(false);
 
     const canChangeTechnician = (isSuperAdmin || isShopOwner) && service?.service_status?.toLowerCase() !== 'completed' && service?.status?.toLowerCase() !== 'completed';
@@ -312,6 +317,15 @@ const ViewServiceRequest = () => {
     const tax = calculatedPartsTax + calculatedServiceTax;
     const grandTotal = calculatedPartsSubtotal + calculatedPartsTax + calculatedServiceSubtotal + calculatedServiceTax - serviceDiscount;
 
+    const existingInv = (service as any)?.invoice;
+    
+    // Reopen eligibility: customer role, service must be exactly 'paid', active warranty, not already requested
+    const isWarrantyActive = existingInv?.warranty_expiry_date && new Date(existingInv.warranty_expiry_date) > new Date();
+    const canReopen = isCustomer
+        && status?.toLowerCase() === 'paid'        // backend only accepts 'paid' status
+        && isWarrantyActive                         // warranty must be active
+        && status?.toLowerCase() !== 'reopen_requested'; // hide if request already pending
+
     return (
         <div className="p-0 max-w-6xl mx-auto">
             {/* Header */}
@@ -362,6 +376,78 @@ const ViewServiceRequest = () => {
                             Edit
                         </Button>
                     )}
+                    {canReopen && (
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setReopenModalOpen(true)}
+                            className="h-8 gap-1.5 shadow-sm"
+                        >
+                            <User className="w-3.5 h-3.5" />
+                            Report Issue / Reopen
+                        </Button>
+                    )}
+                    {/* Invoice Actions */}
+                    {['completed', 'paid'].includes(status?.toLowerCase() ?? '') && (() => {
+                        const existingInv = (service as any)?.invoice;
+                        if (existingInv) {
+                            return (
+                                <>
+                                    <Button
+                                        id="view-invoice-btn"
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 gap-1.5 border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                                        onClick={() => navigate(`/dashboard/invoice/view/${existingInv.id}`)}
+                                        title="View Invoice"
+                                    >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        Invoice
+                                    </Button>
+                                    {(isSuperAdmin || isShopOwner) && existingInv.status !== 'paid' && (
+                                        <Button
+                                            id="resend-invoice-btn"
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 gap-1.5 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                            disabled={resendInvoiceMutation.isPending}
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await resendInvoiceMutation.mutateAsync(existingInv.id);
+                                                    if (res.email_sent) {
+                                                        toast.success('Invoice email re-sent to customer!');
+                                                    }
+                                                } catch (e: any) {
+                                                    toast.error(e.message || 'Failed to resend');
+                                                }
+                                            }}
+                                            title="Resend Invoice Email"
+                                        >
+                                            <Send className="w-3.5 h-3.5" />
+                                            {resendInvoiceMutation.isPending ? 'Sending...' : 'Resend'}
+                                        </Button>
+                                    )}
+                                </>
+                            );
+                        }
+                        
+                        if (isSuperAdmin || isShopOwner) {
+                            return (
+                                <Button
+                                    id="generate-invoice-btn"
+                                    size="sm"
+                                    className="h-8 gap-1.5 bg-primary hover:bg-primary/90"
+                                    disabled={generateInvoiceMutation.isPending}
+                                    onClick={() => navigate(`/dashboard/invoice/service/${service.id}`)}
+                                    title="Generate Invoice"
+                                >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Generate
+                                </Button>
+                            );
+                        }
+                        return null;
+                    })()}
                 </div>
             </div>
 
@@ -387,82 +473,29 @@ const ViewServiceRequest = () => {
                 </div>
             )}
 
-            {/* ── Invoice Action Banner — shown when service is completed ── */}
-            {status?.toLowerCase() === 'completed' && (isSuperAdmin || isShopOwner) && (() => {
-                const existingInv = (service as any)?.invoice;
-                if (existingInv) {
-                    // Invoice already generated — show resend option
-                    return (
-                        <div className="mb-3 rounded-lg border border-green-200 bg-green-50/30 p-2.5 px-3 flex items-center justify-between gap-3 shadow-sm text-xs">
-                            <div className="flex items-center gap-2.5">
-                                <FileText className="w-4 h-4 text-green-600 shrink-0" />
-                                <div className="flex items-center gap-x-2 flex-wrap">
-                                    <span className="font-bold text-green-700 uppercase tracking-wider text-[10px]">Invoice:</span>
-                                    <span className="font-semibold text-green-900">
-                                        {existingInv.invoice_number} — ₹{Number(existingInv.total_amount).toFixed(2)}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <Button
-                                    id="view-invoice-btn"
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 px-2.5 text-xs text-green-700 border-green-300 hover:bg-green-100/60"
-                                    onClick={() => navigate(`/dashboard/invoice/view/${existingInv.id}`)}
-                                >
-                                    <Eye className="w-3.5 h-3.5 mr-1" />
-                                    View Invoice
-                                </Button>
-                                {existingInv.status !== 'paid' && (
-                                    <Button
-                                        id="resend-invoice-btn"
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-7 px-2.5 text-xs text-blue-600 hover:bg-blue-50"
-                                        disabled={resendInvoiceMutation.isPending}
-                                        onClick={async () => {
-                                            try {
-                                                const res = await resendInvoiceMutation.mutateAsync(existingInv.id);
-                                                if (res.email_sent) {
-                                                    toast.success('Invoice email re-sent to customer!');
-                                                }
-                                            } catch (e: any) {
-                                                toast.error(e.message || 'Failed to resend');
-                                            }
-                                        }}
-                                    >
-                                        <Send className="w-3.5 h-3.5 mr-1" />
-                                        {resendInvoiceMutation.isPending ? 'Sending...' : 'Resend Email'}
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    );
-                }
-                // No invoice yet — prompt owner to generate
-                return (
-                    <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5 px-3 flex items-center justify-between gap-3 shadow-sm text-xs">
-                        <div className="flex items-center gap-2.5">
-                            <FileText className="w-4 h-4 text-primary shrink-0" />
-                            <div className="flex items-center gap-x-2">
-                                <span className="font-bold text-primary uppercase tracking-wider text-[10px]">Service Completed:</span>
-                                <span className="font-semibold text-gray-700">Ready to bill customer</span>
-                            </div>
-                        </div>
-                        <Button
-                            id="generate-invoice-btn"
-                            size="sm"
-                            className="h-7 px-2.5 text-xs bg-primary hover:bg-primary/90 gap-1"
-                            disabled={generateInvoiceMutation.isPending}
-                            onClick={() => navigate(`/dashboard/invoice/service/${service.id}`)}
-                        >
-                            <FileText className="w-3 h-3" />
-                            Generate Invoice
-                        </Button>
+            {/* ── ISSUE 2 FIX: Pending Reopen Banner — shown to customer when request is under review ── */}
+            {isCustomer && status?.toLowerCase() === 'reopen_requested' && (
+                <div className="mb-3 rounded-lg border border-pink-200 bg-pink-50 p-2.5 px-3 flex items-center gap-2.5 shadow-sm text-xs">
+                    <Clock className="w-4 h-4 text-pink-500 shrink-0" />
+                    <div className="flex-1">
+                        <span className="font-bold text-pink-800 uppercase tracking-wider text-[10px] block">Reopen Request Pending</span>
+                        <span className="text-pink-700">Your issue report has been submitted and is awaiting review by the shop owner. We'll notify you once a decision is made.</span>
                     </div>
-                );
-            })()}
+                    <span className="text-[9px] font-bold text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">Under Review</span>
+                </div>
+            )}
+
+            {/* ── ISSUE 3 FIX: Reopened Banner — shown to customer after request is approved ── */}
+            {isCustomer && status?.toLowerCase() === 'reopened' && (
+                <div className="mb-3 rounded-lg border border-fuchsia-200 bg-fuchsia-50 p-2.5 px-3 flex items-center gap-2.5 shadow-sm text-xs">
+                    <CheckCircle className="w-4 h-4 text-fuchsia-500 shrink-0" />
+                    <div className="flex-1">
+                        <span className="font-bold text-fuchsia-800 uppercase tracking-wider text-[10px] block">Reopen Approved</span>
+                        <span className="text-fuchsia-700">Your reopen request was approved by the shop. A technician will be assigned to your device shortly.</span>
+                    </div>
+                    <span className="text-[9px] font-bold text-fuchsia-700 bg-fuchsia-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">Reopened</span>
+                </div>
+            )}
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -666,6 +699,56 @@ const ViewServiceRequest = () => {
                             </CardContent>
                         </Card>
                     )}
+                    {/* ── ISSUE 4 FIX: Reopen History — shown to all roles who can view this service ── */}
+                    {(() => {
+                        const reopenRequests = reopenHistoryData?.data || [];
+                        if (reopenRequests.length === 0) return null;
+                        const statusStyles: Record<string, string> = {
+                            pending:  'bg-amber-100 text-amber-700 border-amber-200',
+                            approved: 'bg-green-100 text-green-700 border-green-200',
+                            rejected: 'bg-red-100 text-red-700 border-red-200',
+                        };
+                        return (
+                            <Card>
+                                <CardHeader className="pb-2 pt-3 px-4">
+                                    <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                        <FileText className="w-4 h-4 text-pink-500" />
+                                        Reopen History
+                                        <Badge variant="secondary" className="text-xs ml-1">{reopenRequests.length}</Badge>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <div className="space-y-3">
+                                        {reopenRequests.map((req: any) => (
+                                            <div key={req.id} className="rounded-lg border bg-gray-50 p-3 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-gray-700">Reopen #{req.reopen_number}</span>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusStyles[req.status] || 'bg-gray-100 text-gray-700'}`}>{req.status}</span>
+                                                </div>
+                                                <p className="text-xs text-gray-600 leading-relaxed bg-white border rounded p-2 whitespace-pre-wrap">{req.reason}</p>
+                                                {req.images && req.images.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {req.images.map((url: string, i: number) => (
+                                                            <a key={i} href={url} target="_blank" rel="noreferrer" className="w-12 h-12 border rounded overflow-hidden block hover:opacity-80">
+                                                                <img src={url} alt="Evidence" className="w-full h-full object-cover" />
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {req.shop_owner_note && (
+                                                    <div className="bg-blue-50 border border-blue-100 rounded p-2">
+                                                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Shop Owner Note</p>
+                                                        <p className="text-xs text-blue-800">{req.shop_owner_note}</p>
+                                                    </div>
+                                                )}
+                                                <p className="text-[10px] text-gray-400">{new Date(req.created_at).toLocaleString()}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })()}
                 </div>
 
                 {/* Right Column */}
@@ -1045,6 +1128,12 @@ const ViewServiceRequest = () => {
                     />
                 </div>
             )}
+            <SubmitReopenModal
+                open={reopenModalOpen}
+                onOpenChange={setReopenModalOpen}
+                serviceId={service.id}
+                warrantyExpiryDate={existingInv?.warranty_expiry_date}
+            />
         </div>
     );
 };

@@ -31,6 +31,9 @@ export interface Invoice {
     pay_token: string | null;
     pay_token_expires_at: string | null;
     sent_at: string | null;
+    warranty_days: number | null;
+    warranty_expiry_date: string | null;
+    paid_at: string | null;
     created_at: string;
     updated_at: string;
     // Relationships
@@ -52,6 +55,7 @@ export interface GenerateInvoicePayload {
     discount_amount?: number;
     notes?: string;
     currency?: string;
+    warranty_days?: number;
 }
 
 export interface InvoiceApiResponse<T = any> {
@@ -124,7 +128,9 @@ export const fetchInvoices = async (params?: {
     page?: number;
 }): Promise<PaginatedInvoices> => {
     try {
-        const response = await axiosInstance.get('/invoice-index', { params });
+        const response = await axiosInstance.get('/invoice-index', { 
+            params: { per_page: 1000, ...params }
+        });
         const raw = response.data;
         if (raw?.data?.data && Array.isArray(raw.data.data)) {
             return raw.data;
@@ -163,7 +169,9 @@ export const fetchMyInvoices = async (params?: {
     page?: number;
 }): Promise<PaginatedInvoices> => {
     try {
-        const response = await axiosInstance.get('/my-invoices', { params });
+        const response = await axiosInstance.get('/my-invoices', { 
+            params: { per_page: 1000, ...params }
+        });
         const raw = response.data;
         if (raw?.data?.data && Array.isArray(raw.data.data)) return raw.data;
         if (raw?.data && Array.isArray(raw.data)) {
