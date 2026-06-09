@@ -4,9 +4,11 @@ import { useAuth } from '@/AuthContext';
 import { useInvoiceApi } from '@/pages/serviceAPI/InvoiceAPI';
 import { useServiceRequestsApi } from '@/pages/serviceAPI/ServiceRequestsAPI';
 import { useSendCashOtp, useVerifyCashOtp } from '@/pages/serviceAPI/PaymentAPI';
+import { useServiceReopenApi } from '@/pages/serviceAPI/ServiceReopenAPI';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitReopenModal } from '@/pages/service-requests/SubmitReopenModal';
 import {
     ArrowLeft,
     Send,
@@ -137,7 +139,7 @@ const CashConfirmModal = ({
                 <p className="text-xs font-semibold text-amber-800">How this works:</p>
                 <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc list-inside">
                   <li>Visit the shop and hand over the cash</li>
-                  <li>Shop staff will send a verification OTP to your email</li>
+                  <li>Shop staff will generate a verification OTP on your payment screen</li>
                   <li>Share the OTP with the staff to complete payment</li>
                 </ul>
               </div>
@@ -184,12 +186,19 @@ const InvoiceGenerator = () => {
 
     const { useGetServiceRequestById } = useServiceRequestsApi();
     const { useGetInvoiceById, useGenerateInvoice, useResendInvoice } = useInvoiceApi();
+    const { useGetReopenRequests } = useServiceReopenApi();
 
     const { data: directInvoice, isLoading: directInvoiceLoading, refetch: refetchDirectInvoice } = useGetInvoiceById(
         invoiceId ? Number(invoiceId) : undefined
     );
 
     const targetServiceId = serviceId ? Number(serviceId) : directInvoice?.service_id;
+
+    const { data: pendingReopens } = useGetReopenRequests({ 
+        service_id: targetServiceId, 
+        status: 'pending' 
+    });
+    const hasPendingReopen = (pendingReopens?.data?.length ?? 0) > 0;
 
     const { data: service, isLoading: serviceLoading } = useGetServiceRequestById(
         targetServiceId
@@ -221,10 +230,14 @@ const InvoiceGenerator = () => {
     const [isPaying, setIsPaying] = useState(false);
     const [showCashModal, setShowCashModal] = useState(false);
 
+    // ─── Reopen Modal state ──────────────────────────────────────────────
+    const [reopenModalOpen, setReopenModalOpen] = useState(false);
+
     // ─── OTP state (cash in hand) ──────────────────────────────────────────────
     const [otpSent, setOtpSent] = useState(false);
     const [otpValue, setOtpValue] = useState('');
     const [otpExpiresAt, setOtpExpiresAt] = useState<string | null>(null);
+    const [, setGeneratedOtp] = useState<string | null>(null);
 
     const displayInvoiceForOtp = (invoice ?? (service as any)?.invoice ?? null);
     const sendOtpMutation    = useSendCashOtp(displayInvoiceForOtp?.id);
@@ -238,6 +251,7 @@ const InvoiceGenerator = () => {
                 toast.success(res.message || 'OTP sent to customer email!');
                 setOtpSent(true);
                 setOtpExpiresAt(res.expires_at ?? null);
+                setGeneratedOtp(res.otp ?? null);
                 setOtpValue('');
             } else {
                 toast.error(res.message || 'Failed to send OTP.');
@@ -517,6 +531,16 @@ const InvoiceGenerator = () => {
                 onCancel={() => setShowCashModal(false)}
                 isLoading={isPaying}
             />
+
+            {/* Submit Reopen Modal */}
+            {service && (
+                <SubmitReopenModal
+                    open={reopenModalOpen}
+                    onOpenChange={setReopenModalOpen}
+                    serviceId={service.id}
+                    warrantyExpiryDate={displayInvoice?.warranty_days ? new Date(new Date(displayInvoice.created_at).getTime() + displayInvoice.warranty_days * 24 * 60 * 60 * 1000).toISOString() : undefined}
+                />
+            )}
         <div className="max-w-4xl mx-auto p-2 md:p-4 space-y-4">
 
             {/* ── Top Toolbar ── */}
@@ -543,6 +567,21 @@ const InvoiceGenerator = () => {
                             <div className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
                             {statusStyle.label}
                         </div>
+                    )}
+                    {isCustomer && displayInvoice?.status === 'paid' && (
+                        <button
+                            onClick={() => {
+                                if (hasPendingReopen) {
+                                    toast.info('Your issue report has been submitted waiting for shop owner approval.');
+                                } else {
+                                    setReopenModalOpen(true);
+                                }
+                            }}
+                            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold transition-all shadow-sm"
+                        >
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            Report Issue
+                        </button>
                     )}
                     <button
                         id="print-invoice-btn"
@@ -960,7 +999,7 @@ const InvoiceGenerator = () => {
                             <p className="text-sm font-bold text-amber-800">Cash Payment Pending</p>
                             <p className="text-xs text-amber-600 mt-0.5">
                                 You have selected to pay by cash. Visit the shop and hand the amount to the staff.
-                                They will send a 6-digit OTP to your email — share it with them to confirm payment.
+                                They will generate a 6-digit OTP on your payment screen — share it with them to confirm payment.
                             </p>
                         </div>
                     </div>
@@ -994,7 +1033,7 @@ const InvoiceGenerator = () => {
                                     <div className="space-y-1">
                                         <p className="text-xs font-semibold text-gray-700">Step 1 — Collect cash from customer</p>
                                         <p className="text-[11px] text-gray-500">
-                                            Once you have received the cash, click below to send a verification OTP to the customer's registered email.
+                                            Once you have received the cash, click below to generate a verification OTP on the customer's payment screen.
                                         </p>
                                     </div>
                                     <Button
@@ -1006,7 +1045,7 @@ const InvoiceGenerator = () => {
                                     >
                                         {sendOtpMutation.isPending
                                             ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sending OTP...</>
-                                            : <><MailCheck className="w-3.5 h-3.5" /> Send Verification OTP to Customer</>
+                                            : <><KeyRound className="w-3.5 h-3.5" /> Generate Verification OTP for Customer</>
                                         }
                                     </Button>
                                 </>
@@ -1016,9 +1055,9 @@ const InvoiceGenerator = () => {
                                     <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
                                         <MailCheck className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
                                         <div>
-                                            <p className="text-xs font-semibold text-blue-800">OTP sent to customer's email</p>
+                                            <p className="text-xs font-semibold text-blue-800">OTP generated on customer's payment screen</p>
                                             <p className="text-[10px] text-blue-600 mt-0.5">
-                                                Ask the customer to check their email and share the 6-digit code.
+                                                Ask the customer to check their payment screen and share the 6-digit code.
                                                 {otpExpiresAt && (
                                                     <span className="ml-1 text-amber-600 font-medium">
                                                         · Expires at {new Date(otpExpiresAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}

@@ -246,6 +246,7 @@ const InvoicesListPage = () => {
                 align: 'right' as const,
                 render: (_: any, inv: Invoice) => {
                     const isResending = resendMutation.isPending;
+                    const pendingCashPayment = inv.payments?.find((p: any) => p.gateway === 'cash_in_hand' && p.status === 'pending');
                     return (
                         <div className="flex items-center gap-1 justify-end">
                             <Button
@@ -272,15 +273,24 @@ const InvoicesListPage = () => {
                                 </Button>
                             )}
                             {isCustomer && inv.status === 'sent' && (
-                                <Button
-                                    id={`pay-invoice-${inv.id}`}
-                                    size="sm"
-                                    className="h-7 px-2.5 text-[10px] gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-sm font-bold transition-all"
-                                    onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
-                                >
-                                    <CreditCard className="w-3 h-3" />
-                                    Pay Now
-                                </Button>
+                                <>
+                                    {pendingCashPayment?.cash_otp ? (
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg shadow-sm" title="Show this OTP to the shop staff">
+                                            <span className="text-[9px] font-bold text-amber-800 uppercase">OTP:</span>
+                                            <span className="text-xs font-black tracking-widest text-amber-600">{pendingCashPayment.cash_otp}</span>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            id={`pay-invoice-${inv.id}`}
+                                            size="sm"
+                                            className="h-7 px-2.5 text-[10px] gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-sm font-bold transition-all"
+                                            onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
+                                        >
+                                            <CreditCard className="w-3 h-3" />
+                                            Pay Now
+                                        </Button>
+                                    )}
+                                </>
                             )}
                         </div>
                     );

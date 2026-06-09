@@ -14,6 +14,7 @@ export interface InvoiceLineItem {
 }
 
 export interface Invoice {
+    [x: string]: any;
     id: number;
     service_id: number;
     shop_id: number;

@@ -21,6 +21,7 @@ import {
     Timer,
     Send,
     Eye,
+    AlertTriangle,
 } from 'lucide-react';
 import { useInvoiceApi } from '@/pages/serviceAPI/InvoiceAPI';
 import {
@@ -163,6 +164,8 @@ const ViewServiceRequest = () => {
 
     const { useGetReopenRequests } = useServiceReopenApi();
     const { data: reopenHistoryData } = useGetReopenRequests({ service_id: numericId });
+    const hasPendingReopen = reopenHistoryData?.data?.some((req: any) => req.status === 'pending') || false;
+    const hasReopenHistory = reopenHistoryData?.data && reopenHistoryData.data.length > 0;
     const [reopenModalOpen, setReopenModalOpen] = useState(false);
     const [isChangingTech] = useState(false);
 
@@ -380,7 +383,13 @@ const ViewServiceRequest = () => {
                         <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => setReopenModalOpen(true)}
+                            onClick={() => {
+                                if (hasPendingReopen) {
+                                    toast.info('Your issue report has been submitted waiting for shop owner approval.');
+                                } else {
+                                    setReopenModalOpen(true);
+                                }
+                            }}
                             className="h-8 gap-1.5 shadow-sm"
                         >
                             <User className="w-3.5 h-3.5" />
@@ -494,6 +503,23 @@ const ViewServiceRequest = () => {
                         <span className="text-fuchsia-700">Your reopen request was approved by the shop. A technician will be assigned to your device shortly.</span>
                     </div>
                     <span className="text-[9px] font-bold text-fuchsia-700 bg-fuchsia-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">Reopened</span>
+                </div>
+            )}
+
+            {/* ── Reopened Banner — shown to staff to highlight previous technician's work ── */}
+            {hasReopenHistory && !isCustomer && (
+                <div className="mb-4 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/50 p-3.5 flex items-start gap-3 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-200/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+                    <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+                    <div className="flex-1 relative z-10">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-amber-900 text-sm">Reopened Service</span>
+                            <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] h-5 px-1.5 uppercase tracking-wider font-bold border-amber-200">Attention Required</Badge>
+                        </div>
+                        <p className="text-xs text-amber-800/90 leading-relaxed max-w-3xl">
+                            This device has been returned for a rework/warranty claim. The parts and charges shown below may include items from previous service cycles. Please carefully review the <strong>Tracking Timeline (Activity Log)</strong> and previous <strong>Invoice</strong> to understand the work completed by the previous technician before diagnosing the new issue.
+                        </p>
+                    </div>
                 </div>
             )}
 

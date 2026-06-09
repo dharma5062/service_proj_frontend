@@ -79,6 +79,7 @@ export interface SendCashOtpResponse {
   email_sent: boolean;
   email_error?: string | null;
   expires_at?: string;
+  otp?: string;
 }
 
 export interface VerifyCashOtpPayload {

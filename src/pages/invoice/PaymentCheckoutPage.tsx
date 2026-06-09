@@ -19,7 +19,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, CreditCard, Wallet, Banknote, AlertCircle, X, MapPin } from 'lucide-react';
+import { Loader2, CheckCircle2, CreditCard, Wallet, Banknote, AlertCircle, X, MapPin, RefreshCw } from 'lucide-react';
 import { useRazorpay } from 'react-razorpay';
 // @ts-ignore
 import { load } from '@cashfreepayments/cashfree-js';
@@ -103,7 +103,7 @@ const CashConfirmModal = ({
                 <p className="text-xs font-semibold text-amber-800">How this works:</p>
                 <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc list-inside">
                   <li>Visit the shop and hand over the cash</li>
-                  <li>Shop staff will send a verification OTP to your email</li>
+                  <li>Shop staff will generate a verification OTP on your payment screen</li>
                   <li>Share the OTP with the staff to complete payment</li>
                 </ul>
               </div>
@@ -148,7 +148,7 @@ const PaymentCheckoutPage = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [showCashModal, setShowCashModal] = useState(false);
 
-  const { data: verifyData, isLoading, error } = useVerifyPayToken(token || '');
+  const { data: verifyData, isLoading, error, refetch } = useVerifyPayToken(token || '');
   const initiatePayment = useInitiatePayment();
   const verifyPayment = useVerifyPayment();
   const { Razorpay } = useRazorpay();
@@ -373,10 +373,21 @@ const PaymentCheckoutPage = () => {
                   </div>
                   <h3 className="text-lg font-bold text-amber-800 mb-1">Cash Payment Pending</h3>
                   <p className="text-sm text-amber-600">
-                    You have selected to pay by cash. Please visit{' '}
                     <strong>{invoice.shop_name}</strong> to complete this payment.
-                    The shop staff will verify your payment with an OTP sent to your registered email.
+                    The shop staff will generate an OTP for you to share.
                   </p>
+                  {pendingCashPayment.cash_otp && (
+                      <div className="mt-4 p-4 bg-white border border-amber-200 rounded-lg w-full shadow-inner">
+                          <p className="text-xs text-gray-500 font-semibold mb-1 uppercase tracking-wider">Your Verification OTP</p>
+                          <p className="text-4xl font-black text-amber-700 tracking-[0.25em]">{pendingCashPayment.cash_otp}</p>
+                          <p className="text-xs text-gray-400 mt-2">Show this code to the shop staff to confirm your payment</p>
+                      </div>
+                  )}
+                  {!pendingCashPayment.cash_otp && (
+                      <Button variant="outline" className="mt-4 w-full border-amber-300 text-amber-700 hover:bg-amber-100" onClick={() => refetch()}>
+                          <RefreshCw className="w-4 h-4 mr-2" /> Check for OTP
+                      </Button>
+                  )}
                 </div>
               ) : (
                 <>
