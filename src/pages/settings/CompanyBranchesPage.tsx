@@ -32,7 +32,9 @@ export default function CompanyBranchesPage() {
         address: '',
         phone: '',
         email: '',
-        is_main: false
+        is_main: false,
+        upi_id: '',
+        upi_name: ''
     });
 
     const [editingCompany, setEditingCompany] = useState<Shop | null>(null);
@@ -72,7 +74,9 @@ export default function CompanyBranchesPage() {
             address: desc?.address || '',
             phone: desc?.phone || '',
             email: desc?.email || '',
-            is_main: desc?.is_main === true
+            is_main: desc?.is_main === true,
+            upi_id: shop.upi_id || '',
+            upi_name: shop.upi_name || ''
         });
         setEditingShop(shop);
     };
@@ -104,7 +108,9 @@ export default function CompanyBranchesPage() {
                 id: editingShop.id,
                 payload: {
                     name: editForm.branchName,
-                    description: updatedDesc
+                    description: updatedDesc,
+                    upi_id: editForm.upi_id,
+                    upi_name: editForm.upi_name
                 }
             });
             toast.success('Branch updated successfully');
@@ -479,6 +485,26 @@ export default function CompanyBranchesPage() {
                                 value={editForm.address}
                                 onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                                 placeholder="Street, City, etc."
+                                className="h-8 text-xs border-gray-200 focus:border-blue-400"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="upi_id" className="text-[11px] font-semibold text-gray-500 capitalize tracking-wider">UPI ID</Label>
+                            <Input
+                                id="upi_id"
+                                value={editForm.upi_id}
+                                onChange={(e) => setEditForm({ ...editForm, upi_id: e.target.value })}
+                                placeholder="e.g. merchant@upi"
+                                className="h-8 text-xs border-gray-200 focus:border-blue-400"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="upi_name" className="text-[11px] font-semibold text-gray-500 capitalize tracking-wider">UPI Name</Label>
+                            <Input
+                                id="upi_name"
+                                value={editForm.upi_name}
+                                onChange={(e) => setEditForm({ ...editForm, upi_name: e.target.value })}
+                                placeholder="e.g. Shop Name"
                                 className="h-8 text-xs border-gray-200 focus:border-blue-400"
                             />
                         </div>

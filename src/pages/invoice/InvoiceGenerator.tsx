@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/AuthContext';
-import { useInvoiceApi } from '@/pages/serviceAPI/InvoiceAPI';
+import { useInvoiceApi, useSendApprovalOtp, useVerifyApprovalOtp, useCustomerApprove } from '@/pages/serviceAPI/InvoiceAPI';
 import { useServiceRequestsApi } from '@/pages/serviceAPI/ServiceRequestsAPI';
-import { useSendCashOtp, useVerifyCashOtp } from '@/pages/serviceAPI/PaymentAPI';
+import { useConfirmManualPayment } from '@/pages/serviceAPI/PaymentAPI';
+import { QRCodeSVG } from 'qrcode.react';
 import { useServiceReopenApi } from '@/pages/serviceAPI/ServiceReopenAPI';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,11 +28,13 @@ import {
     CreditCard,
     Sparkles,
     Banknote,
-    KeyRound,
-    MailCheck,
     X,
     AlertCircle,
     Loader2,
+    Eye,
+    BadgeCheck,
+    LockKeyhole,
+    UnlockKeyhole,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -180,9 +183,10 @@ const CashConfirmModal = ({
 const InvoiceGenerator = () => {
     const navigate = useNavigate();
     const { serviceId, invoiceId } = useParams<{ serviceId?: string, invoiceId?: string }>();
-    const { isShopOwner, isSuperAdmin, isCustomer } = useAuth();
+    const { isShopOwner, isSuperAdmin, isCustomer, isShopEmployee } = useAuth();
 
-    const canGenerate = isShopOwner || isSuperAdmin;
+    // SE, SO, and SA can all generate invoices
+    const canGenerate = isShopOwner || isSuperAdmin || isShopEmployee;
 
     const { useGetServiceRequestById } = useServiceRequestsApi();
     const { useGetInvoiceById, useGenerateInvoice, useResendInvoice } = useInvoiceApi();
@@ -213,12 +217,16 @@ const InvoiceGenerator = () => {
     const invoice = directInvoice || serviceInvoice;
     const invoiceLoading = directInvoiceLoading || serviceInvoiceLoading;
     const refetchInvoice = invoiceId ? refetchDirectInvoice : refetchServiceInvoice;
+    const displayInvoice = invoice ?? existingInvoice;
 
     const generateMutation = useGenerateInvoice();
     const resendMutation = useResendInvoice();
+    const confirmManualPaymentMutation = useConfirmManualPayment(displayInvoice?.id);
+    // Approval OTP hooks
+    const sendApprovalOtpMutation = useSendApprovalOtp(displayInvoice?.id);
+    const verifyApprovalOtpMutation = useVerifyApprovalOtp(displayInvoice?.id);
+    const customerApproveMutation = useCustomerApprove(displayInvoice?.id);
 
-    const [taxAmount, setTaxAmount] = useState('0');
-    const [discountAmount, setDiscountAmount] = useState('0');
     const [notes, setNotes] = useState('');
     const [warrantyDays, setWarrantyDays] = useState('');
     const [currency] = useState('INR');
@@ -226,71 +234,54 @@ const InvoiceGenerator = () => {
     // ─── Payment state ─────────────────────────────────────────────────────────
     const [paymentOpen, setPaymentOpen] = useState(false);
     const [gateway, setGateway] = useState<'razorpay' | 'cashfree' | 'cash_in_hand'>('razorpay');
+    const [collectionMethod, setCollectionMethod] = useState<'cash' | 'upi' | null>(null);
     const [paymentSuccess, setPaymentSuccess] = useState(false);
     const [isPaying, setIsPaying] = useState(false);
     const [showCashModal, setShowCashModal] = useState(false);
 
+    // ─── Approval OTP state (customer side) ──────────────────────────────────
+    const [otpSent, setOtpSent] = useState(false);
+    const [approvalOtp, setApprovalOtp] = useState('');
+
+
     // ─── Reopen Modal state ──────────────────────────────────────────────
     const [reopenModalOpen, setReopenModalOpen] = useState(false);
 
-    // ─── OTP state (cash in hand) ──────────────────────────────────────────────
-    const [otpSent, setOtpSent] = useState(false);
-    const [otpValue, setOtpValue] = useState('');
-    const [otpExpiresAt, setOtpExpiresAt] = useState<string | null>(null);
-    const [, setGeneratedOtp] = useState<string | null>(null);
 
-    const displayInvoiceForOtp = (invoice ?? (service as any)?.invoice ?? null);
-    const sendOtpMutation    = useSendCashOtp(displayInvoiceForOtp?.id);
-    const verifyOtpMutation  = useVerifyCashOtp(displayInvoiceForOtp?.id);
 
-    const handleSendOtp = async () => {
-        if (!displayInvoiceForOtp?.id) return;
+    const handleConfirmManual = async (type: 'cash' | 'upi') => {
+        if (!displayInvoice?.id) return;
         try {
-            const res = await sendOtpMutation.mutateAsync();
-            if (res.status) {
-                toast.success(res.message || 'OTP sent to customer email!');
-                setOtpSent(true);
-                setOtpExpiresAt(res.expires_at ?? null);
-                setGeneratedOtp(res.otp ?? null);
-                setOtpValue('');
-            } else {
-                toast.error(res.message || 'Failed to send OTP.');
-            }
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Failed to send OTP.');
-        }
-    };
-
-    const handleVerifyOtp = async () => {
-        if (!otpValue || otpValue.length !== 6) {
-            toast.error('Please enter the 6-digit OTP.');
-            return;
-        }
-        try {
-            const res = await verifyOtpMutation.mutateAsync(otpValue);
-            if (res.status) {
-                toast.success('✅ ' + (res.message || 'Payment verified! Invoice marked as paid.'));
-                setOtpSent(false);
-                setOtpValue('');
-                setPaymentSuccess(true);
-                refetchInvoice();
-            } else {
-                toast.error(res.message || 'OTP verification failed.');
-            }
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'OTP verification failed.');
+            await confirmManualPaymentMutation.mutateAsync(type);
+            toast.success(`Payment confirmed manually via ${type.toUpperCase()}`);
+            refetchInvoice();
+            setCollectionMethod(null);
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to confirm payment manually.');
         }
     };
 
     const serviceData = (service?.data as any) ?? {};
-    const parts: any[] = Array.isArray(serviceData.parts) ? serviceData.parts : [];
-    const charges: any[] = Array.isArray(serviceData.selectedServiceCharges) ? serviceData.selectedServiceCharges : [];
+    const parsedData = typeof serviceData === 'string' ? JSON.parse(serviceData) : serviceData;
+    const parts: any[] = Array.isArray(parsedData.parts) ? parsedData.parts : [];
+    const charges: any[] = Array.isArray(parsedData.selectedServiceCharges) ? parsedData.selectedServiceCharges : [];
 
     const partsSubtotal = parts.reduce((s, p) => s + (Number(p.price) || 0) * (p.quantity || 1), 0);
     const chargesSubtotal = charges.reduce((s, c) => s + (Number(c.amount) || 0), 0);
     const subtotal = partsSubtotal + chargesSubtotal;
-    const tax = Number(taxAmount) || 0;
-    const discount = Number(discountAmount) || 0;
+
+    const calculatedPartsTax = parts.reduce((sum, part) => {
+        if (part.tax_type !== 'inclusive') {
+            return sum + ((Number(part.price) || 0) * (part.quantity || 1) * (Number(part.tax_percentage) || 0) / 100);
+        }
+        return sum;
+    }, 0);
+    const gstType = parsedData?.gstType || 'none';
+    const gstPercentage = Number(parsedData?.gstPercentage || 18);
+    const calculatedServiceTax = gstType === 'none' ? 0 : chargesSubtotal * (gstPercentage / 100);
+
+    const tax = displayInvoice?.tax_amount ? Number(displayInvoice.tax_amount) : (calculatedPartsTax + calculatedServiceTax);
+    const discount = displayInvoice?.discount_amount ? Number(displayInvoice.discount_amount) : Number(parsedData?.serviceDiscount || parsedData?.discount || 0);
     const total = subtotal + tax - discount;
 
     const isCompleted = service?.service_status === 'completed' || service?.status === 'completed';
@@ -509,18 +500,30 @@ const InvoiceGenerator = () => {
         );
     }
 
-    const displayInvoice = invoice ?? existingInvoice;
     const statusStyle = displayInvoice ? getStatusStyle(displayInvoice.status) : null;
     const pendingCashPayment = displayInvoice?.payments?.find((p: any) => p.gateway === 'cash_in_hand' && p.status === 'pending');
+    const successfulPayment = displayInvoice?.payments?.find((p: any) => p.status === 'success' || p.status === 'paid');
+
+    const isInvoiceOtpApproved = displayInvoice?.otp_approved === true;
+    const isCustomerApproved = displayInvoice?.customer_approved === true;
 
     const canCustomerPay =
         isCustomer &&
         displayInvoice?.status === 'sent' &&
         !!displayInvoice?.pay_token &&
+        isInvoiceOtpApproved &&
         !pendingCashPayment;
+
+    const warrantyExpiryDateObj = displayInvoice?.warranty_days 
+        ? new Date(new Date(displayInvoice.created_at).getTime() + displayInvoice.warranty_days * 24 * 60 * 60 * 1000) 
+        : null;
+    const isWarrantyExpired = warrantyExpiryDateObj ? new Date() > warrantyExpiryDateObj : false;
+    const hasWarranty = !!displayInvoice?.warranty_days && displayInvoice.warranty_days > 0;
 
     return (
         <>
+
+
             {/* Cash Confirmation Modal */}
             <CashConfirmModal
                 isOpen={showCashModal}
@@ -538,7 +541,7 @@ const InvoiceGenerator = () => {
                     open={reopenModalOpen}
                     onOpenChange={setReopenModalOpen}
                     serviceId={service.id}
-                    warrantyExpiryDate={displayInvoice?.warranty_days ? new Date(new Date(displayInvoice.created_at).getTime() + displayInvoice.warranty_days * 24 * 60 * 60 * 1000).toISOString() : undefined}
+                    warrantyExpiryDate={warrantyExpiryDateObj ? warrantyExpiryDateObj.toISOString() : undefined}
                 />
             )}
         <div className="max-w-4xl mx-auto p-2 md:p-4 space-y-4">
@@ -562,6 +565,15 @@ const InvoiceGenerator = () => {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
+                    {service && (
+                        <button
+                            onClick={() => navigate(`/dashboard/services/view/${service.id}`)}
+                            className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-gray-500 hover:text-blue-600 transition-all shadow-sm"
+                            title="View Service Request"
+                        >
+                            <Eye className="w-4 h-4 text-secondary" />
+                        </button>
+                    )}
                     {statusStyle && displayInvoice && (
                         <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold tracking-wider ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
                             <div className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
@@ -571,8 +583,16 @@ const InvoiceGenerator = () => {
                     {isCustomer && displayInvoice?.status === 'paid' && (
                         <button
                             onClick={() => {
+                                if (!hasWarranty) {
+                                    toast.error('No warranty was provided for this product.');
+                                    return;
+                                }
+                                if (isWarrantyExpired) {
+                                    toast.error('Your warranty has expired.');
+                                    return;
+                                }
                                 if (hasPendingReopen) {
-                                    toast.info('Your issue report has been submitted waiting for shop owner approval.');
+                                    toast.info('Your issue report has been submitted and is waiting for shop owner approval.');
                                 } else {
                                     setReopenModalOpen(true);
                                 }
@@ -607,20 +627,7 @@ const InvoiceGenerator = () => {
                 </div>
             )}
 
-            {/* ── Payment Success Banner ── */}
-            {paymentSuccess && (
-                <div className="flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4 print:hidden animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold text-emerald-800">Payment Successful! 🎉</p>
-                        <p className="text-xs text-emerald-600 mt-0.5">
-                            Invoice {displayInvoice?.invoice_number} has been paid. Thank you for your business!
-                        </p>
-                    </div>
-                </div>
-            )}
+
 
             {/* ══ MAIN INVOICE DOCUMENT ══ */}
             {service && (
@@ -655,7 +662,7 @@ const InvoiceGenerator = () => {
                         </div>
 
                         {/* Print-only clean header */}
-                        <div className="hidden print:flex print:items-start print:justify-between print:px-0 print:py-0 print:pb-4 print:border-b-2 print:border-gray-800">
+                        <div className="hidden print:flex print:items-start print:justify-between print:px-0 print:py-0 print:pb-3 print:border-b print:border-gray-200">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 border-2 border-gray-800 rounded-lg flex items-center justify-center font-bold text-gray-900 text-lg">
                                     F
@@ -684,7 +691,7 @@ const InvoiceGenerator = () => {
                                     { icon: <CalendarDays className="w-3.5 h-3.5" />, label: 'Issue Date', value: new Date(displayInvoice?.created_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), color: 'text-purple-600', bg: 'bg-purple-50' },
                                     { icon: <Wrench className="w-3.5 h-3.5" />, label: 'Service Ref', value: `SR #${service.id}`, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                                     { icon: <Package className="w-3.5 h-3.5" />, label: 'Device', value: service.product?.name ?? service.brand?.name ?? '—', color: 'text-orange-600', bg: 'bg-orange-50' },
-                                    { icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'Warranty', value: displayInvoice?.warranty_days ? `${displayInvoice.warranty_days} Days` : 'None', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                                    { icon: <ShieldCheck className="w-3.5 h-3.5" />, label: 'Warranty', value: hasWarranty ? (isCustomer && warrantyExpiryDateObj ? `Till ${warrantyExpiryDateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : `${displayInvoice.warranty_days} Days`) : 'None', color: 'text-indigo-600', bg: 'bg-indigo-50' },
                                 ].map(({ icon, label, value, color, bg }) => (
                                     <div key={label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-2.5">
                                         <div className={`w-7 h-7 rounded-lg ${bg} ${color} flex items-center justify-center flex-shrink-0`}>
@@ -700,16 +707,35 @@ const InvoiceGenerator = () => {
                         </div>
                     </div>
 
-                    <div className="px-5 pb-5 space-y-5 print:px-0 print:pb-0 print:pt-4 print:space-y-4">
+                    {/* ── PAID Watermark ── */}
+                    {displayInvoice?.status === 'paid' && (
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none opacity-[0.07] print:opacity-[0.05] z-0">
+                            <div className="border-[12px] border-emerald-600 rounded-3xl px-12 py-6">
+                                <p className="text-8xl md:text-9xl font-black text-emerald-600 tracking-widest uppercase">PAID</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="px-5 pb-5 space-y-5 print:px-0 print:pb-0 print:pt-3 print:space-y-3 relative z-10">
 
                         {/* ── Billing Parties ── */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-4">
                             {/* Billed To */}
                             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 print:bg-transparent print:border-none print:rounded-none print:p-0">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-2 print:mb-1.5">
                                     Billed To
                                 </p>
                                 <p className="text-sm font-bold text-gray-900">{service.customer?.name ?? '—'}</p>
+                                {service.customer?.company_name && (
+                                    <p className="text-xs font-semibold text-gray-700 mt-1">
+                                        Company: {service.customer.company_name}
+                                    </p>
+                                )}
+                                {service.customer?.gstin && (
+                                    <p className="text-xs font-semibold text-gray-700 mt-0.5">
+                                        GSTIN: {service.customer.gstin}
+                                    </p>
+                                )}
                                 {service.customer?.email && (
                                     <div className="flex items-center gap-1.5 mt-1.5 print:mt-1">
                                         <Mail className="w-3 h-3 text-gray-400 flex-shrink-0 print:hidden" />
@@ -746,18 +772,18 @@ const InvoiceGenerator = () => {
                         </div>
 
                         {/* ── Items Table ── */}
-                        <div className="rounded-xl overflow-hidden border border-gray-100 print:border-0 print:border-t print:border-b print:rounded-none">
+                        <div className="rounded-xl overflow-hidden border border-gray-100 print:border-0 print:rounded-none">
                             <table className="w-full text-xs">
                                 <thead>
-                                    <tr className="bg-gray-800 text-white print:bg-transparent print:text-gray-700 print:border-b print:border-gray-300">
-                                        <th className="py-3 px-4 text-left font-bold text-[11px] uppercase tracking-wider print:py-2 print:px-2">Description</th>
-                                        <th className="py-3 px-4 text-center font-bold text-[11px] uppercase tracking-wider w-20 print:py-2 print:px-2">Type</th>
-                                        <th className="py-3 px-4 text-center font-bold text-[11px] uppercase tracking-wider w-14 print:py-2 print:px-2">Qty</th>
-                                        <th className="py-3 px-4 text-right font-bold text-[11px] uppercase tracking-wider w-28 print:py-2 print:px-2">Unit Price</th>
-                                        <th className="py-3 px-4 text-right font-bold text-[11px] uppercase tracking-wider w-28 print:py-2 print:px-2">Total</th>
+                                    <tr className="bg-gray-800 text-white print:bg-transparent print:text-gray-500 print:border-b print:border-gray-200">
+                                        <th className="py-3 px-4 text-left font-bold text-[11px] uppercase tracking-wider print:py-1.5 print:px-2">Description</th>
+                                        <th className="py-3 px-4 text-center font-bold text-[11px] uppercase tracking-wider w-20 print:py-1.5 print:px-2">Type</th>
+                                        <th className="py-3 px-4 text-center font-bold text-[11px] uppercase tracking-wider w-14 print:py-1.5 print:px-2">Qty</th>
+                                        <th className="py-3 px-4 text-right font-bold text-[11px] uppercase tracking-wider w-28 print:py-1.5 print:px-2">Unit Price</th>
+                                        <th className="py-3 px-4 text-right font-bold text-[11px] uppercase tracking-wider w-28 print:py-1.5 print:px-2">Total</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-50 print:divide-gray-200">
+                                <tbody className="divide-y divide-gray-50 print:divide-gray-100">
                                     {parts.length === 0 && charges.length === 0 ? (
                                         <tr>
                                             <td colSpan={5} className="py-8 px-4 text-center text-gray-400 italic">
@@ -806,7 +832,7 @@ const InvoiceGenerator = () => {
                         </div>
 
                         {/* ── Footer: Notes + Totals ── */}
-                        <div className="flex flex-col md:flex-row justify-between items-start gap-5 print:gap-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start gap-5 print:gap-4">
 
                             {/* Notes Section */}
                             <div className="flex-1 space-y-3">
@@ -846,6 +872,29 @@ const InvoiceGenerator = () => {
                                     </div>
                                 )}
 
+                                {/* Payment Details (Left Side) */}
+                                {displayInvoice?.status === 'paid' && successfulPayment && (
+                                    <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 print:bg-transparent print:border-none print:p-0 print:pt-2 w-full max-w-sm">
+                                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-2.5 print:text-gray-500">Payment Details</p>
+                                        <div className="space-y-2 text-xs">
+                                            <div className="flex justify-between text-gray-700">
+                                                <span>Method:</span>
+                                                <span className="font-semibold">{successfulPayment.gateway === 'cash_in_hand' ? 'Cash at Shop' : successfulPayment.gateway === 'upi' ? 'UPI' : successfulPayment.gateway === 'razorpay' ? 'Razorpay' : successfulPayment.gateway === 'cashfree' ? 'Cashfree' : successfulPayment.gateway}</span>
+                                            </div>
+                                            {successfulPayment.transaction_id && (
+                                                <div className="flex justify-between text-gray-700">
+                                                    <span>Txn ID:</span>
+                                                    <span className="font-mono font-medium">{successfulPayment.transaction_id}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between text-gray-700">
+                                                <span>Date:</span>
+                                                <span>{new Date(successfulPayment.updated_at || successfulPayment.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Print footer note */}
                                 <div className="hidden print:block mt-4 pt-4 border-t border-gray-200">
                                     <p className="text-[10px] text-gray-400">Thank you for choosing wFixma Device Repair Services.</p>
@@ -862,51 +911,25 @@ const InvoiceGenerator = () => {
                                         <span className="font-semibold text-gray-800">₹{subtotal.toFixed(2)}</span>
                                     </div>
 
-                                    {/* Tax input (live preview) */}
-                                    {!hasInvoice && canGenerate && isCompleted && (
-                                        <div className="flex justify-between items-center print:hidden">
-                                            <span className="text-xs text-gray-500">Tax (₹)</span>
-                                            <Input
-                                                type="number" min="0" step="0.01"
-                                                value={taxAmount}
-                                                onChange={e => setTaxAmount(e.target.value)}
-                                                className="w-24 h-6 text-xs text-right bg-white border-gray-200 shadow-sm px-1.5"
-                                            />
-                                        </div>
-                                    )}
-
                                     {tax > 0 && (
-                                        <div className={`flex justify-between text-xs text-gray-600 ${!hasInvoice ? 'hidden print:flex' : ''}`}>
+                                        <div className="flex justify-between text-xs text-gray-600">
                                             <span>Tax</span>
                                             <span className="text-indigo-600 font-medium">+₹{tax.toFixed(2)}</span>
                                         </div>
                                     )}
 
-                                    {/* Discount input (live preview) */}
-                                    {!hasInvoice && canGenerate && isCompleted && (
-                                        <div className="flex justify-between items-center print:hidden">
-                                            <span className="text-xs text-gray-500">Discount (₹)</span>
-                                            <Input
-                                                type="number" min="0" step="0.01"
-                                                value={discountAmount}
-                                                onChange={e => setDiscountAmount(e.target.value)}
-                                                className="w-24 h-6 text-xs text-right bg-white border-gray-200 shadow-sm px-1.5"
-                                            />
-                                        </div>
-                                    )}
-
                                     {discount > 0 && (
-                                        <div className={`flex justify-between text-xs text-gray-600 ${!hasInvoice ? 'hidden print:flex' : ''}`}>
+                                        <div className="flex justify-between text-xs text-gray-600">
                                             <span>Discount</span>
                                             <span className="text-red-500 font-medium">-₹{discount.toFixed(2)}</span>
                                         </div>
                                     )}
 
                                     {/* Divider */}
-                                    <div className="border-t border-gray-200 pt-2 print:border-gray-800" />
+                                    <div className="border-t border-gray-200 pt-2 print:border-gray-200 print:pt-1.5" />
 
                                     {/* TOTAL */}
-                                    <div className="flex justify-between items-center bg-gradient-to-r from-[#1F80FF] to-[#0055cc] text-white px-4 py-3 rounded-xl print:bg-transparent print:rounded-none print:border-t-2 print:border-gray-800 print:px-0 print:text-gray-900">
+                                    <div className="flex justify-between items-center bg-gradient-to-r from-[#1F80FF] to-[#0055cc] text-white px-4 py-3 rounded-xl print:bg-transparent print:rounded-none print:border-t print:border-gray-200 print:px-0 print:text-gray-900 print:py-1.5">
                                         <span className="font-bold text-xs uppercase tracking-widest print:text-gray-800">Total</span>
                                         <span className="font-black text-xl print:text-gray-900">{formatCurrency(total, currency)}</span>
                                     </div>
@@ -914,12 +937,12 @@ const InvoiceGenerator = () => {
 
                                 {/* Payment status badge */}
                                 {displayInvoice && (
-                                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold print:hidden ${statusStyle?.bg} ${statusStyle?.text} ${statusStyle?.border}`}>
+                                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold print:hidden mt-2 ${statusStyle?.bg} ${statusStyle?.text} ${statusStyle?.border}`}>
                                         <div className={`w-1.5 h-1.5 rounded-full ${statusStyle?.dot}`} />
                                         {displayInvoice.status === 'paid'
                                             ? 'Payment received — Thank you!'
                                             : displayInvoice.status === 'sent'
-                                            ? 'Awaiting customer payment'
+                                            ? (isCustomer && pendingCashPayment ? 'You have selected to pay by cash' : 'Awaiting customer payment')
                                             : displayInvoice.status === 'draft'
                                             ? 'Invoice not yet sent'
                                             : `Status: ${displayInvoice.status}`
@@ -947,7 +970,7 @@ const InvoiceGenerator = () => {
                                 className="bg-[#1F80FF] hover:bg-[#0055cc] text-white font-semibold shadow-sm px-5 h-9 text-xs gap-2 rounded-xl transition-all"
                             >
                                 <Send className="w-3.5 h-3.5" />
-                                {resendMutation.isPending ? 'Resending...' : 'Resend Invoice Email'}
+                                {resendMutation.isPending ? 'Resending...' : 'Resend Invoice'}
                             </Button>
                         )}
                     </div>
@@ -989,33 +1012,17 @@ const InvoiceGenerator = () => {
                     </div>
                 )}
 
-                {/* ── Customer: Pending Cash Payment ── */}
-                {isCustomer && pendingCashPayment && !paymentSuccess && (
-                    <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-                        <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Clock className="w-4 h-4 text-amber-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-amber-800">Cash Payment Pending</p>
-                            <p className="text-xs text-amber-600 mt-0.5">
-                                You have selected to pay by cash. Visit the shop and hand the amount to the staff.
-                                They will generate a 6-digit OTP on your payment screen — share it with them to confirm payment.
-                            </p>
-                        </div>
-                    </div>
-                )}
 
-                {/* ── Shop Owner: OTP-Based Cash Verification ── */}
-                {canGenerate && pendingCashPayment && displayInvoice?.status === 'sent' && !paymentSuccess && (
+
+                {/* ── Shop Owner: Collect Payment ── */}
+                {canGenerate && displayInvoice?.status === 'sent' && !paymentSuccess && pendingCashPayment && (
                     <div className="bg-white border border-emerald-200 rounded-xl overflow-hidden shadow-sm">
-
-                        {/* Header bar */}
                         <div className="flex items-center gap-2.5 px-4 py-3 bg-emerald-50 border-b border-emerald-100">
                             <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <Banknote className="w-4 h-4 text-emerald-600" />
                             </div>
                             <div className="flex-1">
-                                <p className="text-xs font-bold text-emerald-900">Cash Payment Pending — OTP Verification Required</p>
+                                <p className="text-xs font-bold text-emerald-900">Collect Payment</p>
                                 <p className="text-[10px] text-emerald-600 mt-0.5">
                                     Customer: <strong>{displayInvoice?.customer?.name ?? '—'}</strong> ·
                                     Amount: <strong>
@@ -1026,92 +1033,314 @@ const InvoiceGenerator = () => {
                             </div>
                         </div>
 
-                        <div className="p-4 space-y-3">
-                            {!otpSent ? (
-                                /* Step 1: Send OTP */
-                                <>
-                                    <div className="space-y-1">
-                                        <p className="text-xs font-semibold text-gray-700">Step 1 — Collect cash from customer</p>
-                                        <p className="text-[11px] text-gray-500">
-                                            Once you have received the cash, click below to generate a verification OTP on the customer's payment screen.
+                        <div className="p-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => setCollectionMethod('cash')}
+                                    className={`p-3 rounded-xl border-2 text-center transition-all ${
+                                        collectionMethod === 'cash' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 hover:border-emerald-200 text-gray-600'
+                                    }`}
+                                >
+                                    <Banknote className="w-6 h-6 mx-auto mb-1 opacity-80" />
+                                    <p className="text-xs font-bold">Cash</p>
+                                </button>
+                                <button
+                                    onClick={() => setCollectionMethod('upi')}
+                                    className={`p-3 rounded-xl border-2 text-center transition-all ${
+                                        collectionMethod === 'upi' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-blue-200 text-gray-600'
+                                    }`}
+                                >
+                                    <div className="w-6 h-6 mx-auto mb-1 opacity-80 flex items-center justify-center">
+                                        <QRCodeSVG value="upi://pay" size={20} />
+                                    </div>
+                                    <p className="text-xs font-bold">UPI QR</p>
+                                </button>
+                            </div>
+
+                            {collectionMethod === 'cash' && (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                    <p className="text-xs text-gray-600 text-center">
+                                        Collect cash from the customer and confirm payment below.
+                                    </p>
+                                    <Button
+                                        id="confirm-cash-received-btn"
+                                        onClick={() => handleConfirmManual('cash')}
+                                        disabled={confirmManualPaymentMutation.isPending}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                    >
+                                        {confirmManualPaymentMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Banknote className="w-4 h-4 mr-2" />}
+                                        Confirm Cash Received
+                                    </Button>
+                                </div>
+                            )}
+
+                            {collectionMethod === 'upi' && (
+                                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                    {displayInvoice?.shop?.upi_id ? (
+                                        <div className="flex flex-col items-center p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                            <p className="text-xs font-bold text-gray-800 mb-3">Scan to Pay via UPI</p>
+                                            <div className="p-2 bg-white rounded-lg border border-gray-100 shadow-sm">
+                                                <QRCodeSVG 
+                                                    value={`upi://pay?pa=${displayInvoice.shop.upi_id}&pn=${encodeURIComponent(displayInvoice.shop.upi_name || displayInvoice.shop.name)}&am=${Number(displayInvoice.total_amount).toFixed(2)}&cu=${displayInvoice.currency || 'INR'}`} 
+                                                    size={160} 
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 mt-3 text-center">
+                                                UPI ID: <span className="font-semibold text-gray-700">{displayInvoice.shop.upi_id}</span><br/>
+                                                Amount: <span className="font-semibold text-gray-700">₹{Number(displayInvoice.total_amount).toFixed(2)}</span>
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs text-center">
+                                            UPI ID is not configured for this branch. Please configure it in settings.
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-gray-600 text-center px-4">
+                                        Ask the customer to scan the QR code. Verify the payment on your app before confirming below.
+                                    </p>
+                                    <Button
+                                        onClick={() => handleConfirmManual('upi')}
+                                        disabled={confirmManualPaymentMutation.isPending || !displayInvoice?.shop?.upi_id}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                                    >
+                                        {confirmManualPaymentMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                                        Confirm UPI Payment Received
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Customer: Approval Panel ── */}
+                {isCustomer && displayInvoice?.status === 'sent' && !isInvoiceOtpApproved && !paymentSuccess && (
+                    <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border-b border-amber-100">
+                            <div className="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+                                <LockKeyhole className="w-4.5 h-4.5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-amber-900">
+                                    {isCustomerApproved ? 'Awaiting Staff Verification' : 'Approve Invoice to Enable Payment'}
+                                </p>
+                                <p className="text-[10px] text-amber-600">
+                                    {isCustomerApproved ? 'Please share the OTP with shop staff' : 'Review and approve this invoice to proceed'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {!isCustomerApproved ? (
+                                <div className="space-y-3">
+                                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5">
+                                        <p className="text-xs text-amber-800 leading-relaxed">
+                                            Please review the invoice details. Click <strong>"Approve Invoice"</strong> to confirm that the service and device tests are completed.
                                         </p>
                                     </div>
                                     <Button
-                                        id="send-cash-otp-btn"
-                                        size="sm"
-                                        onClick={handleSendOtp}
-                                        disabled={sendOtpMutation.isPending}
-                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-9 text-xs gap-2 rounded-lg transition-all"
-                                    >
-                                        {sendOtpMutation.isPending
-                                            ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sending OTP...</>
-                                            : <><KeyRound className="w-3.5 h-3.5" /> Generate Verification OTP for Customer</>
-                                        }
-                                    </Button>
-                                </>
-                            ) : (
-                                /* Step 2: Enter OTP */
-                                <>
-                                    <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
-                                        <MailCheck className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                                        <div>
-                                            <p className="text-xs font-semibold text-blue-800">OTP generated on customer's payment screen</p>
-                                            <p className="text-[10px] text-blue-600 mt-0.5">
-                                                Ask the customer to check their payment screen and share the 6-digit code.
-                                                {otpExpiresAt && (
-                                                    <span className="ml-1 text-amber-600 font-medium">
-                                                        · Expires at {new Date(otpExpiresAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                                                    </span>
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <Label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                            <KeyRound className="w-3 h-3 inline mr-1" />Enter 6-Digit OTP from Customer
-                                        </Label>
-                                        <Input
-                                            id="cash-otp-input"
-                                            type="text"
-                                            inputMode="numeric"
-                                            maxLength={6}
-                                            placeholder="e.g. 4 8 2 9 1 7"
-                                            value={otpValue}
-                                            onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                            className="text-center text-xl font-bold tracking-[0.5em] h-12 border-gray-300 focus:border-emerald-500 focus:ring-emerald-200 bg-white"
-                                        />
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <Button
-                                            id="verify-cash-otp-btn"
-                                            size="sm"
-                                            onClick={handleVerifyOtp}
-                                            disabled={verifyOtpMutation.isPending || otpValue.length !== 6}
-                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 text-xs gap-2 rounded-lg transition-all disabled:opacity-50"
-                                        >
-                                            {verifyOtpMutation.isPending
-                                                ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying...</>
-                                                : <><ShieldCheck className="w-3.5 h-3.5" /> Verify & Complete Payment</>
+                                        id="approve-invoice-btn"
+                                        onClick={async () => {
+                                            try {
+                                                const res = await customerApproveMutation.mutateAsync();
+                                                if (res.status) {
+                                                    toast.success('Invoice approved! Staff has been notified.');
+                                                    refetchInvoice();
+                                                } else {
+                                                    toast.error(res.message || 'Failed to approve invoice.');
+                                                }
+                                            } catch (err: any) {
+                                                toast.error(err.response?.data?.message || err.message || 'Failed to approve invoice.');
                                             }
-                                        </Button>
-                                        <Button
-                                            id="resend-cash-otp-btn"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={handleSendOtp}
-                                            disabled={sendOtpMutation.isPending}
-                                            className="h-9 text-xs px-3 rounded-lg border-gray-200 text-gray-600 hover:text-emerald-700 hover:border-emerald-300"
-                                        >
-                                            {sendOtpMutation.isPending
-                                                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                                : <><RefreshCw className="w-3.5 h-3.5" /> Resend</>}
-                                        </Button>
+                                        }}
+                                        disabled={customerApproveMutation.isPending}
+                                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all"
+                                    >
+                                        {customerApproveMutation.isPending
+                                            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Approving...</>
+                                            : <><BadgeCheck className="w-4 h-4 mr-2" /> Approve Invoice</>}
+                                    </Button>
+                                </div>
+                            ) : displayInvoice?.approval_otp ? (
+                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 text-center space-y-3">
+                                    <p className="text-xs font-semibold text-blue-800 leading-relaxed">
+                                        You have successfully approved this invoice. 
+                                    </p>
+                                    <div className="bg-white border border-blue-100 rounded-xl p-3.5 inline-block shadow-sm">
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Your Verification OTP</p>
+                                        <p className="text-3xl font-black text-blue-700 tracking-widest font-mono">{displayInvoice.approval_otp}</p>
+                                        <p className="text-[10px] text-gray-400 mt-1">Please tell this code to the shop employee to complete the approval.</p>
                                     </div>
-                                </>
+                                </div>
+                            ) : (
+                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center space-y-2">
+                                    <p className="text-xs font-semibold text-blue-800 leading-relaxed">
+                                        You have successfully approved this invoice. 
+                                    </p>
+                                    <p className="text-xs text-blue-600">
+                                        Awaiting shop employee to initiate OTP verification. Please share the verification code with the employee once it is generated.
+                                    </p>
+                                </div>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {/* ── Customer: Approved Banner ── */}
+                {isCustomer && isInvoiceOtpApproved && displayInvoice?.status === 'sent' && !paymentSuccess && (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <UnlockKeyhole className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <div>
+                            <p className="text-xs font-bold text-emerald-800">Invoice Approved ✓</p>
+                            <p className="text-[10px] text-emerald-600">You can now select a payment method below.</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── SE/SO: OTP Verification & Approval Status Panel ── */}
+                {canGenerate && displayInvoice?.status === 'sent' && !paymentSuccess && (
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden space-y-0">
+                        {/* Header */}
+                        <div className={`flex items-center gap-3 px-5 py-4 border-b ${
+                            isInvoiceOtpApproved
+                                ? 'bg-emerald-50 border-emerald-100'
+                                : isCustomerApproved
+                                ? 'bg-blue-50 border-blue-100'
+                                : 'bg-amber-50 border-amber-100'
+                        }`}>
+                            {isInvoiceOtpApproved ? (
+                                <BadgeCheck className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                            ) : (
+                                <LockKeyhole className={`w-5 h-5 flex-shrink-0 ${isCustomerApproved ? 'text-blue-600' : 'text-amber-500'}`} />
+                            )}
+                            <div className="flex-1">
+                                <p className={`text-sm font-bold ${
+                                    isInvoiceOtpApproved ? 'text-emerald-950' : isCustomerApproved ? 'text-blue-950' : 'text-amber-950'
+                                }`}>
+                                    {isInvoiceOtpApproved
+                                        ? 'Customer Approved & Verified ✓'
+                                        : isCustomerApproved
+                                        ? 'Customer Approved — Awaiting Verification'
+                                        : 'Awaiting Customer Approval'}
+                                </p>
+                                <p className={`text-[10px] ${
+                                    isInvoiceOtpApproved ? 'text-emerald-600' : isCustomerApproved ? 'text-blue-600' : 'text-amber-600'
+                                }`}>
+                                    {isInvoiceOtpApproved
+                                        ? `Approved and verified on ${displayInvoice.otp_approved_at ? new Date(displayInvoice.otp_approved_at).toLocaleString('en-IN') : '—'}`
+                                        : isCustomerApproved
+                                        ? 'Customer approved the invoice. Send OTP and verify code verbally.'
+                                        : 'The customer must log in and click "Approve Invoice" to proceed.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Actions / Form Body */}
+                        {!isInvoiceOtpApproved && isCustomerApproved && (
+                            <div className="p-5 space-y-4">
+                                {!otpSent && !displayInvoice?.approval_otp ? (
+                                    <div className="space-y-3">
+                                        <p className="text-xs text-gray-600">
+                                            The customer has approved this invoice. Send the verification OTP code to the customer.
+                                        </p>
+                                        <Button
+                                            id="send-approval-otp-btn"
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await sendApprovalOtpMutation.mutateAsync();
+                                                    if (res.status) {
+                                                        setOtpSent(true);
+                                                        toast.success('Verification OTP sent to customer!');
+                                                        refetchInvoice();
+                                                    } else {
+                                                        toast.error(res.message || 'Failed to send OTP.');
+                                                    }
+                                                } catch (err: any) {
+                                                    toast.error(err.response?.data?.message || err.message || 'Failed to send OTP.');
+                                                }
+                                            }}
+                                            disabled={sendApprovalOtpMutation.isPending}
+                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 rounded-xl transition-all"
+                                        >
+                                            {sendApprovalOtpMutation.isPending ? (
+                                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...</>
+                                            ) : (
+                                                <><Send className="w-4 h-4 mr-2" /> Send OTP to Customer</>
+                                            )}
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-gray-700 block">Enter Customer OTP</label>
+                                            <input
+                                                id="staff-approval-otp-input"
+                                                type="text"
+                                                inputMode="numeric"
+                                                maxLength={6}
+                                                value={approvalOtp}
+                                                onChange={(e) => setApprovalOtp(e.target.value.replace(/\D/g, ''))}
+                                                placeholder="0  0  0  0  0  0"
+                                                className="w-full text-center tracking-[0.5em] text-2xl font-mono h-14 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none placeholder:text-gray-200"
+                                            />
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await sendApprovalOtpMutation.mutateAsync();
+                                                        if (res.status) {
+                                                            setOtpSent(true);
+                                                            toast.success('Verification OTP re-sent to customer!');
+                                                            refetchInvoice();
+                                                        }
+                                                    } catch (err: any) {
+                                                        toast.error(err.response?.data?.message || err.message || 'Failed to resend OTP.');
+                                                    }
+                                                }}
+                                                disabled={sendApprovalOtpMutation.isPending}
+                                                className="h-10 text-xs font-semibold px-4 rounded-xl"
+                                            >
+                                                Resend OTP
+                                            </Button>
+
+                                            <Button
+                                                id="staff-verify-otp-btn"
+                                                onClick={async () => {
+                                                    if (approvalOtp.length !== 6) {
+                                                        toast.error('Please enter the complete 6-digit OTP.');
+                                                        return;
+                                                    }
+                                                    try {
+                                                        const res = await verifyApprovalOtpMutation.mutateAsync(approvalOtp);
+                                                        if (res.status) {
+                                                            toast.success('Invoice verified & approved! Payment is now unlocked.');
+                                                            setOtpSent(false);
+                                                            setApprovalOtp('');
+                                                            refetchInvoice();
+                                                        } else {
+                                                            toast.error(res.message || 'Incorrect OTP.');
+                                                        }
+                                                    } catch (err: any) {
+                                                        toast.error(err.response?.data?.message || err.message || 'Failed to verify OTP.');
+                                                    }
+                                                }}
+                                                disabled={verifyApprovalOtpMutation.isPending || approvalOtp.length !== 6}
+                                                className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold h-10 rounded-xl shadow-sm transition-all"
+                                            >
+                                                {verifyApprovalOtpMutation.isPending ? (
+                                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Verifying...</>
+                                                ) : (
+                                                    <><BadgeCheck className="w-4 h-4 mr-2" /> Verify &amp; Unlock Payment</>
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1231,7 +1460,7 @@ const InvoiceGenerator = () => {
                                                 {gateway === 'cash_in_hand' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />}
                                             </div>
                                             <div>
-                                                <p className="text-xs font-bold text-gray-900">Cash in Hand</p>
+                                                <p className="text-xs font-bold text-gray-900">Cash</p>
                                                 <p className="text-[9px] text-gray-400">Pay cash at center</p>
                                             </div>
                                         </button>
@@ -1274,18 +1503,7 @@ const InvoiceGenerator = () => {
                     </div>
                 )}
 
-                {/* ── Customer: Already Paid ── */}
-                {isCustomer && displayInvoice?.status === 'paid' && (
-                    <div className="flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                        <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-emerald-800">Payment Completed</p>
-                            <p className="text-xs text-emerald-600 mt-0.5">This invoice has been fully paid. Thank you for your business!</p>
-                        </div>
-                    </div>
-                )}
+
             </div>
         </div>
         </>

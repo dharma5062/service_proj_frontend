@@ -12,6 +12,8 @@ export interface Shop {
     business_type_id?: number | null;
     image: string | null;
     image_url: string | null;
+    upi_id?: string | null;
+    upi_name?: string | null;
     created_at?: string;
     updated_at?: string;
     shop_owner?: {
@@ -40,6 +42,8 @@ export interface CreateShopPayload {
     shop_owner_id?: number | null;
     business_type_id?: number;
     category_ids?: number[]; // Selected category IDs (will be stored in description JSON)
+    upi_id?: string | null;
+    upi_name?: string | null;
 }
 
 // Payload for updating a shop
@@ -50,6 +54,8 @@ export interface UpdateShopPayload {
     image?: File | null;
     shop_owner_id?: number | null;
     category_ids?: number[];
+    upi_id?: string | null;
+    upi_name?: string | null;
 }
 
 export interface ApiResponse<T> {
@@ -114,6 +120,13 @@ export const createShop = async (payload: CreateShopPayload): Promise<ApiRespons
             formData.append('business_type_id', payload.business_type_id.toString());
         }
 
+        if (payload.upi_id !== undefined && payload.upi_id !== null) {
+            formData.append('upi_id', payload.upi_id);
+        }
+        if (payload.upi_name !== undefined && payload.upi_name !== null) {
+            formData.append('upi_name', payload.upi_name);
+        }
+
         // Note: category_ids would ideally be sent to backend, but storing in description for now
         // as the current API spec doesn't support it directly
 
@@ -155,6 +168,13 @@ export const updateShop = async (id: number, payload: UpdateShopPayload): Promis
 
         if (payload.shop_owner_id !== undefined && payload.shop_owner_id !== null) {
             formData.append('shop_owner_id', payload.shop_owner_id.toString());
+        }
+
+        if (payload.upi_id !== undefined && payload.upi_id !== null) {
+            formData.append('upi_id', payload.upi_id);
+        }
+        if (payload.upi_name !== undefined && payload.upi_name !== null) {
+            formData.append('upi_name', payload.upi_name);
         }
 
         const response = await createFormDataAxios().post<ApiResponse<Shop>>(`/shops-update/${id}`, formData);

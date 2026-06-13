@@ -413,7 +413,7 @@ const ViewServiceRequest = () => {
                                         <Eye className="w-3.5 h-3.5" />
                                         Invoice
                                     </Button>
-                                    {(isSuperAdmin || isShopOwner) && existingInv.status !== 'paid' && (
+                                    {(isSuperAdmin || isShopOwner || isShopEmployee) && existingInv.status !== 'paid' && (
                                         <Button
                                             id="resend-invoice-btn"
                                             size="sm"
@@ -440,7 +440,7 @@ const ViewServiceRequest = () => {
                             );
                         }
                         
-                        if (isSuperAdmin || isShopOwner) {
+                        if (isSuperAdmin || isShopOwner || isShopEmployee) {
                             return (
                                 <Button
                                     id="generate-invoice-btn"
@@ -546,6 +546,11 @@ const ViewServiceRequest = () => {
                                             <p className="font-semibold text-gray-900 text-sm">
                                                 {service.customer.name}
                                             </p>
+                                            {service.customer.company_name && (
+                                                <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-semibold">
+                                                    {service.customer.company_name}
+                                                </span>
+                                            )}
                                             {service.customer.customer_approved && (
                                                 <Badge className="bg-green-100 text-green-700 text-xs gap-1">
                                                     <CheckCircle className="w-3 h-3" />
@@ -553,6 +558,11 @@ const ViewServiceRequest = () => {
                                                 </Badge>
                                             )}
                                         </div>
+                                        {service.customer.gstin && (
+                                            <p className="text-xs text-gray-700 font-semibold">
+                                                GST Number: {service.customer.gstin}
+                                            </p>
+                                        )}
                                         {service.customer.phone && (
                                             <p className="text-xs text-gray-600 flex items-center gap-1.5">
                                                 <Phone className="w-3 h-3 text-gray-400" />

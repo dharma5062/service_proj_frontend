@@ -8,6 +8,9 @@ import {
     Search,
     Plus,
     Trash2,
+    Users,
+    Phone,
+    MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -178,6 +181,8 @@ const CreateServiceRequest = () => {
     const [newCustomerEmail, setNewCustomerEmail] = useState('');
     const [newCustomerPhone, setNewCustomerPhone] = useState('');
     const [newCustomerAddress, setNewCustomerAddress] = useState('');
+    const [newCustomerCompanyName, setNewCustomerCompanyName] = useState('');
+    const [newCustomerGstin, setNewCustomerGstin] = useState('');
 
     // Parts management
     const [parts, setParts] = useState<PartItem[]>([]);
@@ -946,6 +951,8 @@ const CreateServiceRequest = () => {
                 email: newCustomerEmail.trim(),
                 phone: newCustomerPhone.trim(),
                 ...(newCustomerAddress.trim() && { address: newCustomerAddress.trim() }),
+                ...(newCustomerCompanyName.trim() && { company_name: newCustomerCompanyName.trim() }),
+                ...(newCustomerGstin.trim() && { gstin: newCustomerGstin.trim() }),
                 shop_id: shopId,
                 business_type_id: businessTypeId,
             };
@@ -963,6 +970,8 @@ const CreateServiceRequest = () => {
                 setNewCustomerEmail('');
                 setNewCustomerPhone('');
                 setNewCustomerAddress('');
+                setNewCustomerCompanyName('');
+                setNewCustomerGstin('');
                 setIsModalOpen(false);
             } else {
                 toast.error(response.message || 'Failed to create customer');
@@ -1010,60 +1019,116 @@ const CreateServiceRequest = () => {
         <div className="min-h-screen bg-gray-50  flex-col">
             {/* Add Customer Modal */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Add New Customer</DialogTitle>
-                        <DialogDescription>
-                            Enter the customer's details below.
+                <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-5 gap-4">
+                    <DialogHeader className="space-y-1">
+                        <DialogTitle className="text-base font-bold flex items-center gap-1.5 text-gray-900">
+                            <Users className="h-4 w-4 text-primary" />
+                            Add New Customer
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-gray-500">
+                            Provide details for the new customer.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="col-span-2">
-                                <label className="text-sm font-medium mb-2 block">Full Name *</label>
-                                <Input
-                                    placeholder="e.g., Jane Doe"
-                                    value={newCustomerName}
-                                    onChange={(e) => setNewCustomerName(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">Email Address *</label>
-                                <Input
-                                    type="email"
-                                    placeholder="e.g., jane.doe@example.com"
-                                    value={newCustomerEmail}
-                                    onChange={(e) => setNewCustomerEmail(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium mb-2 block">Phone Number *</label>
-                                <Input
-                                    type="tel"
-                                    placeholder="e.g., +1 234 567 8900"
-                                    value={newCustomerPhone}
-                                    onChange={(e) => setNewCustomerPhone(e.target.value)}
-                                />
-                            </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-3 py-1">
+                        {/* Name */}
+                        <div className="col-span-1 space-y-1">
+                            <Label htmlFor="name" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
+                                <Users className="w-3.5 h-3.5 text-gray-400" />
+                                Full Name <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                                id="name"
+                                placeholder="e.g., Jane Doe"
+                                value={newCustomerName}
+                                onChange={(e) => setNewCustomerName(e.target.value)}
+                                className="h-8 text-xs placeholder:text-gray-400"
+                            />
                         </div>
 
-                        <div>
-                            <label className="text-sm font-medium mb-2 block">Address</label>
+                        {/* Company Name */}
+                        <div className="col-span-1 space-y-1">
+                            <Label htmlFor="company_name" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
+                                Company Name
+                            </Label>
                             <Input
-                                placeholder="e.g., 123 Main St, Anytown, CA 12345"
+                                id="company_name"
+                                placeholder="e.g., Acme Corp"
+                                value={newCustomerCompanyName}
+                                onChange={(e) => setNewCustomerCompanyName(e.target.value)}
+                                className="h-8 text-xs placeholder:text-gray-400"
+                            />
+                        </div>
+
+                        {/* Email */}
+                        <div className="col-span-1 space-y-1">
+                            <Label htmlFor="email" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
+                                <Mail className="w-3.5 h-3.5 text-gray-400" />
+                                Email Address <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="e.g., jane.doe@example.com"
+                                value={newCustomerEmail}
+                                onChange={(e) => setNewCustomerEmail(e.target.value)}
+                                className="h-8 text-xs placeholder:text-gray-400"
+                            />
+                        </div>
+
+                        {/* Phone */}
+                        <div className="col-span-1 space-y-1">
+                            <Label htmlFor="phone" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
+                                <Phone className="w-3.5 h-3.5 text-gray-400" />
+                                Phone Number <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                                id="phone"
+                                type="tel"
+                                placeholder="e.g., +919876543210"
+                                value={newCustomerPhone}
+                                onChange={(e) => setNewCustomerPhone(e.target.value)}
+                                className="h-8 text-xs placeholder:text-gray-400"
+                            />
+                        </div>
+
+                        {/* GST Number */}
+                        <div className="col-span-2 space-y-1">
+                            <Label htmlFor="gstin" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
+                                GST Number
+                            </Label>
+                            <Input
+                                id="gstin"
+                                placeholder="e.g., 22AAAAA0000A1Z5"
+                                value={newCustomerGstin}
+                                onChange={(e) => setNewCustomerGstin(e.target.value)}
+                                className="h-8 text-xs placeholder:text-gray-400"
+                            />
+                        </div>
+
+                        {/* Address */}
+                        <div className="col-span-2 space-y-1">
+                            <Label htmlFor="address" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                                Address
+                            </Label>
+                            <Textarea
+                                id="address"
+                                placeholder="e.g., 123 Main St, Anytown"
+                                className="resize-none text-xs min-h-[50px] py-1.5 placeholder:text-gray-400"
                                 value={newCustomerAddress}
                                 onChange={(e) => setNewCustomerAddress(e.target.value)}
+                                rows={2}
                             />
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                    <DialogFooter className="mt-2 gap-2 sm:gap-0">
+                        <Button variant="outline" size="sm" className="h-8 text-xs px-3" onClick={() => setIsModalOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleAddCustomer} disabled={isCreatingCustomer}>
-                            {isCreatingCustomer ? 'Saving...' : 'Save Customer'}
+                        <Button size="sm" className="h-8 text-xs px-3" onClick={handleAddCustomer} disabled={isCreatingCustomer}>
+                            {isCreatingCustomer ? 'Saving...' : 'Create Customer'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -1109,9 +1174,14 @@ const CreateServiceRequest = () => {
                                                         <p className="font-medium text-gray-900 text-xs">
                                                             {selectedCustomer.name}
                                                         </p>
+                                                        {selectedCustomer.company_name && (
+                                                            <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                                                {selectedCustomer.company_name}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <p className="text-xs text-gray-500">
-                                                        {selectedCustomer.phone}
+                                                        {selectedCustomer.phone} {selectedCustomer.gstin && `| GST: ${selectedCustomer.gstin}`}
                                                     </p>
                                                 </div>
                                             </div>

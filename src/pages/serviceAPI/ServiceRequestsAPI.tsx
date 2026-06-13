@@ -12,6 +12,8 @@ export interface ServiceRequestCustomer {
     email?: string;
     phone?: string;
     address?: string;
+    company_name?: string;
+    gstin?: string;
     customer_approved?: boolean;
 }
 

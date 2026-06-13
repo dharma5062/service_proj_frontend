@@ -38,6 +38,8 @@ interface CustomerFormData {
     email: string;
     phone: string;
     address: string;
+    company_name: string;
+    gstin: string;
 }
 
 const CustomersPage = () => {
@@ -79,6 +81,8 @@ const CustomersPage = () => {
         email: '',
         phone: '',
         address: '',
+        company_name: '',
+        gstin: '',
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
@@ -200,6 +204,8 @@ const CustomersPage = () => {
             email: record.email || '',
             phone: record.phone,
             address: record.address || '',
+            company_name: record.company_name || '',
+            gstin: record.gstin || '',
         });
         setFormErrors({});
         setFormDialogOpen(true);
@@ -233,6 +239,8 @@ const CustomersPage = () => {
             email: '',
             phone: '',
             address: '',
+            company_name: '',
+            gstin: '',
         });
         setFormErrors({});
         setFormDialogOpen(true);
@@ -276,6 +284,8 @@ const CustomersPage = () => {
                     email: formData.email,
                     phone: formData.phone,
                     address: formData.address || undefined,
+                    company_name: formData.company_name || undefined,
+                    gstin: formData.gstin || undefined,
                 };
                 await updateMutation.mutateAsync({ id: selectedCustomerId, payload });
                 toast.success('Customer details updated successfully');
@@ -285,6 +295,8 @@ const CustomersPage = () => {
                     email: formData.email,
                     phone: formData.phone,
                     address: formData.address || undefined,
+                    company_name: formData.company_name || undefined,
+                    gstin: formData.gstin || undefined,
                     shop_id: shopId,
                 };
                 const result = await createMutation.mutateAsync(payload);
@@ -381,6 +393,18 @@ const CustomersPage = () => {
                                             <p className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-gray-400" /> Phone</p>
                                             <p className="text-xs font-semibold text-gray-900">{selectedCustomer.phone}</p>
                                         </div>
+                                        {selectedCustomer.company_name && (
+                                            <div>
+                                                <p className="text-xs text-gray-500">Company Name</p>
+                                                <p className="text-xs font-semibold text-gray-900">{selectedCustomer.company_name}</p>
+                                            </div>
+                                        )}
+                                        {selectedCustomer.gstin && (
+                                            <div>
+                                                <p className="text-xs text-gray-500">GST Number</p>
+                                                <p className="text-xs font-semibold text-gray-900">{selectedCustomer.gstin}</p>
+                                            </div>
+                                        )}
                                         <div className="col-span-2">
                                             <p className="text-xs text-gray-500 flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-gray-400" /> Address</p>
                                             <p className="text-xs text-gray-700 bg-gray-50 p-2 rounded-md border border-gray-100 min-h-[40px]">
@@ -420,7 +444,7 @@ const CustomersPage = () => {
 
                     <div className="grid grid-cols-2 gap-x-3 gap-y-3 py-1">
                         {/* Name */}
-                        <div className="col-span-2 space-y-1">
+                        <div className="col-span-1 space-y-1">
                             <Label htmlFor="name" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
                                 <Users className="w-3.5 h-3.5 text-gray-400" />
                                 Full Name <span className="text-red-500">*</span>
@@ -435,6 +459,20 @@ const CustomersPage = () => {
                             {formErrors.name && (
                                 <p className="text-[10px] text-red-500 font-medium mt-0.5 leading-none">{formErrors.name}</p>
                             )}
+                        </div>
+
+                        {/* Company Name */}
+                        <div className="col-span-1 space-y-1">
+                            <Label htmlFor="company_name" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
+                                Company Name
+                            </Label>
+                            <Input
+                                id="company_name"
+                                placeholder="e.g., Acme Corp"
+                                value={formData.company_name}
+                                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                                className="h-8 text-xs placeholder:text-gray-400"
+                            />
                         </div>
 
                         {/* Email */}
@@ -472,6 +510,20 @@ const CustomersPage = () => {
                             {formErrors.phone && (
                                 <p className="text-[10px] text-red-500 font-medium mt-0.5 leading-none">{formErrors.phone}</p>
                             )}
+                        </div>
+
+                        {/* GST Number */}
+                        <div className="col-span-2 space-y-1">
+                            <Label htmlFor="gstin" className="text-[11px] font-semibold text-gray-600 flex items-center gap-1">
+                                GST Number
+                            </Label>
+                            <Input
+                                id="gstin"
+                                placeholder="e.g., 22AAAAA0000A1Z5"
+                                value={formData.gstin}
+                                onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                                className="h-8 text-xs placeholder:text-gray-400"
+                            />
                         </div>
 
                         {/* Address */}

@@ -247,6 +247,7 @@ const InvoicesListPage = () => {
                 render: (_: any, inv: Invoice) => {
                     const isResending = resendMutation.isPending;
                     const pendingCashPayment = inv.payments?.find((p: any) => p.gateway === 'cash_in_hand' && p.status === 'pending');
+                    const isOtpValid = pendingCashPayment?.cash_otp && pendingCashPayment?.cash_otp_expires_at && new Date(pendingCashPayment.cash_otp_expires_at).getTime() > Date.now();
                     return (
                         <div className="flex items-center gap-1 justify-end">
                             <Button
@@ -274,7 +275,21 @@ const InvoicesListPage = () => {
                             )}
                             {isCustomer && inv.status === 'sent' && (
                                 <>
-                                    {pendingCashPayment?.cash_otp ? (
+                                    {!inv.customer_approved ? (
+                                        <Button
+                                            id={`approve-invoice-${inv.id}`}
+                                            size="sm"
+                                            className="h-7 px-2.5 text-[10px] gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm font-bold transition-all"
+                                            onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
+                                        >
+                                            <Clock className="w-3 h-3" />
+                                            Approve
+                                        </Button>
+                                    ) : !inv.otp_approved ? (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-[9px] font-bold">
+                                            Awaiting Verification
+                                        </span>
+                                    ) : isOtpValid ? (
                                         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg shadow-sm" title="Show this OTP to the shop staff">
                                             <span className="text-[9px] font-bold text-amber-800 uppercase">OTP:</span>
                                             <span className="text-xs font-black tracking-widest text-amber-600">{pendingCashPayment.cash_otp}</span>

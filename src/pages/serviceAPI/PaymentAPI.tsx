@@ -92,6 +92,16 @@ export interface VerifyCashOtpResponse {
   message: string;
 }
 
+export interface ConfirmManualPaymentPayload {
+  invoiceId: number;
+  type: 'cash' | 'upi';
+}
+
+export interface ConfirmManualPaymentResponse {
+  status: boolean;
+  message: string;
+}
+
 // ==========================================
 // API Calls
 // ==========================================
@@ -118,6 +128,11 @@ export const sendCashOtp = async (invoiceId: number): Promise<SendCashOtpRespons
 
 export const verifyCashOtp = async ({ invoiceId, otp }: VerifyCashOtpPayload): Promise<VerifyCashOtpResponse> => {
   const response = await axiosInstance.post(`/invoice/${invoiceId}/verify-cash-otp`, { otp });
+  return response.data;
+};
+
+export const confirmManualPayment = async ({ invoiceId, type }: ConfirmManualPaymentPayload): Promise<ConfirmManualPaymentResponse> => {
+  const response = await axiosInstance.post(`/invoice/${invoiceId}/confirm-manual`, { type });
   return response.data;
 };
 
@@ -166,6 +181,17 @@ export const useVerifyCashOtp = (invoiceId?: number) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (otp: string) => verifyCashOtp({ invoiceId: invoiceId!, otp }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoice', invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+};
+
+export const useConfirmManualPayment = (invoiceId?: number) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (type: 'cash' | 'upi') => confirmManualPayment({ invoiceId: invoiceId!, type }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoice', invoiceId] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });

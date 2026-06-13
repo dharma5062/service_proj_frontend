@@ -42,36 +42,78 @@ const DashboardLayout = () => {
     // Helper: generate breadcrumbs from current path
     const getBreadcrumbs = () => {
         const pathnames = location.pathname.split('/').filter((x) => x);
-        return pathnames.map((value, index) => {
-            const last = index === pathnames.length - 1;
-            const to = `/${pathnames.slice(0, index + 1).join('/')}`;
+        const breadcrumbs = [];
 
-            // Map segment names to readable titles
+        if (pathnames[0] === 'dashboard' && pathnames.length === 1) {
+            breadcrumbs.push({ title: 'Dashboard', to: '/dashboard', last: true });
+        }
+
+        if (pathnames[1]) {
+            const section = pathnames[1].toLowerCase();
+            
+            // Map the section to its list route
+            const listRoutes: Record<string, string> = {
+                'settings': '/dashboard/settings',
+                'services': '/dashboard/services',
+                'invoices': '/dashboard/invoices',
+                'invoice': '/dashboard/invoices', 
+                'staff': '/dashboard/staff',
+                'categories': '/dashboard/categories',
+                'brand': '/dashboard/brand',
+                'product': '/dashboard/product',
+                'shop-defect-form': '/dashboard/shop-defect-form',
+                'analytics': '/dashboard/analytics',
+                'table-demo': '/dashboard/table-demo',
+            };
+
             const titles: Record<string, string> = {
-                dashboard: 'Dashboard',
-                settings: 'Settings',
-                categories: 'Categories',
-                products: 'Products',
-                roles: 'Roles',
-                permissions: 'Permissions',
-                staff: 'Staff',
-                reporting: 'Reporting',
-                invoice: 'Invoice',
-                promotions: 'Promotions',
-                create: 'Create',
-                edit: 'Edit',
-                view: 'View',
-                'business-types': 'Business Types',
+                'settings': 'Settings',
+                'services': 'Services',
+                'invoices': 'Invoices',
+                'invoice': 'Invoices',
+                'staff': 'Staff',
+                'categories': 'Categories',
+                'brand': 'Brands',
+                'product': 'Products',
                 'shop-defect-form': 'Shop Defect Form',
-                'company-branches': 'Company Branches',
+                'analytics': 'Analytics',
+                'table-demo': 'Table Demo',
             };
 
-            return {
-                title: titles[value] || value.charAt(0).toUpperCase() + value.slice(1).replace(/-/g, ' '),
-                to,
-                last,
-            };
-        });
+            const isSettings = section === 'settings';
+            
+            if (!isSettings || pathnames.length === 2) {
+                breadcrumbs.push({ 
+                    title: titles[section] || section.charAt(0).toUpperCase() + section.slice(1), 
+                    to: listRoutes[section] || `/dashboard/${section}`, 
+                    last: true
+                });
+            }
+
+            // Handle sub-pages in settings
+            if (isSettings && pathnames[2]) {
+                 const subSection = pathnames[2];
+                 const subTitles: Record<string, string> = {
+                     'customers': 'Customers',
+                     'business-types': 'Business Types',
+                     'service-charges': 'Service Charges',
+                     'roles': 'Roles & Permissions',
+                     'company-branches': 'Company Branches'
+                 };
+                 breadcrumbs.push({
+                     title: subTitles[subSection] || subSection.charAt(0).toUpperCase() + subSection.slice(1).replace(/-/g, ' '),
+                     to: `/dashboard/settings/${subSection}`,
+                     last: true
+                 });
+            }
+        }
+
+        // Ensure the last item always has last = true
+        if (breadcrumbs.length > 0) {
+            breadcrumbs[breadcrumbs.length - 1].last = true;
+        }
+
+        return breadcrumbs;
     };
 
     const breadcrumbs = getBreadcrumbs();

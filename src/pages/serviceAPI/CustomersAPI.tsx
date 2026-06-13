@@ -10,6 +10,8 @@ export interface Customer {
     email: string;
     phone: string;
     address?: string;
+    company_name?: string | null;
+    gstin?: string | null;
     customer_approved?: boolean;
     invite_token?: string | null;
     invite_token_expires_at?: string | null;
@@ -29,6 +31,8 @@ export interface CreateCustomerPayload {
     email: string;
     phone: string;
     address?: string;
+    company_name?: string;
+    gstin?: string;
     shop_id?: number | null;
     business_type_id?: number | null;
 }
@@ -325,6 +329,8 @@ export interface UpdateCustomerPayload {
     email: string;
     phone: string;
     address?: string;
+    company_name?: string;
+    gstin?: string;
 }
 
 /**
