@@ -11,6 +11,7 @@ export interface InvoiceLineItem {
     quantity: number;
     unit_price: number;
     total: number;
+    is_warranty_covered?: boolean; // True if item is covered by warranty
 }
 
 export interface Invoice {
@@ -20,6 +21,8 @@ export interface Invoice {
     shop_id: number;
     customer_id: number;
     generated_by: number;
+    reopen_request_id?: number | null; // Linking rework invoice to reopen cycle
+    is_warranty_invoice?: boolean;     // True if ₹0 warranty rework invoice
     invoice_number: string;
     line_items: InvoiceLineItem[] | null;
     subtotal: string | number;

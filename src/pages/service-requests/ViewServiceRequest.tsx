@@ -22,6 +22,7 @@ import {
     Send,
     Eye,
     AlertTriangle,
+    Wrench,
 } from 'lucide-react';
 import { useInvoiceApi } from '@/pages/serviceAPI/InvoiceAPI';
 import {
@@ -38,7 +39,7 @@ import { toast } from 'sonner';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, string> = {
+export const STATUS_STYLES: Record<string, string> = {
     pending: 'bg-orange-100 text-orange-700 border border-orange-200',
     assigned: 'bg-blue-100 text-blue-700 border border-blue-200',
     accepted: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
@@ -50,6 +51,22 @@ const STATUS_STYLES: Record<string, string> = {
     cancelled: 'bg-red-100 text-red-700 border border-red-200',
     reopen_requested: 'bg-pink-100 text-pink-700 border border-pink-200',
     reopened: 'bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200',
+    warranty_closed: 'bg-green-100 text-green-700 border border-green-200',
+};
+
+export const STATUS_LABELS: Record<string, string> = {
+    pending: 'Pending',
+    assigned: 'Assigned',
+    accepted: 'Accepted',
+    waiting_parts: 'Waiting Parts',
+    in_progress: 'In Progress',
+    ready: 'Ready',
+    completed: 'Completed',
+    paid: 'Paid',
+    cancelled: 'Cancelled',
+    reopen_requested: 'Reopen Requested',
+    reopened: 'Reopened',
+    warranty_closed: 'Warranty Closed',
 };
 
 const getStatusStyle = (status?: string) => {
@@ -516,9 +533,26 @@ const ViewServiceRequest = () => {
                             <span className="font-bold text-amber-900 text-sm">Reopened Service</span>
                             <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] h-5 px-1.5 uppercase tracking-wider font-bold border-amber-200">Attention Required</Badge>
                         </div>
-                        <p className="text-xs text-amber-800/90 leading-relaxed max-w-3xl">
+                        <p className="text-xs text-amber-800/90 leading-relaxed max-w-3xl mb-3">
                             This device has been returned for a rework/warranty claim. The parts and charges shown below may include items from previous service cycles. Please carefully review the <strong>Tracking Timeline (Activity Log)</strong> and previous <strong>Invoice</strong> to understand the work completed by the previous technician before diagnosing the new issue.
                         </p>
+                        
+                        {/* Go to Rework Dashboard Button */}
+                        {(service.reopen_requests || []).filter((r: any) => r.status === 'approved').length > 0 && (
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    const latestReopen = [...(service.reopen_requests || [])].filter((r: any) => r.status === 'approved').pop();
+                                    if (latestReopen) {
+                                        navigate(`/dashboard/services/rework/${latestReopen.id}`);
+                                    }
+                                }}
+                                className="h-8 bg-amber-600 hover:bg-amber-700 text-white"
+                            >
+                                <Wrench className="w-4 h-4 mr-2" />
+                                Go to Rework Dashboard
+                            </Button>
+                        )}
                     </div>
                 </div>
             )}

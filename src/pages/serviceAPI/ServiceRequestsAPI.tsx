@@ -56,6 +56,7 @@ export interface ServiceRequest {
     status?: string;
     service_status?: string; // Backend field: pending, in_progress, completed, cancelled
     assigned_technician?: ShopEmployee | null;
+    reopen_requests?: any[];
     created_at?: string;
     updated_at?: string;
 }

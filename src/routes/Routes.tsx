@@ -40,6 +40,7 @@ import CustomersPage from '@/pages/settings/CustomersPage';
 import TableDemoPage from '@/pages/demo/TableDemoPage';
 import PrivateRoute from '@/components/routes/PrivateRoute';
 import PublicRoute from '@/components/routes/PublicRoute';
+import ReworkServicePage from '@/pages/service-requests/ReworkServicePage';
 
 const RouterComponent: React.FC = () => {
     return (
@@ -69,6 +70,7 @@ const RouterComponent: React.FC = () => {
                     <Route path='services/create' element={<CreateServiceRequest />} />
                     <Route path='services/edit/:id' element={<CreateServiceRequest />} />
                     <Route path='services/view/:id' element={<ViewServiceRequest />} />
+                    <Route path='services/rework/:reopenId' element={<ReworkServicePage />} />
                     <Route path='services/assign-technician/:id' element={<AssignTechnician />} />
                     <Route path='invoices' element={<InvoicesListPage />} />
                     <Route path='invoice/service/:serviceId' element={<InvoiceGenerator />} />

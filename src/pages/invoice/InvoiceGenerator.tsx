@@ -34,7 +34,6 @@ import {
     Eye,
     BadgeCheck,
     LockKeyhole,
-    UnlockKeyhole,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -190,7 +189,7 @@ const InvoiceGenerator = () => {
 
     const { useGetServiceRequestById } = useServiceRequestsApi();
     const { useGetInvoiceById, useGenerateInvoice, useResendInvoice } = useInvoiceApi();
-    const { useGetReopenRequests } = useServiceReopenApi();
+    const { useGetReopenRequests, useGetReworkDetails } = useServiceReopenApi();
 
     const { data: directInvoice, isLoading: directInvoiceLoading, refetch: refetchDirectInvoice } = useGetInvoiceById(
         invoiceId ? Number(invoiceId) : undefined
@@ -204,20 +203,37 @@ const InvoiceGenerator = () => {
     });
     const hasPendingReopen = (pendingReopens?.data?.length ?? 0) > 0;
 
+    const { data: approvedReopens, isLoading: approvedReopensLoading } = useGetReopenRequests({ 
+        service_id: targetServiceId, 
+        status: 'approved' 
+    });
+
+    const { data: allReopenRequests } = useGetReopenRequests({ 
+        service_id: targetServiceId 
+    });
+
+    const latestApprovedReopen = approvedReopens?.data?.[0];
+    const reworkInvoice = latestApprovedReopen?.newInvoice || (latestApprovedReopen as any)?.new_invoice;
+
     const { data: service, isLoading: serviceLoading } = useGetServiceRequestById(
         targetServiceId
     );
 
-    const existingInvoice = (service as any)?.invoice ?? null;
+    const existingInvoice = latestApprovedReopen 
+        ? (reworkInvoice ?? null) 
+        : ((service as any)?.invoice ?? null);
 
     const { data: serviceInvoice, isLoading: serviceInvoiceLoading, refetch: refetchServiceInvoice } = useGetInvoiceById(
         (!invoiceId && existingInvoice?.id) ? existingInvoice.id : undefined
     );
 
     const invoice = directInvoice || serviceInvoice;
-    const invoiceLoading = directInvoiceLoading || serviceInvoiceLoading;
+    const invoiceLoading = directInvoiceLoading || serviceInvoiceLoading || approvedReopensLoading;
     const refetchInvoice = invoiceId ? refetchDirectInvoice : refetchServiceInvoice;
     const displayInvoice = invoice ?? existingInvoice;
+
+    const activeReopenRequestId = displayInvoice?.reopen_request_id || latestApprovedReopen?.id;
+    const { data: reworkDetails, isLoading: reworkDetailsLoading } = useGetReworkDetails(activeReopenRequestId);
 
     const generateMutation = useGenerateInvoice();
     const resendMutation = useResendInvoice();
@@ -266,11 +282,14 @@ const InvoiceGenerator = () => {
     const parts: any[] = Array.isArray(parsedData.parts) ? parsedData.parts : [];
     const charges: any[] = Array.isArray(parsedData.selectedServiceCharges) ? parsedData.selectedServiceCharges : [];
 
-    const partsSubtotal = parts.reduce((s, p) => s + (Number(p.price) || 0) * (p.quantity || 1), 0);
-    const chargesSubtotal = charges.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+    const partsToCalculate = (reworkDetails && reworkDetails.delta) ? reworkDetails.delta.new_parts : parts;
+    const chargesToCalculate = (reworkDetails && reworkDetails.delta) ? reworkDetails.delta.new_charges : charges;
+
+    const partsSubtotal = partsToCalculate.reduce((s, p) => s + (Number(p.price) || 0) * (p.quantity || 1), 0);
+    const chargesSubtotal = chargesToCalculate.reduce((s, c) => s + (Number(c.amount) || 0), 0);
     const subtotal = partsSubtotal + chargesSubtotal;
 
-    const calculatedPartsTax = parts.reduce((sum, part) => {
+    const calculatedPartsTax = partsToCalculate.reduce((sum, part) => {
         if (part.tax_type !== 'inclusive') {
             return sum + ((Number(part.price) || 0) * (part.quantity || 1) * (Number(part.tax_percentage) || 0) / 100);
         }
@@ -281,7 +300,9 @@ const InvoiceGenerator = () => {
     const calculatedServiceTax = gstType === 'none' ? 0 : chargesSubtotal * (gstPercentage / 100);
 
     const tax = displayInvoice?.tax_amount ? Number(displayInvoice.tax_amount) : (calculatedPartsTax + calculatedServiceTax);
-    const discount = displayInvoice?.discount_amount ? Number(displayInvoice.discount_amount) : Number(parsedData?.serviceDiscount || parsedData?.discount || 0);
+    const discount = displayInvoice?.discount_amount 
+        ? Number(displayInvoice.discount_amount) 
+        : (reworkDetails ? 0 : Number(parsedData?.serviceDiscount || parsedData?.discount || 0));
     const total = subtotal + tax - discount;
 
     const isCompleted = service?.service_status === 'completed' || service?.status === 'completed';
@@ -304,7 +325,11 @@ const InvoiceGenerator = () => {
             if (res.status) {
                 toast.success(`Invoice ${res.data?.invoice_number} generated!`
                     + (res.email_sent ? ' Email sent to customer.' : ''));
-                refetchInvoice();
+                if (res.data?.id) {
+                    navigate(`/dashboard/invoice/view/${res.data.id}`);
+                } else {
+                    refetchInvoice();
+                }
             } else {
                 toast.error(res.message || 'Failed to generate invoice');
             }
@@ -483,7 +508,7 @@ const InvoiceGenerator = () => {
         }
     };
 
-    if (serviceLoading || invoiceLoading) {
+    if (serviceLoading || invoiceLoading || reworkDetailsLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="text-center space-y-4">
@@ -519,6 +544,9 @@ const InvoiceGenerator = () => {
         : null;
     const isWarrantyExpired = warrantyExpiryDateObj ? new Date() > warrantyExpiryDateObj : false;
     const hasWarranty = !!displayInvoice?.warranty_days && displayInvoice.warranty_days > 0;
+    
+    // ₹0 Warranty rework invoices bypass payment entirely
+    const isZeroWarrantyInvoice = displayInvoice?.is_warranty_invoice === true;
 
     return (
         <>
@@ -544,7 +572,7 @@ const InvoiceGenerator = () => {
                     warrantyExpiryDate={warrantyExpiryDateObj ? warrantyExpiryDateObj.toISOString() : undefined}
                 />
             )}
-        <div className="max-w-4xl mx-auto p-2 md:p-4 space-y-4">
+        <div className="max-w-5xl mx-auto p-2 md:p-0 space-y-2">
 
             {/* ── Top Toolbar ── */}
             <div className="flex items-center justify-between print:hidden">
@@ -561,7 +589,9 @@ const InvoiceGenerator = () => {
                     </button>
                     <div className="h-5 w-px bg-gray-200" />
                     <h1 className="text-base font-bold text-gray-800 tracking-tight">
-                        {hasInvoice ? 'Invoice Detail' : 'Create Invoice'}
+                        {hasInvoice 
+                            ? (displayInvoice?.reopen_request_id ? 'Rework Invoice Detail' : 'Invoice Detail') 
+                            : 'Create Invoice'}
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
@@ -602,6 +632,18 @@ const InvoiceGenerator = () => {
                             <AlertCircle className="w-3.5 h-3.5" />
                             Report Issue
                         </button>
+                    )}
+                    {displayInvoice?.is_warranty_invoice && (
+                        <div className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-green-200 bg-green-50 text-green-700 text-xs font-bold uppercase tracking-wider transition-all shadow-sm">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            Warranty Rework
+                        </div>
+                    )}
+                    {!displayInvoice?.is_warranty_invoice && displayInvoice?.reopen_request_id && (
+                        <div className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider transition-all shadow-sm">
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Rework Service
+                        </div>
                     )}
                     <button
                         id="print-invoice-btn"
@@ -650,7 +692,13 @@ const InvoiceGenerator = () => {
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-blue-200 text-[10px] font-bold uppercase tracking-[0.2em]">Invoice</p>
+                                    <p className="text-blue-200 text-[10px] font-bold uppercase tracking-[0.2em]">
+                                        {displayInvoice?.is_warranty_invoice 
+                                            ? 'Warranty Rework Invoice' 
+                                            : displayInvoice?.reopen_request_id 
+                                            ? 'Rework Service Invoice' 
+                                            : 'Invoice'}
+                                    </p>
                                     <p className="font-mono text-white font-bold text-base mt-0.5">
                                         {displayInvoice?.invoice_number || <span className="text-yellow-300 italic text-sm">DRAFT PREVIEW</span>}
                                     </p>
@@ -673,7 +721,13 @@ const InvoiceGenerator = () => {
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Invoice</p>
+                                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                                    {displayInvoice?.is_warranty_invoice 
+                                        ? 'Warranty Rework Invoice' 
+                                        : displayInvoice?.reopen_request_id 
+                                        ? 'Rework Service Invoice' 
+                                        : 'Invoice'}
+                                </p>
                                 <p className="font-mono text-gray-900 font-bold text-base mt-0.5">
                                     {displayInvoice?.invoice_number || 'DRAFT PREVIEW'}
                                 </p>
@@ -784,49 +838,163 @@ const InvoiceGenerator = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50 print:divide-gray-100">
-                                    {parts.length === 0 && charges.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="py-8 px-4 text-center text-gray-400 italic">
-                                                No items added yet.
-                                            </td>
-                                        </tr>
-                                    ) : null}
-                                    {parts.map((p: any, i: number) => (
-                                        <tr key={`p-${i}`} className="hover:bg-blue-50/30 transition-colors group print:hover:bg-transparent">
-                                            <td className="py-3 px-4 print:py-2 print:px-2">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 print:hidden" />
-                                                    <span className="font-semibold text-gray-900">{p.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3 px-4 text-center print:py-2 print:px-2">
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold print:bg-transparent print:text-gray-600 print:px-0">
-                                                    Part
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4 text-center font-medium text-gray-700 print:py-2 print:px-2">{p.quantity || 1}</td>
-                                            <td className="py-3 px-4 text-right text-gray-600 print:py-2 print:px-2">₹{Number(p.price || 0).toFixed(2)}</td>
-                                            <td className="py-3 px-4 text-right font-bold text-gray-900 print:py-2 print:px-2">₹{(Number(p.price || 0) * (p.quantity || 1)).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                    {charges.map((c: any, i: number) => (
-                                        <tr key={`c-${i}`} className="hover:bg-emerald-50/30 transition-colors group print:hover:bg-transparent">
-                                            <td className="py-3 px-4 print:py-2 print:px-2">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 print:hidden" />
-                                                    <span className="font-semibold text-gray-900">{c.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3 px-4 text-center print:py-2 print:px-2">
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold print:bg-transparent print:text-gray-600 print:px-0">
-                                                    Charge
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4 text-center font-medium text-gray-700 print:py-2 print:px-2">1</td>
-                                            <td className="py-3 px-4 text-right text-gray-600 print:py-2 print:px-2">₹{Number(c.amount || 0).toFixed(2)}</td>
-                                            <td className="py-3 px-4 text-right font-bold text-gray-900 print:py-2 print:px-2">₹{Number(c.amount || 0).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
+                                    {reworkDetails && reworkDetails.delta ? (
+                                        <>
+                                            {/* Covered Items (Original) */}
+                                            <tr className="bg-gray-100 print:bg-gray-50 border-b border-gray-200">
+                                                <td colSpan={5} className="py-2 px-4 text-[10px] font-bold text-gray-600 uppercase tracking-wider">
+                                                    Original Items (Covered Under Warranty)
+                                                </td>
+                                            </tr>
+                                            {(!reworkDetails.original_data.parts?.length && !reworkDetails.original_data.selectedServiceCharges?.length) && (
+                                                <tr><td colSpan={5} className="py-3 px-4 text-center italic text-gray-400">No original items.</td></tr>
+                                            )}
+                                            {reworkDetails.original_data.parts?.map((p: any, i: number) => (
+                                                <tr key={`op-${i}`} className="hover:bg-blue-50/30 transition-colors group print:hover:bg-transparent opacity-75">
+                                                    <td className="py-3 px-4 print:py-2 print:px-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0 print:hidden" />
+                                                            <span className="font-medium text-gray-600 line-through">{p.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center print:py-2 print:px-2">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold print:bg-transparent print:px-0">Part</span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center font-medium text-gray-500 print:py-2 print:px-2">{p.quantity || 1}</td>
+                                                    <td className="py-3 px-4 text-right text-gray-500 print:py-2 print:px-2">₹{Number(p.price || 0).toFixed(2)}</td>
+                                                    <td className="py-3 px-4 text-right font-bold text-green-600 print:py-2 print:px-2">
+                                                        <span className="line-through text-gray-400 mr-1">₹{(Number(p.price || 0) * (p.quantity || 1)).toFixed(2)}</span>
+                                                        ₹0.00
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {reworkDetails.original_data.selectedServiceCharges?.map((c: any, i: number) => (
+                                                <tr key={`oc-${i}`} className="hover:bg-emerald-50/30 transition-colors group print:hover:bg-transparent opacity-75">
+                                                    <td className="py-3 px-4 print:py-2 print:px-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0 print:hidden" />
+                                                            <span className="font-medium text-gray-600 line-through">{c.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center print:py-2 print:px-2">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold print:bg-transparent print:px-0">Charge</span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center font-medium text-gray-500 print:py-2 print:px-2">1</td>
+                                                    <td className="py-3 px-4 text-right text-gray-500 print:py-2 print:px-2">₹{Number(c.amount || 0).toFixed(2)}</td>
+                                                    <td className="py-3 px-4 text-right font-bold text-green-600 print:py-2 print:px-2">
+                                                        <span className="line-through text-gray-400 mr-1">₹{Number(c.amount || 0).toFixed(2)}</span>
+                                                        ₹0.00
+                                                    </td>
+                                                </tr>
+                                            ))}
+
+                                            {/* New Billable Additions */}
+                                            <tr className="bg-amber-50 print:bg-gray-50 border-y border-amber-100 print:border-gray-200">
+                                                <td colSpan={5} className="py-2 px-4 text-[10px] font-bold text-amber-800 print:text-gray-800 uppercase tracking-wider">
+                                                    New Additions (Billable)
+                                                </td>
+                                            </tr>
+                                            {(!reworkDetails.delta.new_parts?.length && !reworkDetails.delta.new_charges?.length) && (
+                                                <tr><td colSpan={5} className="py-3 px-4 text-center italic text-gray-400">No new items added.</td></tr>
+                                            )}
+                                            {reworkDetails.delta.new_parts?.map((p: any, i: number) => (
+                                                <tr key={`np-${i}`} className="bg-indigo-50/25 hover:bg-indigo-50/40 transition-colors group print:hover:bg-transparent">
+                                                    <td className="py-3 px-4 print:py-2 print:px-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 print:hidden" />
+                                                            <span className="font-semibold text-gray-900">{p.name}</span>
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[9px] font-extrabold uppercase tracking-wider print:hidden">Rework Added</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center print:py-2 print:px-2">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold print:bg-transparent print:px-0">Part</span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center font-medium text-gray-700 print:py-2 print:px-2">{p.quantity || 1}</td>
+                                                    <td className="py-3 px-4 text-right text-gray-600 print:py-2 print:px-2">₹{Number(p.price || 0).toFixed(2)}</td>
+                                                    <td className="py-3 px-4 text-right font-bold text-gray-900 print:py-2 print:px-2">
+                                                        ₹{(Number(p.price || 0) * (p.quantity || 1)).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {reworkDetails.delta.new_charges?.map((c: any, i: number) => (
+                                                <tr key={`nc-${i}`} className="bg-indigo-50/25 hover:bg-indigo-50/40 transition-colors group print:hover:bg-transparent">
+                                                    <td className="py-3 px-4 print:py-2 print:px-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 print:hidden" />
+                                                            <span className="font-semibold text-gray-900">{c.name}</span>
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[9px] font-extrabold uppercase tracking-wider print:hidden">Rework Added</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center print:py-2 print:px-2">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold print:bg-transparent print:px-0">Charge</span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center font-medium text-gray-700 print:py-2 print:px-2">1</td>
+                                                    <td className="py-3 px-4 text-right text-gray-600 print:py-2 print:px-2">₹{Number(c.amount || 0).toFixed(2)}</td>
+                                                    <td className="py-3 px-4 text-right font-bold text-gray-900 print:py-2 print:px-2">
+                                                        ₹{Number(c.amount || 0).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {parts.length === 0 && charges.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={5} className="py-8 px-4 text-center text-gray-400 italic">
+                                                        No items added yet.
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                            {parts.map((p: any, i: number) => (
+                                                <tr key={`p-${i}`} className="hover:bg-blue-50/30 transition-colors group print:hover:bg-transparent">
+                                                    <td className="py-3 px-4 print:py-2 print:px-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 print:hidden" />
+                                                            <span className="font-semibold text-gray-900">{p.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center print:py-2 print:px-2">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold print:bg-transparent print:text-gray-600 print:px-0">
+                                                            Part
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center font-medium text-gray-700 print:py-2 print:px-2">{p.quantity || 1}</td>
+                                                    <td className="py-3 px-4 text-right text-gray-600 print:py-2 print:px-2">₹{Number(p.price || 0).toFixed(2)}</td>
+                                                    <td className="py-3 px-4 text-right font-bold text-gray-900 print:py-2 print:px-2">
+                                                        {p.is_warranty_covered ? (
+                                                            <span className="text-green-600 line-through">₹{(Number(p.price || 0) * (p.quantity || 1)).toFixed(2)}</span>
+                                                        ) : (
+                                                            <span>₹{(Number(p.price || 0) * (p.quantity || 1)).toFixed(2)}</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {charges.map((c: any, i: number) => (
+                                                <tr key={`c-${i}`} className="hover:bg-emerald-50/30 transition-colors group print:hover:bg-transparent">
+                                                    <td className="py-3 px-4 print:py-2 print:px-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 print:hidden" />
+                                                            <span className="font-semibold text-gray-900">{c.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center print:py-2 print:px-2">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold print:bg-transparent print:text-gray-600 print:px-0">
+                                                            Charge
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center font-medium text-gray-700 print:py-2 print:px-2">1</td>
+                                                    <td className="py-3 px-4 text-right text-gray-600 print:py-2 print:px-2">₹{Number(c.amount || 0).toFixed(2)}</td>
+                                                    <td className="py-3 px-4 text-right font-bold text-gray-900 print:py-2 print:px-2">
+                                                        {c.is_warranty_covered ? (
+                                                            <span className="text-green-600 line-through">₹{Number(c.amount || 0).toFixed(2)}</span>
+                                                        ) : (
+                                                            <span>₹{Number(c.amount || 0).toFixed(2)}</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -954,6 +1122,316 @@ const InvoiceGenerator = () => {
                     </div>
                 </div>
             )}
+
+            {/* ── Reopen / Rework History ── */}
+            {allReopenRequests?.data && allReopenRequests.data.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6 print:hidden animate-in fade-in slide-in-from-top-4 duration-355">
+                    <div className="flex items-center gap-3 px-5 py-4 bg-gray-50 border-b border-gray-100">
+                        <div className="w-9 h-9 bg-gray-200 rounded-xl flex items-center justify-center text-gray-700">
+                            <Clock className="w-5 h-5 text-gray-500" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-800">Service Reopen &amp; Rework History</h3>
+                            <p className="text-[10px] text-gray-500 mt-0.5">History of issue reports and rework cycles for this service</p>
+                        </div>
+                    </div>
+                    <div className="p-5">
+                        <div className="relative border-l-2 border-gray-100 ml-4 pl-6 space-y-6">
+                            {allReopenRequests.data.map((req: any) => {
+                                const isApproved = req.status === 'approved';
+                                const isRejected = req.status === 'rejected';
+                                
+                                return (
+                                    <div key={req.id} className="relative">
+                                        {/* Timeline Dot */}
+                                        <div className={`absolute -left-[35px] top-1 w-4 h-4 rounded-full border-2 bg-white flex items-center justify-center shadow-sm ${
+                                            isApproved ? 'border-emerald-500' : isRejected ? 'border-red-500' : 'border-amber-400'
+                                        }`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${
+                                                isApproved ? 'bg-emerald-500' : isRejected ? 'bg-red-500' : 'bg-amber-400'
+                                            }`} />
+                                        </div>
+
+                                        <div className="bg-gray-50/50 hover:bg-gray-50/80 border border-gray-100 rounded-xl p-4 transition-all duration-200">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100/50 pb-2 mb-2.5">
+                                                <span className="text-xs font-extrabold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    Reopen Request #{req.reopen_number}
+                                                </span>
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide border ${
+                                                    isApproved 
+                                                        ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                                                        : isRejected 
+                                                        ? 'bg-red-50 border-red-100 text-red-700' 
+                                                        : 'bg-amber-50 border-amber-100 text-amber-700'
+                                                }`}>
+                                                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending Review'}
+                                                </span>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reason for Reopen</p>
+                                                    <p className="text-xs text-gray-700 mt-1 leading-relaxed font-medium">{req.reason}</p>
+                                                </div>
+
+                                                {req.shop_owner_note && (
+                                                    <div className="bg-white border border-gray-100 rounded-lg p-3">
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Shop Review Note</p>
+                                                        <p className="text-xs text-gray-600 mt-1 leading-relaxed italic">"{req.shop_owner_note}"</p>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[10px] text-gray-400 font-bold tracking-tight">
+                                                    <span>Requested: {formatDate(req.created_at)}</span>
+                                                    {req.reviewed_at && (
+                                                        <span>Reviewed: {formatDate(req.reviewed_at)}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Approval logic ── */}
+            {hasInvoice && !isZeroWarrantyInvoice && (
+                <div className="space-y-4">
+                    {/* ── Customer Approval Flow ── */}
+                    {isCustomer && displayInvoice?.status === 'sent' && !isInvoiceOtpApproved && (
+                        <div className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden mt-6">
+                            <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border-b border-amber-100">
+                                <div className="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+                                    <LockKeyhole className="w-4.5 h-4.5 text-white" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-amber-900">
+                                        {isCustomerApproved ? 'Awaiting Staff Verification' : 'Approve Invoice to Enable Payment'}
+                                    </p>
+                                    <p className="text-[10px] text-amber-600">
+                                        {isCustomerApproved ? 'Please share the OTP with shop staff' : 'Review and approve this invoice to proceed'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                {!isCustomerApproved ? (
+                                    <div className="space-y-3">
+                                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5">
+                                            <p className="text-xs text-amber-800 leading-relaxed">
+                                                Please review the invoice details. Click <strong>"Approve Invoice"</strong> to confirm that the service and device tests are completed.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            id="approve-invoice-btn"
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await customerApproveMutation.mutateAsync();
+                                                    if (res.status) {
+                                                        toast.success('Invoice approved! Staff has been notified.');
+                                                        refetchInvoice();
+                                                    } else {
+                                                        toast.error(res.message || 'Failed to approve invoice.');
+                                                    }
+                                                } catch (err: any) {
+                                                    toast.error(err.response?.data?.message || err.message || 'Failed to approve invoice.');
+                                                }
+                                            }}
+                                            disabled={customerApproveMutation.isPending}
+                                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all"
+                                        >
+                                            {customerApproveMutation.isPending
+                                                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Approving...</>
+                                                : <><BadgeCheck className="w-4 h-4 mr-2" /> Approve Invoice</>}
+                                        </Button>
+                                    </div>
+                                ) : displayInvoice?.approval_otp ? (
+                                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 text-center space-y-3">
+                                        <p className="text-xs font-semibold text-blue-800 leading-relaxed">
+                                            You have successfully approved this invoice. 
+                                        </p>
+                                        <div className="bg-white border border-blue-100 rounded-xl p-3.5 inline-block shadow-sm">
+                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Your Verification OTP</p>
+                                            <p className="text-3xl font-black text-blue-700 tracking-widest font-mono">{displayInvoice.approval_otp}</p>
+                                            <p className="text-[10px] text-gray-400 mt-1">Please tell this code to the shop employee to complete the approval.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center space-y-2">
+                                        <p className="text-xs font-semibold text-blue-800 leading-relaxed">
+                                            You have successfully approved this invoice. 
+                                        </p>
+                                        <p className="text-xs text-blue-600">
+                                            Awaiting shop employee to initiate OTP verification. Please share the verification code with the employee once it is generated.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Customer: Pay Now ── */}
+            {canCustomerPay && !isZeroWarrantyInvoice && !paymentSuccess && (
+                <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm overflow-hidden mt-6 print:hidden">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border-b border-indigo-100">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                                <CreditCard className="w-4.5 h-4.5 text-white" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-indigo-900">Complete Payment</p>
+                                <p className="text-[10px] text-indigo-500 flex items-center gap-1">
+                                    <ShieldCheck className="w-3 h-3" /> 256-bit SSL encrypted
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            id="toggle-payment-section"
+                            onClick={() => setPaymentOpen(prev => !prev)}
+                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-lg transition-all"
+                        >
+                            {paymentOpen ? 'Hide' : 'Pay Now'}
+                        </button>
+                    </div>
+
+                    {/* Closed: show amount + CTA */}
+                    {!paymentOpen && (
+                        <div className="px-5 py-3.5 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs text-gray-500">Invoice {displayInvoice.invoice_number}</span>
+                                <div className="flex items-baseline gap-1 mt-0.5">
+                                    <span className="text-xs text-gray-500">Amount due:</span>
+                                    <span className="text-sm font-black text-gray-900">
+                                        {displayInvoice.currency === 'INR' ? '₹' : displayInvoice.currency + ' '}
+                                        {Number(displayInvoice.total_amount).toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                id="open-payment-section"
+                                onClick={() => setPaymentOpen(true)}
+                                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm hover:shadow-md"
+                            >
+                                Pay Now →
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Expanded: full payment form */}
+                    {paymentOpen && (
+                        <div className="p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                            {/* Amount due */}
+                            <div className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-3.5 border border-indigo-100">
+                                <span className="text-xs font-semibold text-indigo-700">Amount Due</span>
+                                <span className="text-lg font-black text-indigo-900">
+                                    {displayInvoice.currency === 'INR' ? '₹' : displayInvoice.currency + ' '}
+                                    {Number(displayInvoice.total_amount).toFixed(2)}
+                                </span>
+                            </div>
+
+                            {/* Gateway selection */}
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Payment Method</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                    {/* Razorpay */}
+                                    <button
+                                        id="select-razorpay"
+                                        onClick={() => setGateway('razorpay')}
+                                        className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-150 ${
+                                            gateway === 'razorpay'
+                                                ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                                                : 'border-gray-200 hover:border-indigo-200 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${gateway === 'razorpay' ? 'border-indigo-500' : 'border-gray-300'}`}>
+                                            {gateway === 'razorpay' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-900">Razorpay</p>
+                                            <p className="text-[9px] text-gray-400">Cards, UPI, NetBanking</p>
+                                        </div>
+                                    </button>
+
+                                    {/* Cashfree */}
+                                    <button
+                                        id="select-cashfree"
+                                        onClick={() => setGateway('cashfree')}
+                                        className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-150 ${
+                                            gateway === 'cashfree'
+                                                ? 'border-orange-500 bg-orange-50 shadow-sm'
+                                                : 'border-gray-200 hover:border-orange-200 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${gateway === 'cashfree' ? 'border-orange-500' : 'border-gray-300'}`}>
+                                            {gateway === 'cashfree' && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-900">Cashfree</p>
+                                            <p className="text-[9px] text-gray-400">Cards, UPI, Wallets</p>
+                                        </div>
+                                    </button>
+
+                                    {/* Cash in Hand */}
+                                    <button
+                                        id="select-cash_in_hand"
+                                        onClick={() => setGateway('cash_in_hand')}
+                                        className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-150 ${
+                                            gateway === 'cash_in_hand'
+                                                ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+                                                : 'border-gray-200 hover:border-emerald-200 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${gateway === 'cash_in_hand' ? 'border-emerald-500' : 'border-gray-300'}`}>
+                                            {gateway === 'cash_in_hand' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-900">Cash</p>
+                                            <p className="text-[9px] text-gray-400">Pay cash at center</p>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Pay Button */}
+                            <button
+                                id="confirm-pay-now"
+                                onClick={handlePay}
+                                disabled={isPaying}
+                                className={`w-full py-3.5 rounded-xl text-sm font-bold text-white transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
+                                    isPaying
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-lg active:scale-[0.98]'
+                                }`}>
+                                {isPaying ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                        </svg>
+                                        Processing Payment...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ShieldCheck className="w-4 h-4" />
+                                        {gateway === 'cash_in_hand' ? 'Confirm Cash Payment' : (
+                                            <>
+                                                Pay {displayInvoice.currency === 'INR' ? '₹' : displayInvoice.currency + ' '}
+                                                {Number(displayInvoice.total_amount).toFixed(2)} via {gateway === 'razorpay' ? 'Razorpay' : 'Cashfree'}
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
 
             {/* ══ ACTIONS SECTION (screen only) ══ */}
             <div className="print:hidden space-y-3">
@@ -1112,90 +1590,6 @@ const InvoiceGenerator = () => {
                     </div>
                 )}
 
-                {/* ── Customer: Approval Panel ── */}
-                {isCustomer && displayInvoice?.status === 'sent' && !isInvoiceOtpApproved && !paymentSuccess && (
-                    <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-                        <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border-b border-amber-100">
-                            <div className="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
-                                <LockKeyhole className="w-4.5 h-4.5 text-white" />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-sm font-bold text-amber-900">
-                                    {isCustomerApproved ? 'Awaiting Staff Verification' : 'Approve Invoice to Enable Payment'}
-                                </p>
-                                <p className="text-[10px] text-amber-600">
-                                    {isCustomerApproved ? 'Please share the OTP with shop staff' : 'Review and approve this invoice to proceed'}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="p-5 space-y-4">
-                            {!isCustomerApproved ? (
-                                <div className="space-y-3">
-                                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5">
-                                        <p className="text-xs text-amber-800 leading-relaxed">
-                                            Please review the invoice details. Click <strong>"Approve Invoice"</strong> to confirm that the service and device tests are completed.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        id="approve-invoice-btn"
-                                        onClick={async () => {
-                                            try {
-                                                const res = await customerApproveMutation.mutateAsync();
-                                                if (res.status) {
-                                                    toast.success('Invoice approved! Staff has been notified.');
-                                                    refetchInvoice();
-                                                } else {
-                                                    toast.error(res.message || 'Failed to approve invoice.');
-                                                }
-                                            } catch (err: any) {
-                                                toast.error(err.response?.data?.message || err.message || 'Failed to approve invoice.');
-                                            }
-                                        }}
-                                        disabled={customerApproveMutation.isPending}
-                                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all"
-                                    >
-                                        {customerApproveMutation.isPending
-                                            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Approving...</>
-                                            : <><BadgeCheck className="w-4 h-4 mr-2" /> Approve Invoice</>}
-                                    </Button>
-                                </div>
-                            ) : displayInvoice?.approval_otp ? (
-                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 text-center space-y-3">
-                                    <p className="text-xs font-semibold text-blue-800 leading-relaxed">
-                                        You have successfully approved this invoice. 
-                                    </p>
-                                    <div className="bg-white border border-blue-100 rounded-xl p-3.5 inline-block shadow-sm">
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Your Verification OTP</p>
-                                        <p className="text-3xl font-black text-blue-700 tracking-widest font-mono">{displayInvoice.approval_otp}</p>
-                                        <p className="text-[10px] text-gray-400 mt-1">Please tell this code to the shop employee to complete the approval.</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center space-y-2">
-                                    <p className="text-xs font-semibold text-blue-800 leading-relaxed">
-                                        You have successfully approved this invoice. 
-                                    </p>
-                                    <p className="text-xs text-blue-600">
-                                        Awaiting shop employee to initiate OTP verification. Please share the verification code with the employee once it is generated.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* ── Customer: Approved Banner ── */}
-                {isCustomer && isInvoiceOtpApproved && displayInvoice?.status === 'sent' && !paymentSuccess && (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                        <UnlockKeyhole className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                        <div>
-                            <p className="text-xs font-bold text-emerald-800">Invoice Approved ✓</p>
-                            <p className="text-[10px] text-emerald-600">You can now select a payment method below.</p>
-                        </div>
-                    </div>
-                )}
-
                 {/* ── SE/SO: OTP Verification & Approval Status Panel ── */}
                 {canGenerate && displayInvoice?.status === 'sent' && !paymentSuccess && (
                     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden space-y-0">
@@ -1344,164 +1738,7 @@ const InvoiceGenerator = () => {
                     </div>
                 )}
 
-                {/* ── Customer: Pay Now ── */}
-                {canCustomerPay && !paymentSuccess && (
-                    <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm overflow-hidden">
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50 border-b border-indigo-100">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-                                    <CreditCard className="w-4.5 h-4.5 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold text-indigo-900">Complete Payment</p>
-                                    <p className="text-[10px] text-indigo-500 flex items-center gap-1">
-                                        <ShieldCheck className="w-3 h-3" /> 256-bit SSL encrypted
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                id="toggle-payment-section"
-                                onClick={() => setPaymentOpen(prev => !prev)}
-                                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-lg transition-all"
-                            >
-                                {paymentOpen ? 'Hide' : 'Pay Now'}
-                            </button>
-                        </div>
 
-                        {/* Closed: show amount + CTA */}
-                        {!paymentOpen && (
-                            <div className="px-5 py-3.5 flex items-center justify-between">
-                                <div>
-                                    <span className="text-xs text-gray-500">Invoice {displayInvoice.invoice_number}</span>
-                                    <div className="flex items-baseline gap-1 mt-0.5">
-                                        <span className="text-xs text-gray-500">Amount due:</span>
-                                        <span className="text-sm font-black text-gray-900">
-                                            {displayInvoice.currency === 'INR' ? '₹' : displayInvoice.currency + ' '}
-                                            {Number(displayInvoice.total_amount).toFixed(2)}
-                                        </span>
-                                    </div>
-                                </div>
-                                <button
-                                    id="open-payment-section"
-                                    onClick={() => setPaymentOpen(true)}
-                                    className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm hover:shadow-md"
-                                >
-                                    Pay Now →
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Expanded: full payment form */}
-                        {paymentOpen && (
-                            <div className="p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                {/* Amount due */}
-                                <div className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-3.5 border border-indigo-100">
-                                    <span className="text-xs font-semibold text-indigo-700">Amount Due</span>
-                                    <span className="text-lg font-black text-indigo-900">
-                                        {displayInvoice.currency === 'INR' ? '₹' : displayInvoice.currency + ' '}
-                                        {Number(displayInvoice.total_amount).toFixed(2)}
-                                    </span>
-                                </div>
-
-                                {/* Gateway selection */}
-                                <div className="space-y-2">
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Payment Method</p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                        {/* Razorpay */}
-                                        <button
-                                            id="select-razorpay"
-                                            onClick={() => setGateway('razorpay')}
-                                            className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-150 ${
-                                                gateway === 'razorpay'
-                                                    ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                                                    : 'border-gray-200 hover:border-indigo-200 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${gateway === 'razorpay' ? 'border-indigo-500' : 'border-gray-300'}`}>
-                                                {gateway === 'razorpay' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />}
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-gray-900">Razorpay</p>
-                                                <p className="text-[9px] text-gray-400">Cards, UPI, NetBanking</p>
-                                            </div>
-                                        </button>
-
-                                        {/* Cashfree */}
-                                        <button
-                                            id="select-cashfree"
-                                            onClick={() => setGateway('cashfree')}
-                                            className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-150 ${
-                                                gateway === 'cashfree'
-                                                    ? 'border-orange-500 bg-orange-50 shadow-sm'
-                                                    : 'border-gray-200 hover:border-orange-200 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${gateway === 'cashfree' ? 'border-orange-500' : 'border-gray-300'}`}>
-                                                {gateway === 'cashfree' && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-gray-900">Cashfree</p>
-                                                <p className="text-[9px] text-gray-400">Cards, UPI, Wallets</p>
-                                            </div>
-                                        </button>
-
-                                        {/* Cash in Hand */}
-                                        <button
-                                            id="select-cash_in_hand"
-                                            onClick={() => setGateway('cash_in_hand')}
-                                            className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all duration-150 ${
-                                                gateway === 'cash_in_hand'
-                                                    ? 'border-emerald-500 bg-emerald-50 shadow-sm'
-                                                    : 'border-gray-200 hover:border-emerald-200 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${gateway === 'cash_in_hand' ? 'border-emerald-500' : 'border-gray-300'}`}>
-                                                {gateway === 'cash_in_hand' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />}
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-gray-900">Cash</p>
-                                                <p className="text-[9px] text-gray-400">Pay cash at center</p>
-                                            </div>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Pay Button */}
-                                <button
-                                    id="confirm-pay-now"
-                                    onClick={handlePay}
-                                    disabled={isPaying}
-                                    className={`w-full py-3.5 rounded-xl text-sm font-bold text-white transition-all duration-200 flex items-center justify-center gap-2 shadow-md ${
-                                        isPaying
-                                            ? 'bg-gray-400 cursor-not-allowed'
-                                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-lg active:scale-[0.98]'
-                                    }`}
-                                >
-                                    {isPaying ? (
-                                        <>
-                                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                            </svg>
-                                            Processing Payment...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ShieldCheck className="w-4 h-4" />
-                                            {gateway === 'cash_in_hand' ? 'Confirm Cash Payment' : (
-                                                <>
-                                                    Pay {displayInvoice.currency === 'INR' ? '₹' : displayInvoice.currency + ' '}
-                                                    {Number(displayInvoice.total_amount).toFixed(2)} via {gateway === 'razorpay' ? 'Razorpay' : 'Cashfree'}
-                                                </>
-                                            )}
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
 
 
             </div>

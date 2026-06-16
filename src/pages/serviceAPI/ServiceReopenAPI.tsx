@@ -25,6 +25,27 @@ export interface ServiceReopenRequest {
     invoice?: Invoice;
     reviewedBy?: any;
     newInvoice?: Invoice;
+    assignedTechnician?: any;
+    original_data?: any; // Snapshot of service.data at approval
+}
+
+export interface ReworkDetails {
+    reopen_request: ServiceReopenRequest;
+    original_data: { parts?: any[]; selectedServiceCharges?: any[] };
+    current_data: { parts?: any[]; selectedServiceCharges?: any[] };
+    delta: {
+        new_parts: any[];
+        new_charges: any[];
+        new_total: number;
+        is_warranty_only: boolean;
+    };
+    original_invoice?: Invoice;
+    rework_invoice?: Invoice;
+    warranty_info: {
+        warranty_days?: number | null;
+        warranty_expiry_date?: string | null;
+        paid_at?: string | null;
+    };
 }
 
 export interface ReopenApiResponse<T = any> {
@@ -125,23 +146,50 @@ export const approveReopenRequest = async (
 /** Reject a reopen request (Shop Owner / Admin) */
 export const rejectReopenRequest = async (
     id: number | string,
-    shopOwnerNote: string
+    note: string
 ): Promise<ReopenApiResponse<ServiceReopenRequest>> => {
     try {
-        const response = await axiosInstance.post<ReopenApiResponse<ServiceReopenRequest>>(
-            `/service-reopen-reject/${id}`,
-            { shop_owner_note: shopOwnerNote }
-        );
+        const response = await axiosInstance.post(`/service-reopen-reject/${id}`, { shop_owner_note: note });
         return response.data;
     } catch (error) {
-        if (error instanceof AxiosError) {
-            throw new Error(error.response?.data?.message || `Failed to reject reopen request: ${error.message}`);
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to reject reopen request');
         }
-        throw error;
+        throw new Error('An unexpected error occurred while rejecting');
     }
 };
 
-// ─── TanStack Query Hooks ─────────────────────────────────────────────────────
+/** Get rework details (Technician context) */
+export const fetchReworkDetails = async (
+    id: number | string
+): Promise<ReopenApiResponse<ReworkDetails>> => {
+    try {
+        const response = await axiosInstance.get(`/service-reopen-request/${id}/rework-details`);
+        return response.data;
+    } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to fetch rework details');
+        }
+        throw new Error('An unexpected error occurred');
+    }
+};
+
+/** Close warranty rework cycle (₹0 invoice) */
+export const closeWarrantyCycle = async (
+    id: number | string
+): Promise<ReopenApiResponse<ServiceReopenRequest>> => {
+    try {
+        const response = await axiosInstance.post(`/service-reopen-close-warranty/${id}`);
+        return response.data;
+    } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to close warranty');
+        }
+        throw new Error('An unexpected error occurred while closing warranty');
+    }
+};
+
+// ─── React Query Hooks ────────────────────────────────────────────────────────
 
 export const useServiceReopenApi = () => {
     const queryClient = useQueryClient();
@@ -188,11 +236,33 @@ export const useServiceReopenApi = () => {
             },
         });
 
+    const useGetReworkDetails = (id: number | string | undefined) =>
+        useQuery<ReworkDetails, Error>({
+            queryKey: ['rework-details', id],
+            queryFn: async () => {
+                const res = await fetchReworkDetails(id!);
+                return res.data!;
+            },
+            enabled: !!id && id !== 'undefined',
+        });
+
+    const useCloseWarrantyCycle = () =>
+        useMutation<ReopenApiResponse<ServiceReopenRequest>, Error, number | string>({
+            mutationFn: (id) => closeWarrantyCycle(id),
+            onSuccess: (_data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['rework-details', variables] });
+                queryClient.invalidateQueries({ queryKey: ['reopen-request', variables] });
+                queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
+            },
+        });
+
     return {
         useGetReopenRequests,
         useGetReopenRequestById,
         useSubmitReopenRequest,
         useApproveReopenRequest,
         useRejectReopenRequest,
+        useGetReworkDetails,
+        useCloseWarrantyCycle,
     };
 };
