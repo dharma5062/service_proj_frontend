@@ -186,7 +186,9 @@ const ViewServiceRequest = () => {
     const [reopenModalOpen, setReopenModalOpen] = useState(false);
     const [isChangingTech] = useState(false);
 
-    const canChangeTechnician = (isSuperAdmin || isShopOwner) && service?.service_status?.toLowerCase() !== 'completed' && service?.status?.toLowerCase() !== 'completed';
+    const currentStatus = (service?.service_status || service?.status || 'pending').toLowerCase();
+    const isAcceptedOrBeyond = !['pending', 'assigned'].includes(currentStatus);
+    const canChangeTechnician = (isSuperAdmin || isShopOwner) && !isAcceptedOrBeyond;
 
     const handleAccept = async () => {
         if (!service) return;
@@ -410,7 +412,7 @@ const ViewServiceRequest = () => {
                             className="h-8 gap-1.5 shadow-sm"
                         >
                             <User className="w-3.5 h-3.5" />
-                            Report Issue / Reopen
+                            Report Issue
                         </Button>
                     )}
                     {/* Invoice Actions */}
@@ -476,28 +478,6 @@ const ViewServiceRequest = () => {
                     })()}
                 </div>
             </div>
-
-            {/* ── Estimation Banner — visible to all roles ── */}
-            {estimationLabel && (
-                <div className="mb-3 rounded-lg border border-amber-200/80 bg-amber-50/40 p-2.5 px-3 flex items-center gap-2.5 shadow-sm text-xs">
-                    <Timer className="w-4 h-4 text-amber-600 shrink-0" />
-                    <div className="flex-1 flex flex-wrap items-center gap-x-2">
-                        <span className="font-bold text-amber-800 uppercase tracking-wider text-[10px]">Estimated:</span>
-                        <span className="font-medium text-amber-900">
-                            {estimation?.type === 'days' || estimation?.type === 'hours'
-                                ? `Your device will be ready in approx. ${estimationLabel}`
-                                : `Estimated to be ready by ${estimationLabel}`
-                            }
-                        </span>
-                        {estimation?.set_at && (
-                            <span className="text-[10px] text-amber-500">
-                                (Set {new Date(estimation.set_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
-                            </span>
-                        )}
-                    </div>
-                    <span className="text-[9px] font-bold text-amber-700 bg-amber-100/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Live Update</span>
-                </div>
-            )}
 
             {/* ── ISSUE 2 FIX: Pending Reopen Banner — shown to customer when request is under review ── */}
             {isCustomer && status?.toLowerCase() === 'reopen_requested' && (
@@ -769,13 +749,13 @@ const ViewServiceRequest = () => {
                             </CardContent>
                         </Card>
                     )}
-                    {/* ── ISSUE 4 FIX: Reopen History — shown to all roles who can view this service ── */}
                     {(() => {
                         const reopenRequests = reopenHistoryData?.data || [];
                         if (reopenRequests.length === 0) return null;
                         const statusStyles: Record<string, string> = {
                             pending:  'bg-amber-100 text-amber-700 border-amber-200',
-                            approved: 'bg-green-100 text-green-700 border-green-200',
+                            approved: 'bg-green-50 text-green-700 border-green-200',
+                            completed: 'bg-emerald-100 text-emerald-800 border-emerald-300',
                             rejected: 'bg-red-100 text-red-700 border-red-200',
                         };
                         return (
@@ -789,31 +769,38 @@ const ViewServiceRequest = () => {
                                 </CardHeader>
                                 <CardContent className="px-4 pb-4">
                                     <div className="space-y-3">
-                                        {reopenRequests.map((req: any) => (
-                                            <div key={req.id} className="rounded-lg border bg-gray-50 p-3 space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-gray-700">Reopen #{req.reopen_number}</span>
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusStyles[req.status] || 'bg-gray-100 text-gray-700'}`}>{req.status}</span>
+                                        {reopenRequests.map((req: any) => {
+                                            const isApproved = req.status === 'approved';
+                                            const isReworkInvoicePaid = (req.newInvoice?.status === 'paid') || ((req as any).new_invoice?.status === 'paid');
+                                            const isCompleted = isApproved && isReworkInvoicePaid;
+                                            const displayStatus = isCompleted ? 'completed' : req.status;
+
+                                            return (
+                                                <div key={req.id} className="rounded-lg border bg-gray-50 p-3 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-gray-700">Reopen #{req.reopen_number}</span>
+                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${statusStyles[displayStatus] || 'bg-gray-100 text-gray-700'}`}>{displayStatus}</span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-600 leading-relaxed bg-white border rounded p-2 whitespace-pre-wrap">{req.reason}</p>
+                                                    {req.images && req.images.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {req.images.map((url: string, i: number) => (
+                                                                <a key={i} href={url} target="_blank" rel="noreferrer" className="w-12 h-12 border rounded overflow-hidden block hover:opacity-80">
+                                                                    <img src={url} alt="Evidence" className="w-full h-full object-cover" />
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {req.shop_owner_note && (
+                                                        <div className="bg-blue-50 border border-blue-100 rounded p-2">
+                                                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Shop Owner Note</p>
+                                                            <p className="text-xs text-blue-800">{req.shop_owner_note}</p>
+                                                        </div>
+                                                    )}
+                                                    <p className="text-[10px] text-gray-400">{new Date(req.created_at).toLocaleString()}</p>
                                                 </div>
-                                                <p className="text-xs text-gray-600 leading-relaxed bg-white border rounded p-2 whitespace-pre-wrap">{req.reason}</p>
-                                                {req.images && req.images.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {req.images.map((url: string, i: number) => (
-                                                            <a key={i} href={url} target="_blank" rel="noreferrer" className="w-12 h-12 border rounded overflow-hidden block hover:opacity-80">
-                                                                <img src={url} alt="Evidence" className="w-full h-full object-cover" />
-                                                            </a>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {req.shop_owner_note && (
-                                                    <div className="bg-blue-50 border border-blue-100 rounded p-2">
-                                                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Shop Owner Note</p>
-                                                        <p className="text-xs text-blue-800">{req.shop_owner_note}</p>
-                                                    </div>
-                                                )}
-                                                <p className="text-[10px] text-gray-400">{new Date(req.created_at).toLocaleString()}</p>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -857,7 +844,7 @@ const ViewServiceRequest = () => {
                                             <Mail className="w-3.5 h-3.5 text-gray-400" />
                                             {service.assigned_technician.email || 'No email'}
                                         </div>
-                                        {service.admin_note && typeof service.admin_note === 'string' && !service.admin_note.startsWith('[') && !service.admin_note.startsWith('{') && (
+                                        {!isCustomer && service.admin_note && typeof service.admin_note === 'string' && !service.admin_note.startsWith('[') && !service.admin_note.startsWith('{') && (
                                             <div className="bg-amber-50/50 border border-amber-100/50 rounded-lg p-3 space-y-1.5 mt-2">
                                                 <p className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Assignment Instructions</p>
                                                 <p className="text-xs text-amber-900 leading-relaxed italic">
@@ -868,8 +855,12 @@ const ViewServiceRequest = () => {
                                         {data?.customer_note && (
                                             <div className="bg-blue-50/50 border border-blue-100/50 rounded-lg p-3 space-y-1.5 mt-2">
                                                 <div className="flex justify-between items-center">
-                                                    <p className="text-[10px] uppercase font-bold text-blue-600 tracking-wider">Message for Customer</p>
-                                                    <span className="text-[9px] font-semibold text-blue-500 bg-blue-100/50 px-1.5 py-0.5 rounded-full border border-blue-200/50">Visible to Customer</span>
+                                                    <p className="text-[10px] uppercase font-bold text-blue-600 tracking-wider">
+                                                        {isCustomer ? 'Technician Notes' : 'Message for Customer'}
+                                                    </p>
+                                                    {!isCustomer && (
+                                                        <span className="text-[9px] font-semibold text-blue-500 bg-blue-100/50 px-1.5 py-0.5 rounded-full border border-blue-200/50">Visible to Customer</span>
+                                                    )}
                                                 </div>
                                                 <p className="text-xs text-blue-900 leading-relaxed italic">
                                                     "{data.customer_note}"
@@ -1070,79 +1061,106 @@ const ViewServiceRequest = () => {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="px-4 pb-4">
-                            {activities.length > 0 ? (
-                                <div className="relative border-l border-gray-100 ml-3 pl-0 space-y-5 pb-1">
-                                    {activities.map((activity: any) => {
-                                        let icon = <Clock className="w-2.5 h-2.5 text-gray-500" />;
-                                        let iconBg = "bg-gray-100 text-gray-500 border-gray-200";
-
-                                        if (activity.activity_type === 'created') {
-                                            icon = <FileText className="w-2.5 h-2.5 text-green-600" />;
-                                            iconBg = "bg-green-50 text-green-600 border-green-200";
-                                        } else if (activity.activity_type === 'status_change') {
-                                            icon = <Clock className="w-2.5 h-2.5 text-blue-600" />;
-                                            iconBg = "bg-blue-50 text-blue-600 border-blue-200";
-                                        } else if (activity.activity_type === 'parts_added') {
-                                            icon = <Package className="w-2.5 h-2.5 text-orange-600" />;
-                                            iconBg = "bg-orange-50 text-orange-600 border-orange-200";
-                                        } else if (activity.activity_type === 'charges_added') {
-                                            icon = <Tag className="w-2.5 h-2.5 text-purple-600" />;
-                                            iconBg = "bg-purple-50 text-purple-600 border-purple-200";
-                                        } else if (activity.activity_type === 'technician_assigned') {
-                                            icon = <User className="w-2.5 h-2.5 text-indigo-600" />;
-                                            iconBg = "bg-indigo-50 text-indigo-600 border-indigo-200";
-                                        }
-
-                                        // Customer-friendly details mappings
-                                        let displayTitle = activity.title;
-                                        let displayDesc = activity.description;
-
-                                        if (isCustomer) {
-                                            if (activity.to_status === 'waiting_parts') {
-                                                displayTitle = "Awaiting Parts";
-                                                displayDesc = "We are currently waiting for required parts to arrive.";
-                                            } else if (activity.to_status === 'accepted') {
-                                                displayTitle = "Diagnosis Started";
-                                                displayDesc = "The technician has accepted the task and is running initial diagnostics.";
-                                            } else if (activity.to_status === 'ready') {
-                                                displayTitle = "Quality Inspection";
-                                                displayDesc = "Repairs are complete. We are conducting quality control testing.";
-                                            }
-                                        }
-
-                                        return (
-                                            <div key={activity.id} className="relative pl-6 pb-2">
-                                                {/* Timeline Bullet Node */}
-                                                <div className="absolute -left-[11px] top-0.5 w-5.5 h-5.5 rounded-full border border-gray-100 shadow-sm bg-white flex items-center justify-center">
-                                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center ${iconBg}`}>
-                                                        {icon}
+                            {(activities.length > 0 || estimationLabel) ? (
+                                <div className="max-h-[350px] overflow-y-auto pr-2 scrollbar-thin">
+                                    <div className="relative border-l border-gray-100 ml-3 pl-0 space-y-5 pb-1">
+                                        {estimationLabel && (
+                                            <div className="relative pl-6 pb-2">
+                                                <div className="absolute -left-[11px] top-0.5 w-5.5 h-5.5 rounded-full border border-amber-200 shadow-sm bg-white flex items-center justify-center animate-pulse">
+                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center bg-amber-50 text-amber-600 border border-amber-200">
+                                                        <Timer className="w-2.5 h-2.5" />
                                                     </div>
                                                 </div>
-                                                
                                                 <div className="space-y-1">
                                                     <div className="flex items-center justify-between gap-4">
-                                                        <h4 className="text-xs font-semibold text-gray-900">{displayTitle}</h4>
-                                                        <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                                                            {formatDate(activity.created_at)}
-                                                        </span>
+                                                        <h4 className="text-xs font-bold text-amber-800">Estimated Completion</h4>
+                                                        {estimation?.set_at && (
+                                                            <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                                                {formatDate(estimation.set_at)}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    
-                                                    {displayDesc && (
-                                                        <div className="mt-0.5">
-                                                            {renderActivityDescription(displayDesc, isCustomer)}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Internal log notes / actor details */}
-                                                    {!isCustomer && activity.user && (
-                                                        <p className="text-[9px] text-gray-400 font-medium">
-                                                            Action by: {activity.user.name} ({activity.user.user_type === 'so' ? 'Shop Owner' : 'Employee'})
-                                                        </p>
-                                                    )}
+                                                    <p className="text-xs text-amber-700 font-medium">
+                                                        {estimation?.type === 'days' || estimation?.type === 'hours'
+                                                            ? `Your device will be ready in approx. ${estimationLabel}`
+                                                            : `Estimated to be ready by ${estimationLabel}`
+                                                        }
+                                                    </p>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
+                                        )}
+                                        {activities.map((activity: any) => {
+                                            let icon = <Clock className="w-2.5 h-2.5 text-gray-500" />;
+                                            let iconBg = "bg-gray-100 text-gray-500 border-gray-200";
+
+                                            if (activity.activity_type === 'created') {
+                                                icon = <FileText className="w-2.5 h-2.5 text-green-600" />;
+                                                iconBg = "bg-green-50 text-green-600 border-green-200";
+                                            } else if (activity.activity_type === 'status_change') {
+                                                icon = <Clock className="w-2.5 h-2.5 text-blue-600" />;
+                                                iconBg = "bg-blue-50 text-blue-600 border-blue-200";
+                                            } else if (activity.activity_type === 'parts_added') {
+                                                icon = <Package className="w-2.5 h-2.5 text-orange-600" />;
+                                                iconBg = "bg-orange-50 text-orange-600 border-orange-200";
+                                            } else if (activity.activity_type === 'charges_added') {
+                                                icon = <Tag className="w-2.5 h-2.5 text-purple-600" />;
+                                                iconBg = "bg-purple-50 text-purple-600 border-purple-200";
+                                            } else if (activity.activity_type === 'technician_assigned') {
+                                                icon = <User className="w-2.5 h-2.5 text-indigo-600" />;
+                                                iconBg = "bg-indigo-50 text-indigo-600 border-indigo-200";
+                                            }
+
+                                            // Customer-friendly details mappings
+                                            let displayTitle = activity.title;
+                                            let displayDesc = activity.description;
+
+                                            if (isCustomer) {
+                                                if (activity.to_status === 'waiting_parts') {
+                                                    displayTitle = "Awaiting Parts";
+                                                    displayDesc = "We are currently waiting for required parts to arrive.";
+                                                } else if (activity.to_status === 'accepted') {
+                                                    displayTitle = "Diagnosis Started";
+                                                    displayDesc = "The technician has accepted the task and is running initial diagnostics.";
+                                                } else if (activity.to_status === 'ready') {
+                                                    displayTitle = "Quality Inspection";
+                                                    displayDesc = "Repairs are complete. We are conducting quality control testing.";
+                                                }
+                                            }
+
+                                            return (
+                                                <div key={activity.id} className="relative pl-6 pb-2">
+                                                    {/* Timeline Bullet Node */}
+                                                    <div className="absolute -left-[11px] top-0.5 w-5.5 h-5.5 rounded-full border border-gray-100 shadow-sm bg-white flex items-center justify-center">
+                                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${iconBg}`}>
+                                                            {icon}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <h4 className="text-xs font-semibold text-gray-900">{displayTitle}</h4>
+                                                            <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                                                {formatDate(activity.created_at)}
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        {displayDesc && (
+                                                            <div className="mt-0.5">
+                                                                {renderActivityDescription(displayDesc, isCustomer)}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Internal log notes / actor details */}
+                                                        {!isCustomer && activity.user && (
+                                                            <p className="text-[9px] text-gray-400 font-medium">
+                                                                Action by: {activity.user.name} ({activity.user.user_type === 'so' ? 'Shop Owner' : 'Employee'})
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -1203,6 +1221,7 @@ const ViewServiceRequest = () => {
                 onOpenChange={setReopenModalOpen}
                 serviceId={service.id}
                 warrantyExpiryDate={existingInv?.warranty_expiry_date}
+                supportPhone={service.shop?.shop_owner?.phone || service.shop?.user?.phone || '0'}
             />
         </div>
     );

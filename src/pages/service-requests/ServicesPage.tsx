@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import { toast } from 'sonner';
-import { Zap, AlertCircle, Eye, Edit, Trash2, CheckCircle, FileEdit, Search, Plus, Timer } from 'lucide-react';
+import { Zap, AlertCircle, Eye, Edit, Trash2, CheckCircle, FileEdit, Search, Plus, Timer, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProductsApi } from '@/pages/serviceAPI/ProductsAPI';
@@ -40,6 +40,7 @@ import {
     useServiceRequestsApi,
 } from '@/pages/serviceAPI/ServiceRequestsAPI';
 import { ReopenRequestsTab } from './ReopenRequestsTab';
+import { SubmitReopenModal } from './SubmitReopenModal';
 
 // ─── Status helpers ──────────────────────────────────────────────────────────
 
@@ -50,18 +51,7 @@ const formatStatusLabel = (status?: string) => {
         .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
-const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '-';
-    try {
-        return new Date(dateStr).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-        });
-    } catch {
-        return dateStr;
-    }
-};
+
 
 const capitalizeWords = (str?: string) => {
     if (!str) return '-';
@@ -73,10 +63,16 @@ const capitalizeWords = (str?: string) => {
 const ServicesPage = () => {
     const navigate = useNavigate();
     const { shopId, hasPermission, user, isShopEmployee, isCustomer, isShopOwner, isSuperAdmin } = useAuth();
-    const { useGetServiceRequests, useDeleteServiceRequest, useUpdateServiceRequest } = useServiceRequestsApi();
+    const { useGetServiceRequests, useDeleteServiceRequest, useUpdateServiceRequest, useGetServiceRequestById } = useServiceRequestsApi();
     const { data: rawServiceRequests = [], isLoading: loading } = useGetServiceRequests();
     const deleteServiceRequestMutation = useDeleteServiceRequest();
     const updateServiceRequestMutation = useUpdateServiceRequest();
+
+    const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+    const [selectedReopenRecord, setSelectedReopenRecord] = useState<ServiceRequest | null>(null);
+
+    // Fetch full service request by ID to load deep shop relation for support phone
+    const { data: fullReopenService } = useGetServiceRequestById(selectedReopenRecord?.id);
 
     // Filter and sort service requests
     const serviceRequests = useMemo(() => {
@@ -116,6 +112,13 @@ const ServicesPage = () => {
     // Delete dialog
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
+
+    // Accept dialog
+    const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+    const [selectedAcceptRecord, setSelectedAcceptRecord] = useState<ServiceRequest | null>(null);
+
+    // Complete confirmation dialog
+    const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
 
     // View mode for Active vs Reopen requests
     const [viewMode, setViewMode] = useState<'active' | 'reopen'>('active');
@@ -303,15 +306,7 @@ const ServicesPage = () => {
                 return <span className="text-[11px] font-bold text-gray-900">₹{cost.toFixed(2)}</span>;
             }
         },
-        {
-            key: 'created_at',
-            title: 'Created Date',
-            dataIndex: 'created_at',
-            sortable: true,
-            render: (value) => (
-                <span className="text-xs text-gray-600 whitespace-nowrap">{formatDate(value)}</span>
-            ),
-        },
+
         {
             key: 'actions',
             title: 'Actions',
@@ -320,36 +315,61 @@ const ServicesPage = () => {
             render: (_, record) => {
                 const status = (record.service_status || record.status || 'pending').toLowerCase();
                 return (
-                    <div className="flex items-center justify-center gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => handleView(record)} className="h-5 w-5 p-0 hover:bg-blue-100" title="View Details">
-                            <Eye className="h-3 w-3 text-blue-600" />
-                        </Button>
+                    <div className="grid grid-cols-4 gap-1 w-[90px] mx-auto justify-items-center">
+                        {/* Slot 1: View Details */}
+                        <div className="w-5 h-5 flex items-center justify-center">
+                            <Button size="sm" variant="ghost" onClick={() => handleView(record)} className="h-5 w-5 p-0 hover:bg-blue-100" title="View Details">
+                                <Eye className="h-3 w-3 text-blue-600" />
+                            </Button>
+                        </div>
 
-                        {/* Shop Employee Actions */}
-                        {isShopEmployee && status === 'assigned' && (
-                            <Button size="sm" variant="ghost" onClick={() => handleAccept(record)} className="h-5 w-5 p-0 hover:bg-green-100" title="Accept Service Request">
-                                <CheckCircle className="h-3 w-3 text-green-600" />
-                            </Button>
-                        )}
-                        {isShopEmployee && status !== 'completed' && status !== 'cancelled' && status !== 'paid' && (
-                            <Button size="sm" variant="ghost" onClick={() => handleCustomize(record)} className="h-5 w-5 p-0 hover:bg-purple-100" title="Customize Defect Form / Update">
-                                <FileEdit className="h-3 w-3 text-purple-600" />
-                            </Button>
-                        )}
+                        {/* Slot 2: Accept / Customize / Edit */}
+                        <div className="w-5 h-5 flex items-center justify-center">
+                            {isShopEmployee && status === 'assigned' ? (
+                                <Button size="sm" variant="ghost" onClick={() => handleAcceptClick(record)} className="h-5 w-5 p-0 hover:bg-green-100" title="Accept Service Request">
+                                    <CheckCircle className="h-3 w-3 text-green-600" />
+                                </Button>
+                            ) : isShopEmployee && status !== 'assigned' && status !== 'completed' && status !== 'cancelled' && status !== 'paid' ? (
+                                <Button size="sm" variant="ghost" onClick={() => handleCustomize(record)} className="h-5 w-5 p-0 hover:bg-purple-100" title="Customize Defect Form / Update">
+                                    <FileEdit className="h-3 w-3 text-purple-600" />
+                                </Button>
+                            ) : !isCustomer && hasPermission('service.update') && !isShopEmployee ? (
+                                <Button size="sm" variant="ghost" onClick={() => handleEdit(record)} className="h-5 w-5 p-0 hover:bg-green-100" title="Edit Request">
+                                    <Edit className="h-3 w-3 text-green-600" />
+                                </Button>
+                            ) : isCustomer && status === 'paid' ? (
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setSelectedReopenRecord(record);
+                                        setReopenDialogOpen(true);
+                                    }}
+                                    className="h-5 w-5 p-0 hover:bg-red-100"
+                                    title="Report Issue / Reopen Service"
+                                >
+                                    <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                                </Button>
+                            ) : null}
+                        </div>
 
-                        {/* Standard Edit for SA/SO or generic update */}
-                        {!isCustomer && hasPermission('service.update') && !isShopEmployee && (
-                            <Button size="sm" variant="ghost" onClick={() => handleEdit(record)} className="h-5 w-5 p-0 hover:bg-green-100" title="Edit Request">
-                                <Edit className="h-3 w-3 text-green-600" />
-                            </Button>
-                        )}
+                        {/* Slot 3: Generate Invoice */}
+                        <div className="w-5 h-5 flex items-center justify-center">
+                            {!isCustomer && (isSuperAdmin || isShopOwner || isShopEmployee) && status === 'completed' ? (
+                                <Button size="sm" variant="ghost" onClick={() => navigate(`/dashboard/invoice/service/${record.id}`)} className="h-5 w-5 p-0 hover:bg-amber-100" title="Generate Invoice">
+                                    <FileText className="h-3 w-3 text-amber-600" />
+                                </Button>
+                            ) : null}
+                        </div>
 
-                        {/* Standard Delete */}
-                        {!isCustomer && hasPermission('service.delete') && (
-                            <Button size="sm" variant="ghost" onClick={() => handleDeleteClick(record)} className="h-5 w-5 p-0 hover:bg-red-100" title="Delete Request">
-                                <Trash2 className="h-3 w-3 text-red-600" />
-                            </Button>
-                        )}
+                        {/* Slot 4: Delete Request */}
+                        <div className="w-5 h-5 flex items-center justify-center">
+                            {!isCustomer && hasPermission('service.delete') ? (
+                                <Button size="sm" variant="ghost" onClick={() => handleDeleteClick(record)} className="h-5 w-5 p-0 hover:bg-red-100" title="Delete Request">
+                                    <Trash2 className="h-3 w-3 text-red-600" />
+                                </Button>
+                            ) : null}
+                        </div>
                     </div>
                 );
             },
@@ -423,8 +443,14 @@ const ServicesPage = () => {
         setIsCustomizeDialogOpen(true);
     };
 
-    const handleSaveCustomize = async () => {
+    const handleSaveCustomize = async (forceCompleted?: boolean) => {
         if (!selectedCustomizeRecord) return;
+
+        if (customizeStatus === 'completed' && forceCompleted !== true) {
+            setCompleteConfirmOpen(true);
+            return;
+        }
+
         try {
             // merge data
             const oldData = typeof selectedCustomizeRecord.data === 'string'
@@ -454,6 +480,7 @@ const ServicesPage = () => {
             });
             toast.success('Working conditions updated successfully!');
             setIsCustomizeDialogOpen(false);
+            setCompleteConfirmOpen(false);
         } catch (error) {
             toast.error('Failed to update details', {
                 description: error instanceof Error ? error.message : 'Unknown error',
@@ -461,21 +488,30 @@ const ServicesPage = () => {
         }
     };
 
-    const handleAccept = async (record: ServiceRequest) => {
-        try {
-            await updateServiceRequestMutation.mutateAsync({
-                id: record.id,
-                payload: {
-                    customer_id: record.customer_id || record.customer?.id || 0,
-                    service_status: 'accepted',
-                }
-            });
-            toast.success('Service request accepted and marked as Diagnosis Started!');
-        } catch (error) {
-            toast.error('Failed to accept service request', {
-                description: error instanceof Error ? error.message : 'Unknown error',
-            });
+    const handleAcceptClick = (record: ServiceRequest) => {
+        setSelectedAcceptRecord(record);
+        setAcceptDialogOpen(true);
+    };
+
+    const confirmAccept = async () => {
+        if (selectedAcceptRecord) {
+            try {
+                await updateServiceRequestMutation.mutateAsync({
+                    id: selectedAcceptRecord.id,
+                    payload: {
+                        customer_id: selectedAcceptRecord.customer_id || selectedAcceptRecord.customer?.id || 0,
+                        service_status: 'accepted',
+                    }
+                });
+                toast.success('Service request accepted and marked as Diagnosis Started!');
+            } catch (error) {
+                toast.error('Failed to accept service request', {
+                    description: error instanceof Error ? error.message : 'Unknown error',
+                });
+            }
         }
+        setAcceptDialogOpen(false);
+        setSelectedAcceptRecord(null);
     };
 
     const handleDeleteClick = (record: ServiceRequest) => {
@@ -616,6 +652,48 @@ const ServicesPage = () => {
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Accept Confirmation Dialog */}
+            <AlertDialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Accept Service Request</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to accept this service request and begin diagnosis? This will mark the request status as "Diagnosis Started".
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmAccept}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
+                            Accept
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Complete Confirmation Dialog */}
+            <AlertDialog open={completeConfirmOpen} onOpenChange={setCompleteConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Service Completion</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to mark this service request as Completed? This will finalize the service details, parts list, and charges. Once you complete the service, generate the invoice to customer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setCompleteConfirmOpen(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => handleSaveCustomize(true)}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
+                            Confirm & Save
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Customize / Technician Update Dialog */}
             <Dialog open={isCustomizeDialogOpen} onOpenChange={setIsCustomizeDialogOpen}>
                 <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-4 gap-0">
@@ -726,11 +804,11 @@ const ServicesPage = () => {
                                                 <SelectValue placeholder="Select hours" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {Array.from({ length: 48 }, (_, i) => {
+                                                {Array.from({ length: 24 }, (_, i) => {
                                                     const val = (i + 1).toString();
                                                     return (
                                                         <SelectItem key={val} value={val}>
-                                                            {val} Hour{val !== '1' ? 's' : ''}
+                                                            {val} Hours
                                                         </SelectItem>
                                                     );
                                                 })}
@@ -914,10 +992,19 @@ const ServicesPage = () => {
                     </div>
                     <DialogFooter className="mt-4 pt-3 border-t">
                         <Button variant="ghost" size="sm" onClick={() => setIsCustomizeDialogOpen(false)} className="h-8 text-xs">Cancel</Button>
-                        <Button size="sm" onClick={handleSaveCustomize} className="h-8 text-xs bg-primary text-white">Save All Details</Button>
+                        <Button size="sm" onClick={() => handleSaveCustomize()} className="h-8 text-xs bg-primary text-white">Save All Details</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {selectedReopenRecord && (
+                <SubmitReopenModal
+                    open={reopenDialogOpen}
+                    onOpenChange={setReopenDialogOpen}
+                    serviceId={selectedReopenRecord.id}
+                    supportPhone={fullReopenService?.shop?.shop_owner?.phone || fullReopenService?.shop?.user?.phone || undefined}
+                />
+            )}
         </div>
     );
 };

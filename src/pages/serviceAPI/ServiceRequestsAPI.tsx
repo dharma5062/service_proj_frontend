@@ -40,6 +40,7 @@ export interface ServiceRequestForm {
 }
 
 export interface ServiceRequest {
+    shop: any;
     id: number;
     shop_id?: number;
     form_id?: number;

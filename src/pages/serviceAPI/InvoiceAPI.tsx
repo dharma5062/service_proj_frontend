@@ -279,11 +279,6 @@ const verifyApprovalOtpFn = async ({ invoiceId, otp }: { invoiceId: number; otp:
     return response.data;
 };
 
-const customerApproveFn = async (invoiceId: number): Promise<{ status: boolean; message: string }> => {
-    const response = await axiosInstance.post(`/invoice/${invoiceId}/customer-approve`);
-    return response.data;
-};
-
 /** Hook to request the approval OTP (staff clicks "Send OTP") */
 export const useSendApprovalOtp = (invoiceId?: number) => {
     const queryClient = useQueryClient();
@@ -300,19 +295,6 @@ export const useVerifyApprovalOtp = (invoiceId?: number) => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (otp: string) => verifyApprovalOtpFn({ invoiceId: invoiceId!, otp }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['invoice', invoiceId] });
-            queryClient.invalidateQueries({ queryKey: ['invoices'] });
-            queryClient.invalidateQueries({ queryKey: ['my-invoices'] });
-        },
-    });
-};
-
-/** Hook for customer to approve the invoice (without OTP) */
-export const useCustomerApprove = (invoiceId?: number) => {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: () => customerApproveFn(invoiceId!),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoice', invoiceId] });
             queryClient.invalidateQueries({ queryKey: ['invoices'] });

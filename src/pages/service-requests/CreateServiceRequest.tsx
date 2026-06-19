@@ -2011,7 +2011,7 @@ const CreateServiceRequest = () => {
                                         <Input
                                             type="number"
                                             min="0"
-                                            className="h-7 text-[11px] px-2 focus-visible:ring-primary/20 bg-white"
+                                            className="h-7 text-[11px] px-2 focus-visible:ring-primary/20 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                             value={serviceDiscount === 0 ? '' : serviceDiscount}
                                             placeholder="0"
                                             onChange={(e) => setServiceDiscount(e.target.value === '' ? 0 : Number(e.target.value))}
@@ -2054,52 +2054,30 @@ const CreateServiceRequest = () => {
                                         <span className="text-xs font-bold text-gray-900">Service Area Total</span>
                                         <span className="text-xs font-bold text-gray-900">₹{serviceSectionTotal.toFixed(2)}</span>
                                     </div>
+                                    <div className="flex justify-between items-center pt-1 border-t border-gray-200 mt-1">
+                                        <span className="text-xs font-bold text-primary">Net Total</span>
+                                        <span className="text-sm font-bold text-primary">₹{finalGrandTotal.toFixed(2)}</span>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        {/* Tags & Internal Notes */}
+                        {/* Tags */}
                         <Card>
                             <CardHeader className="pb-1.5 pt-3 px-3">
                                 <CardTitle className="text-sm font-bold text-gray-900">
-                                    Tags & Notes
+                                    Tags
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3 px-3 pb-3">
-                                <div className="space-y-3">
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-xs font-medium text-gray-700">Tags</label>
-                                        <Input
-                                            placeholder="urgent, vip, warranty"
-                                            className="h-8 text-sm"
-                                            value={tags}
-                                            onChange={(e) => setTags(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="flex flex-col gap-1">
-                                            <label className="text-xs font-medium text-gray-700">
-                                                Internal Notes
-                                            </label>
-                                            <Textarea
-                                                placeholder="Add any internal notes here..."
-                                                className="min-h-[80px] bg-gray-50 text-sm resize-none border-gray-200 focus-visible:ring-primary/20"
-                                                value={internalNotes}
-                                                onChange={(e) => setInternalNotes(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                            <label className="text-xs font-medium text-gray-700">
-                                                Message for Customer
-                                            </label>
-                                            <Textarea
-                                                placeholder="Add a message or updates visible to the customer..."
-                                                className="min-h-[80px] bg-gray-50 text-sm resize-none border-gray-200 focus-visible:ring-primary/20"
-                                                value={customerNote}
-                                                onChange={(e) => setCustomerNote(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
+                                <div className="flex flex-col gap-1">
+                                    {/* <label className="text-xs font-medium text-gray-700">Tags</label> */}
+                                    <Input
+                                        placeholder="urgent, vip, warranty"
+                                        className="h-8 text-sm"
+                                        value={tags}
+                                        onChange={(e) => setTags(e.target.value)}
+                                    />
                                 </div>
                             </CardContent>
                         </Card>
@@ -2128,15 +2106,11 @@ const CreateServiceRequest = () => {
                     >
                         Cancel
                     </Button>
-                    <div className="flex flex-col items-end mr-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500 font-medium">Net Total:</span>
-                            <span className="text-lg font-bold text-primary">₹{finalGrandTotal.toFixed(2)}</span>
+                    {/* {selectedServiceCharges.length > 0 && (
+                        <div className="flex flex-col items-end mr-4 justify-center">
+                            <span className="text-[10px] text-gray-400">Inc. {selectedServiceCharges.length} Service {selectedServiceCharges.length === 1 ? 'Charge' : 'Charges'}</span>
                         </div>
-                        {selectedServiceCharges.length > 0 && (
-                            <span className="text-[10px] text-gray-400 -mt-1">Inc. {selectedServiceCharges.length} Service {selectedServiceCharges.length === 1 ? 'Charge' : 'Charges'}</span>
-                        )}
-                    </div>
+                    )} */}
                     <Button onClick={handleSubmit} disabled={isSubmitting} size="sm" className="bg-primary hover:bg-primary/90 text-sm h-8 px-6">
                         {isSubmitting ? 'Saving...' : (isEditMode ? 'Update Request' : 'Create Request')}
                     </Button>

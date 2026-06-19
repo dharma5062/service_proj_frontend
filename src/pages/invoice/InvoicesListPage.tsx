@@ -106,7 +106,7 @@ const InvoicesListPage = () => {
         {
             label: 'Total Invoices',
             value: totalCount,
-            icon: <Layers className="w-4 h-4" />,
+            icon: <Layers className="w-3.5 h-3.5" />,
             gradient: 'from-blue-500 to-blue-600',
             bg: 'bg-blue-50',
             text: 'text-blue-700',
@@ -116,7 +116,7 @@ const InvoicesListPage = () => {
         {
             label: 'Sent',
             value: sentInvoices.length,
-            icon: <MailCheck className="w-4 h-4" />,
+            icon: <MailCheck className="w-3.5 h-3.5" />,
             gradient: 'from-indigo-500 to-indigo-600',
             bg: 'bg-indigo-50',
             text: 'text-indigo-700',
@@ -126,7 +126,7 @@ const InvoicesListPage = () => {
         {
             label: 'Paid',
             value: paidInvoices.length,
-            icon: <CheckCircle2 className="w-4 h-4" />,
+            icon: <CheckCircle2 className="w-3.5 h-3.5" />,
             gradient: 'from-emerald-500 to-emerald-600',
             bg: 'bg-emerald-50',
             text: 'text-emerald-700',
@@ -136,7 +136,7 @@ const InvoicesListPage = () => {
         {
             label: 'Revenue',
             value: '₹' + totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 }),
-            icon: <TrendingUp className="w-4 h-4" />,
+            icon: <TrendingUp className="w-3.5 h-3.5" />,
             gradient: 'from-pink-500 to-rose-500',
             bg: 'bg-pink-50',
             text: 'text-pink-700',
@@ -153,6 +153,7 @@ const InvoicesListPage = () => {
                 title: 'Invoice',
                 dataIndex: 'invoice_number',
                 sortable: true,
+                width: '140px',
                 render: (_: any, inv: Invoice) => (
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 bg-gradient-to-br from-[#1F80FF] to-[#0055cc] rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -171,6 +172,7 @@ const InvoicesListPage = () => {
                 {
                     key: 'customer',
                     title: 'Customer',
+                    width: '180px',
                     render: (_: any, inv: Invoice) => (
                         <div className="flex items-center gap-2">
                             <div className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -189,6 +191,7 @@ const InvoicesListPage = () => {
             {
                 key: 'device',
                 title: 'Device',
+                width: '160px',
                 render: (_: any, inv: Invoice) => (
                     <div className="flex items-center gap-1.5">
                         <Smartphone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
@@ -201,6 +204,7 @@ const InvoicesListPage = () => {
             {
                 key: 'date',
                 title: 'Date',
+                width: '130px',
                 render: (_: any, inv: Invoice) => (
                     <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
@@ -217,6 +221,7 @@ const InvoicesListPage = () => {
                 key: 'total',
                 title: 'Amount',
                 align: 'right' as const,
+                width: '110px',
                 render: (_: any, inv: Invoice) => (
                     <div className="flex items-center gap-1 justify-end">
                         <IndianRupee className="w-3 h-3 text-gray-400" />
@@ -230,6 +235,7 @@ const InvoicesListPage = () => {
                 key: 'status',
                 title: 'Status',
                 align: 'center' as const,
+                width: '100px',
                 render: (_: any, inv: Invoice) => {
                     const sc = getStatusConfig(inv.status);
                     return (
@@ -244,69 +250,67 @@ const InvoicesListPage = () => {
                 key: 'actions',
                 title: 'Actions',
                 align: 'right' as const,
+                width: '150px',
                 render: (_: any, inv: Invoice) => {
                     const isResending = resendMutation.isPending;
                     const pendingCashPayment = inv.payments?.find((p: any) => p.gateway === 'cash_in_hand' && p.status === 'pending');
-                    const isOtpValid = pendingCashPayment?.cash_otp && pendingCashPayment?.cash_otp_expires_at && new Date(pendingCashPayment.cash_otp_expires_at).getTime() > Date.now();
                     return (
-                        <div className="flex items-center gap-1 justify-end">
-                            <Button
-                                id={`view-invoice-${inv.id}`}
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2.5 text-[10px] gap-1 rounded-lg border-gray-200 hover:border-[#1F80FF] hover:text-[#1F80FF] hover:bg-blue-50 font-semibold transition-all"
-                                onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
-                            >
-                                <Eye className="w-3 h-3" />
-                                View
-                            </Button>
+                        <div className="flex items-center gap-1.5 justify-end">
+                            {isCustomer && inv.status === 'sent' && (
+                                <>
+                                    {!inv.otp_approved && (
+                                        <>
+                                            {inv.approval_otp && (
+                                                <div className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800 font-mono tracking-[0.15em]" title="Verification OTP">
+                                                    {inv.approval_otp.slice(0, 3)} {inv.approval_otp.slice(3)}
+                                                </div>
+                                            )}
+                                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-blue-200 bg-blue-50 text-blue-700" title="Awaiting Verification">
+                                                <Clock className="w-3.5 h-3.5 animate-pulse" />
+                                            </span>
+                                        </>
+                                    )}
+                                    {inv.otp_approved && pendingCashPayment?.cash_otp && (
+                                        <div className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800 font-mono tracking-[0.15em]" title="Cash Payment OTP">
+                                            {pendingCashPayment.cash_otp.slice(0, 3)} {pendingCashPayment.cash_otp.slice(3)}
+                                        </div>
+                                    )}
+                                    {inv.otp_approved && !pendingCashPayment?.cash_otp && (
+                                        <Button
+                                            id={`pay-invoice-${inv.id}`}
+                                            size="sm"
+                                            className="h-7 w-7 p-0 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-sm font-bold transition-all"
+                                            onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
+                                            title="Pay Now"
+                                        >
+                                            <CreditCard className="w-3.5 h-3.5" />
+                                        </Button>
+                                    )}
+                                </>
+                            )}
                             {canResend && inv.status !== 'paid' && (
                                 <Button
                                     id={`resend-invoice-${inv.id}`}
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-2.5 text-[10px] gap-1 rounded-lg text-blue-600 hover:bg-blue-50 font-semibold transition-all"
+                                    className="h-7 w-7 p-0 rounded-lg text-blue-600 hover:bg-blue-50 font-semibold transition-all"
                                     disabled={isResending}
                                     onClick={() => handleResend(inv)}
+                                    title="Resend Invoice"
                                 >
-                                    <Send className="w-3 h-3" />
-                                    Resend
+                                    <Send className="w-3.5 h-3.5" />
                                 </Button>
                             )}
-                            {isCustomer && inv.status === 'sent' && (
-                                <>
-                                    {!inv.customer_approved ? (
-                                        <Button
-                                            id={`approve-invoice-${inv.id}`}
-                                            size="sm"
-                                            className="h-7 px-2.5 text-[10px] gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm font-bold transition-all"
-                                            onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
-                                        >
-                                            <Clock className="w-3 h-3" />
-                                            Approve
-                                        </Button>
-                                    ) : !inv.otp_approved ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-[9px] font-bold">
-                                            Awaiting Verification
-                                        </span>
-                                    ) : isOtpValid ? (
-                                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg shadow-sm" title="Show this OTP to the shop staff">
-                                            <span className="text-[9px] font-bold text-amber-800 uppercase">OTP:</span>
-                                            <span className="text-xs font-black tracking-widest text-amber-600">{pendingCashPayment.cash_otp}</span>
-                                        </div>
-                                    ) : (
-                                        <Button
-                                            id={`pay-invoice-${inv.id}`}
-                                            size="sm"
-                                            className="h-7 px-2.5 text-[10px] gap-1 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-sm font-bold transition-all"
-                                            onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
-                                        >
-                                            <CreditCard className="w-3 h-3" />
-                                            Pay Now
-                                        </Button>
-                                    )}
-                                </>
-                            )}
+                            <Button
+                                id={`view-invoice-${inv.id}`}
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-7 p-0 rounded-lg border-gray-200 hover:border-[#1F80FF] hover:text-[#1F80FF] hover:bg-blue-50 font-semibold transition-all"
+                                onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
+                                title="View Details"
+                            >
+                                <Eye className="w-3.5 h-3.5" />
+                            </Button>
                         </div>
                     );
                 }
@@ -316,20 +320,20 @@ const InvoicesListPage = () => {
     }, [isCustomer, canResend, resendMutation.isPending]);
 
     return (
-        <div className="p-0 space-y-5">
+        <div className="p-0 space-y-3">
 
             {/* ── Page Header ── */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-5 border-b border-gray-100">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-gray-100">
                 <div>
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 bg-gradient-to-br from-[#1F80FF] to-[#0055cc] rounded-xl flex items-center justify-center shadow-sm">
-                            <FileText className="w-4.5 h-4.5 text-white" />
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-[#1F80FF] to-[#0055cc] rounded-xl flex items-center justify-center shadow-sm">
+                            <FileText className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-extrabold text-gray-900 tracking-tight leading-tight">
+                            <h1 className="text-base font-extrabold text-gray-900 tracking-tight leading-tight">
                                 {isCustomer ? 'My Invoices' : 'Invoices'}
                             </h1>
-                            <p className="text-xs text-gray-400 mt-0.5">
+                            <p className="text-[10px] text-gray-400 mt-0.5">
                                 {isCustomer
                                     ? 'View and pay your service invoices'
                                     : 'Manage and send invoices to customers'}
@@ -344,15 +348,15 @@ const InvoicesListPage = () => {
                         {statsCards.map(({ label, value, icon, bg, text, border, subtxt }) => (
                             <div
                                 key={label}
-                                className={`flex items-center gap-3 bg-white border rounded-xl px-3.5 py-2.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default min-w-[130px] ${border}`}
+                                className={`flex items-center gap-2 bg-white border rounded-xl px-2 py-1.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default min-w-[110px] ${border}`}
                             >
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bg} ${text}`}>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${bg} ${text}`}>
                                     {icon}
                                 </div>
                                 <div className="leading-tight">
-                                    <p className={`text-[9px] font-bold uppercase tracking-wider ${text}`}>{label}</p>
-                                    <p className="text-sm font-extrabold text-gray-900 mt-0.5">{value}</p>
-                                    <p className="text-[9px] text-gray-400">{subtxt}</p>
+                                    <p className={`text-[8px] font-bold uppercase tracking-wider ${text}`}>{label}</p>
+                                    <p className="text-xs font-extrabold text-gray-900 mt-0.5">{value}</p>
+                                    <p className="text-[8px] text-gray-400">{subtxt}</p>
                                 </div>
                             </div>
                         ))}
@@ -372,17 +376,17 @@ const InvoicesListPage = () => {
                             key={tab.value}
                             id={`filter-tab-${tab.value || 'all'}`}
                             onClick={() => { setStatusFilter(tab.value); setPage(1); }}
-                            className={`relative flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-all duration-200 ${
+                            className={`relative flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border-b-2 transition-all duration-200 ${
                                 isActive
                                     ? tab.activeClass
                                     : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                             } rounded-t-lg`}
                         >
                             {isActive && tab.value && (
-                                <span className={`w-1.5 h-1.5 rounded-full ${tab.dotClass}`} />
+                                <span className={`w-1 h-1 rounded-full ${tab.dotClass}`} />
                             )}
                             {tab.label}
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                            <span className={`text-[8px] font-bold px-1 py-0.5 rounded-full ${
                                 isActive ? 'bg-white/80 text-gray-700' : 'bg-gray-100 text-gray-500'
                             }`}>
                                 {count}

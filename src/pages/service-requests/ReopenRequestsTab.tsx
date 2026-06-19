@@ -107,14 +107,18 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
             key: 'status',
             title: 'Status',
             dataIndex: 'status',
-            render: (val) => {
+            render: (val, record) => {
+                const isReworkInvoicePaid = (record.newInvoice?.status === 'paid') || ((record as any).new_invoice?.status === 'paid');
+                const isCompleted = val === 'approved' && isReworkInvoicePaid;
+                const displayVal = isCompleted ? 'completed' : val;
                 const styles: Record<string, string> = {
                     pending: 'bg-amber-100 text-amber-700 border-amber-200',
-                    approved: 'bg-green-100 text-green-700 border-green-200',
+                    approved: 'bg-green-50 text-green-700 border-green-200',
+                    completed: 'bg-emerald-100 text-emerald-800 border-emerald-300',
                     rejected: 'bg-red-100 text-red-700 border-red-200',
                 };
-                const style = styles[val] || 'bg-gray-100 text-gray-700';
-                return <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${style}`}>{val}</span>;
+                const style = styles[displayVal] || 'bg-gray-100 text-gray-700';
+                return <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${style}`}>{displayVal}</span>;
             }
         },
         {
