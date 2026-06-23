@@ -109,6 +109,7 @@ export interface DataTableProps<T = any> {
     shouldShowRevoke?: (record: T) => boolean;
     defaultSort?: { key: string; direction: 'asc' | 'desc' };
     serverSidePagination?: boolean; // When true, data is already paged by server — skip internal slice
+    emptyText?: React.ReactNode;
 }
 
 interface SortState {
@@ -162,6 +163,7 @@ export const DataTable = <T extends Record<string, any>>({
     shouldShowRevoke,
     defaultSort,
     serverSidePagination = false,
+    emptyText,
 }: DataTableProps<T>) => {
     // Resolve density
     const resolvedDensity = density || (compact || size === 'small' ? 'compact' : size === 'large' ? 'comfortable' : 'default');
@@ -839,7 +841,7 @@ export const DataTable = <T extends Record<string, any>>({
                                             <div className="h-10 w-10 rounded-full bg-muted/50 flex items-center justify-center">
                                                 <Search className="h-5 w-5 text-muted-foreground/50" />
                                             </div>
-                                            <span className="text-sm font-medium">No data available</span>
+                                            <span className="text-sm font-medium">{emptyText || "No data available"}</span>
                                             {hasActiveFilters && (
                                                 <span className="text-xs text-muted-foreground max-w-[200px] text-center">
                                                     Try adjusting your filters or search query

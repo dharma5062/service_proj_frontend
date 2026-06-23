@@ -927,8 +927,6 @@ const InvoiceGenerator = () => {
                     </div>
                 )}
 
-
-
                 {/* ══ MAIN INVOICE DOCUMENT ══ */}
                 {service && (
                     <div

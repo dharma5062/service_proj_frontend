@@ -35,6 +35,7 @@ import {
 import { useShopEmployeesApi } from '@/pages/serviceAPI/ShopEmployeesAPI';
 import { useServiceReopenApi } from '@/pages/serviceAPI/ServiceReopenAPI';
 import { SubmitReopenModal } from './SubmitReopenModal';
+
 import { toast } from 'sonner';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -424,8 +425,8 @@ const ViewServiceRequest = () => {
                                     <Button
                                         id="view-invoice-btn"
                                         size="sm"
-                                        variant="outline"
-                                        className="h-8 gap-1.5 border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                                        variant="ghost"
+                                        className="h-8 gap-1.5 text-green-700 hover:bg-green-50"
                                         onClick={() => navigate(`/dashboard/invoice/view/${existingInv.id}`)}
                                         title="View Invoice"
                                     >
@@ -436,8 +437,8 @@ const ViewServiceRequest = () => {
                                         <Button
                                             id="resend-invoice-btn"
                                             size="sm"
-                                            variant="outline"
-                                            className="h-8 gap-1.5 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                            variant="ghost"
+                                            className="h-8 gap-1.5 text-blue-700 hover:bg-blue-50"
                                             disabled={resendInvoiceMutation.isPending}
                                             onClick={async () => {
                                                 try {
@@ -464,7 +465,8 @@ const ViewServiceRequest = () => {
                                 <Button
                                     id="generate-invoice-btn"
                                     size="sm"
-                                    className="h-8 gap-1.5 bg-primary hover:bg-primary/90"
+                                    variant="ghost"
+                                    className="h-8 gap-1.5 text-blue-700 hover:bg-blue-50"
                                     disabled={generateInvoiceMutation.isPending}
                                     onClick={() => navigate(`/dashboard/invoice/service/${service.id}`)}
                                     title="Generate Invoice"
@@ -503,7 +505,7 @@ const ViewServiceRequest = () => {
                 </div>
             )}
 
-            {/* ── Reopened Banner — shown to staff to highlight previous technician's work ── */}
+            {/* ── Reopened Banner — shown to staff ── */}
             {hasReopenHistory && !isCustomer && (
                 <div className="mb-4 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/50 p-3.5 flex items-start gap-3 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-200/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import { toast } from 'sonner';
-import { Zap, AlertCircle, Eye, Edit, Trash2, CheckCircle, FileEdit, Search, Plus, Timer, FileText } from 'lucide-react';
+import { Zap, AlertCircle, Eye, Edit, Trash2, CheckCircle, FileEdit, Search, Plus, Timer, FileText, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProductsApi } from '@/pages/serviceAPI/ProductsAPI';
@@ -41,6 +41,7 @@ import {
 } from '@/pages/serviceAPI/ServiceRequestsAPI';
 import { ReopenRequestsTab } from './ReopenRequestsTab';
 import { SubmitReopenModal } from './SubmitReopenModal';
+import ServiceCompletionRatingCard from '@/pages/service-requests/ServiceCompletionRatingCard';
 
 // ─── Status helpers ──────────────────────────────────────────────────────────
 
@@ -137,6 +138,9 @@ const ServicesPage = () => {
     const [customizeServiceCharges, setCustomizeServiceCharges] = useState<any[]>([]);
     const [partSearchQuery, setPartSearchQuery] = useState('');
     const [chargeSearchQuery, setChargeSearchQuery] = useState('');
+
+    const [ratingModalOpen, setRatingModalOpen] = useState(false);
+    const [selectedRatingService, setSelectedRatingService] = useState<ServiceRequest | null>(null);
 
     // Fetch products and charges ONLY when the dialog is open
     const { useGetProducts } = useProductsApi();
@@ -263,15 +267,15 @@ const ServicesPage = () => {
                 let colorClass = 'bg-gray-200';
                 let indicatorClass = 'bg-gray-500';
 
-                if (status === 'pending')            { progress = 10;  colorClass = 'bg-orange-100';  indicatorClass = 'bg-orange-500'; }
-                else if (status === 'assigned')      { progress = 25;  colorClass = 'bg-blue-100';    indicatorClass = 'bg-blue-500'; }
-                else if (status === 'accepted')      { progress = 40;  colorClass = 'bg-indigo-100';  indicatorClass = 'bg-indigo-500'; }
-                else if (status === 'waiting_parts') { progress = 55;  colorClass = 'bg-amber-100';   indicatorClass = 'bg-amber-500'; }
-                else if (status === 'in_progress')   { progress = 70;  colorClass = 'bg-purple-100';  indicatorClass = 'bg-purple-500'; }
-                else if (status === 'ready')         { progress = 85;  colorClass = 'bg-teal-100';    indicatorClass = 'bg-teal-500'; }
-                else if (status === 'completed')     { progress = 100; colorClass = 'bg-green-100';   indicatorClass = 'bg-green-500'; }
-                else if (status === 'paid')          { progress = 100; colorClass = 'bg-emerald-100'; indicatorClass = 'bg-emerald-600'; }
-                else if (status === 'cancelled')     { progress = 100; colorClass = 'bg-red-100';     indicatorClass = 'bg-red-500'; }
+                if (status === 'pending') { progress = 10; colorClass = 'bg-orange-100'; indicatorClass = 'bg-orange-500'; }
+                else if (status === 'assigned') { progress = 25; colorClass = 'bg-blue-100'; indicatorClass = 'bg-blue-500'; }
+                else if (status === 'accepted') { progress = 40; colorClass = 'bg-indigo-100'; indicatorClass = 'bg-indigo-500'; }
+                else if (status === 'waiting_parts') { progress = 55; colorClass = 'bg-amber-100'; indicatorClass = 'bg-amber-500'; }
+                else if (status === 'in_progress') { progress = 70; colorClass = 'bg-purple-100'; indicatorClass = 'bg-purple-500'; }
+                else if (status === 'ready') { progress = 85; colorClass = 'bg-teal-100'; indicatorClass = 'bg-teal-500'; }
+                else if (status === 'completed') { progress = 100; colorClass = 'bg-green-100'; indicatorClass = 'bg-green-500'; }
+                else if (status === 'paid') { progress = 100; colorClass = 'bg-emerald-100'; indicatorClass = 'bg-emerald-600'; }
+                else if (status === 'cancelled') { progress = 100; colorClass = 'bg-red-100'; indicatorClass = 'bg-red-500'; }
 
                 const displayLabel = formatStatusLabel(status);
 
@@ -314,6 +318,58 @@ const ServicesPage = () => {
             align: 'center',
             render: (_, record) => {
                 const status = (record.service_status || record.status || 'pending').toLowerCase();
+                if (isCustomer) {
+                    return (
+                        <div className="grid grid-cols-4 gap-1 w-[90px] mx-auto justify-items-center">
+                            {/* Slot 1: View Details */}
+                            <div className="w-5 h-5 flex items-center justify-center">
+                                <Button size="sm" variant="ghost" onClick={() => handleView(record)} className="h-5 w-5 p-0 hover:bg-blue-100" title="View Details">
+                                    <Eye className="h-3 w-3 text-blue-600" />
+                                </Button>
+                            </div>
+
+                            {/* Slot 2: Rate */}
+                            <div className="w-5 h-5 flex items-center justify-center">
+                                {(status === 'completed' || status === 'paid') && record.assigned_technician?.id ? (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-5 w-5 p-0 bg-green-50 hover:bg-green-100 text-green-600 hover:text-green-700 transition-all border border-green-200"
+                                        onClick={() => {
+                                            setSelectedRatingService(record);
+                                            setRatingModalOpen(true);
+                                        }}
+                                        title="Rate Service"
+                                    >
+                                        <Star className="h-3 w-3" />
+                                    </Button>
+                                ) : null}
+                            </div>
+
+                            {/* Slot 3: Report */}
+                            <div className="w-5 h-5 flex items-center justify-center">
+                                {status === 'paid' && record.assigned_technician?.id ? (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setSelectedReopenRecord(record);
+                                            setReopenDialogOpen(true);
+                                        }}
+                                        className="h-5 w-5 p-0 hover:bg-red-100"
+                                        title="Report Issue / Reopen Service"
+                                    >
+                                        <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                                    </Button>
+                                ) : null}
+                            </div>
+
+                            {/* Slot 4: Empty */}
+                            <div className="w-5 h-5 flex items-center justify-center"></div>
+                        </div>
+                    );
+                }
+
                 return (
                     <div className="grid grid-cols-4 gap-1 w-[90px] mx-auto justify-items-center">
                         {/* Slot 1: View Details */}
@@ -333,29 +389,16 @@ const ServicesPage = () => {
                                 <Button size="sm" variant="ghost" onClick={() => handleCustomize(record)} className="h-5 w-5 p-0 hover:bg-purple-100" title="Customize Defect Form / Update">
                                     <FileEdit className="h-3 w-3 text-purple-600" />
                                 </Button>
-                            ) : !isCustomer && hasPermission('service.update') && !isShopEmployee ? (
+                            ) : hasPermission('service.update') && !isShopEmployee ? (
                                 <Button size="sm" variant="ghost" onClick={() => handleEdit(record)} className="h-5 w-5 p-0 hover:bg-green-100" title="Edit Request">
                                     <Edit className="h-3 w-3 text-green-600" />
-                                </Button>
-                            ) : isCustomer && status === 'paid' ? (
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                        setSelectedReopenRecord(record);
-                                        setReopenDialogOpen(true);
-                                    }}
-                                    className="h-5 w-5 p-0 hover:bg-red-100"
-                                    title="Report Issue / Reopen Service"
-                                >
-                                    <AlertCircle className="h-3.5 w-3.5 text-red-500" />
                                 </Button>
                             ) : null}
                         </div>
 
                         {/* Slot 3: Generate Invoice */}
                         <div className="w-5 h-5 flex items-center justify-center">
-                            {!isCustomer && (isSuperAdmin || isShopOwner || isShopEmployee) && status === 'completed' ? (
+                            {(isSuperAdmin || isShopOwner || isShopEmployee) && status === 'completed' ? (
                                 <Button size="sm" variant="ghost" onClick={() => navigate(`/dashboard/invoice/service/${record.id}`)} className="h-5 w-5 p-0 hover:bg-amber-100" title="Generate Invoice">
                                     <FileText className="h-3 w-3 text-amber-600" />
                                 </Button>
@@ -364,7 +407,7 @@ const ServicesPage = () => {
 
                         {/* Slot 4: Delete Request */}
                         <div className="w-5 h-5 flex items-center justify-center">
-                            {!isCustomer && hasPermission('service.delete') ? (
+                            {hasPermission('service.delete') ? (
                                 <Button size="sm" variant="ghost" onClick={() => handleDeleteClick(record)} className="h-5 w-5 p-0 hover:bg-red-100" title="Delete Request">
                                     <Trash2 className="h-3 w-3 text-red-600" />
                                 </Button>
@@ -545,74 +588,74 @@ const ServicesPage = () => {
     const renderDataTable = () => (
         <DataTable
             headerStats={[
-                    {
-                        label: 'Total Requests',
-                        value: serviceRequests.length,
-                        icon: <Zap className="h-3 w-3" />,
-                        color: 'primary'
-                    },
-                    {
-                        label: 'Critical Defects',
-                        value: serviceRequests.filter(r => (r.service_status || r.status || '').toLowerCase() === 'pending').length,
-                        icon: <AlertCircle className="h-3 w-3" />,
-                        color: 'danger'
-                    }
-                ]}
-                filterConfig={[
-                    {
-                        key: '_filter_status',
-                        label: 'Service Status',
-                        type: 'select',
-                        options: [
-                            { label: 'Pending',           value: 'pending' },
-                            { label: 'Assigned',          value: 'assigned' },
-                            { label: 'Diagnosis Started', value: 'accepted' },
-                            { label: 'Awaiting Parts',    value: 'waiting_parts' },
-                            { label: 'In Progress',       value: 'in_progress' },
-                            { label: 'Quality Check',     value: 'ready' },
-                            { label: 'Completed',         value: 'completed' },
-                            { label: 'Paid',              value: 'paid' },
-                            { label: 'Reopen Requested',  value: 'reopen_requested' },
-                            { label: 'Reopened',          value: 'reopened' },
-                            { label: 'Cancelled',         value: 'cancelled' },
-                        ]
-                    },
-                    {
-                        key: '_filter_tech',
-                        label: 'Technician',
-                        type: 'select',
-                        options: [
-                            { label: 'Unassigned', value: 'unassigned' },
-                            { label: 'Assigned',   value: 'assigned' }
-                        ]
-                    }
-                ]}
-                searchKey="_search_blob"
-                columns={filteredColumns}
-                data={serviceRequests}
-                searchable={true}
-                showActions={false}
-                showAdd={!isCustomer && hasPermission('service.create')}
-                showExport={!isCustomer}
-                onAdd={handleAddNew}
-                onExport={handleExport}
-                pagination={{
-                    current: currentPage,
-                    pageSize: pageSize,
-                    total: serviceRequests.length,
-                    onChange: (page, size) => {
-                        setCurrentPage(page);
-                        setPageSize(size);
-                    },
-                }}
-                hoverable
-                bordered
+                {
+                    label: 'Total Requests',
+                    value: serviceRequests.length,
+                    icon: <Zap className="h-3 w-3" />,
+                    color: 'primary'
+                },
+                {
+                    label: 'Critical Defects',
+                    value: serviceRequests.filter(r => (r.service_status || r.status || '').toLowerCase() === 'pending').length,
+                    icon: <AlertCircle className="h-3 w-3" />,
+                    color: 'danger'
+                }
+            ]}
+            filterConfig={[
+                {
+                    key: '_filter_status',
+                    label: 'Service Status',
+                    type: 'select',
+                    options: [
+                        { label: 'Pending', value: 'pending' },
+                        { label: 'Assigned', value: 'assigned' },
+                        { label: 'Diagnosis Started', value: 'accepted' },
+                        { label: 'Awaiting Parts', value: 'waiting_parts' },
+                        { label: 'In Progress', value: 'in_progress' },
+                        { label: 'Quality Check', value: 'ready' },
+                        { label: 'Completed', value: 'completed' },
+                        { label: 'Paid', value: 'paid' },
+                        { label: 'Reopen Requested', value: 'reopen_requested' },
+                        { label: 'Reopened', value: 'reopened' },
+                        { label: 'Cancelled', value: 'cancelled' },
+                    ]
+                },
+                {
+                    key: '_filter_tech',
+                    label: 'Technician',
+                    type: 'select',
+                    options: [
+                        { label: 'Unassigned', value: 'unassigned' },
+                        { label: 'Assigned', value: 'assigned' }
+                    ]
+                }
+            ]}
+            searchKey="_search_blob"
+            columns={filteredColumns}
+            data={serviceRequests}
+            searchable={true}
+            showActions={false}
+            showAdd={!isCustomer && hasPermission('service.create')}
+            showExport={!isCustomer}
+            onAdd={handleAddNew}
+            onExport={handleExport}
+            pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: serviceRequests.length,
+                onChange: (page, size) => {
+                    setCurrentPage(page);
+                    setPageSize(size);
+                },
+            }}
+            hoverable
+            bordered
             loading={loading}
             density="compact"
             title={(isShopOwner || isSuperAdmin || isShopEmployee) ? (
                 <div className="flex gap-4 items-center">
                     <button className="text-sm font-bold border-b-2 border-primary text-primary px-1 pb-1">Active Service Requests</button>
-                    <button 
+                    <button
                         className="text-sm font-bold text-muted-foreground hover:text-foreground px-1 pb-1 transition-colors"
                         onClick={() => setViewMode('reopen')}
                     >
@@ -734,37 +777,34 @@ const ServicesPage = () => {
 
                                 {/* Type toggle */}
                                 <div className="flex gap-1">
-                                    
+
                                     <button
                                         type="button"
                                         onClick={() => { setEstimationType('hours'); setEstimationValue(''); }}
-                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${
-                                            estimationType === 'hours'
+                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${estimationType === 'hours'
                                                 ? 'bg-amber-500 text-white border-amber-500'
                                                 : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'
-                                        }`}
+                                            }`}
                                     >
                                         By Hours
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => { setEstimationType('days'); setEstimationValue(''); }}
-                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${
-                                            estimationType === 'days'
+                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${estimationType === 'days'
                                                 ? 'bg-amber-500 text-white border-amber-500'
                                                 : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'
-                                        }`}
+                                            }`}
                                     >
                                         By Days
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => { setEstimationType('date'); setEstimationValue(''); }}
-                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${
-                                            estimationType === 'date'
+                                        className={`flex-1 text-[10px] font-semibold py-1 rounded border transition-colors ${estimationType === 'date'
                                                 ? 'bg-amber-500 text-white border-amber-500'
                                                 : 'bg-white text-gray-600 border-gray-200 hover:border-amber-300'
-                                        }`}
+                                            }`}
                                     >
                                         By Date
                                     </button>
@@ -994,6 +1034,25 @@ const ServicesPage = () => {
                         <Button variant="ghost" size="sm" onClick={() => setIsCustomizeDialogOpen(false)} className="h-8 text-xs">Cancel</Button>
                         <Button size="sm" onClick={() => handleSaveCustomize()} className="h-8 text-xs bg-primary text-white">Save All Details</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Rating Modal */}
+            <Dialog open={ratingModalOpen} onOpenChange={setRatingModalOpen}>
+                <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-0 bg-transparent shadow-none">
+                    <DialogTitle className="sr-only">Rate Service</DialogTitle>
+                    {selectedRatingService && selectedRatingService.assigned_technician && (
+                        <ServiceCompletionRatingCard
+                            serviceId={selectedRatingService.id}
+                            employeeId={selectedRatingService.assigned_technician.id}
+                            employeeName={selectedRatingService.assigned_technician.name}
+                            totalAmount={Number((selectedRatingService as any).invoice?.total_amount ?? 0)}
+                            currency={(selectedRatingService as any).invoice?.currency || 'INR'}
+                            closedOn={(selectedRatingService as any).invoice?.paid_at ?? selectedRatingService.updated_at}
+                            onRated={() => setRatingModalOpen(false)}
+                            onSkip={() => setRatingModalOpen(false)}
+                        />
+                    )}
                 </DialogContent>
             </Dialog>
 

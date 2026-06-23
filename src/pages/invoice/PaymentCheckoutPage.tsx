@@ -8,6 +8,8 @@ import {
   InitiateCashfreeResponse,
 } from '../serviceAPI/PaymentAPI';
 import { Button } from '@/components/ui/button';
+import ServiceCompletionRatingCard from '@/pages/service-requests/ServiceCompletionRatingCard';
+import { useAuth } from '@/AuthContext';
 import {
   Card,
   CardContent,
@@ -144,6 +146,7 @@ const CashConfirmModal = ({
 const PaymentCheckoutPage = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const { isCustomer } = useAuth();
   const [gateway, setGateway] = useState<'razorpay' | 'cashfree' | 'cash_in_hand'>('razorpay');
   const [isSuccess, setIsSuccess] = useState(false);
   const [showCashModal, setShowCashModal] = useState(false);
@@ -199,7 +202,7 @@ const PaymentCheckoutPage = () => {
   if (isSuccess) {
     const isCash = gateway === 'cash_in_hand';
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50 p-4">
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-gray-50 p-4 gap-4">
         <Card className={`w-full max-w-md shadow-lg border-t-4 ${isCash ? 'border-emerald-500' : 'border-green-500'}`}>
           <CardHeader className="text-center">
             {isCash ? (
@@ -219,6 +222,18 @@ const PaymentCheckoutPage = () => {
             </CardDescription>
           </CardHeader>
         </Card>
+
+        {/* Rating card — only for logged-in customers with assigned technician info */}
+        {isCustomer && (invoice as any)?.service_id && (invoice as any)?.assigned_technician_id && (
+          <ServiceCompletionRatingCard
+            serviceId={(invoice as any).service_id}
+            employeeId={(invoice as any).assigned_technician_id}
+            employeeName={(invoice as any).assigned_technician_name}
+            totalAmount={Number(invoice?.total_amount ?? 0)}
+            currency={invoice?.currency}
+            closedOn={new Date().toISOString()}
+          />
+        )}
       </div>
     );
   }
@@ -377,16 +392,16 @@ const PaymentCheckoutPage = () => {
                     The shop staff will generate an OTP for you to share.
                   </p>
                   {pendingCashPayment.cash_otp && (
-                      <div className="mt-4 p-4 bg-white border border-amber-200 rounded-lg w-full shadow-inner">
-                          <p className="text-xs text-gray-500 font-semibold mb-1 uppercase tracking-wider">Your Verification OTP</p>
-                          <p className="text-4xl font-black text-amber-700 tracking-[0.25em]">{pendingCashPayment.cash_otp}</p>
-                          <p className="text-xs text-gray-400 mt-2">Show this code to the shop staff to confirm your payment</p>
-                      </div>
+                    <div className="mt-4 p-4 bg-white border border-amber-200 rounded-lg w-full shadow-inner">
+                      <p className="text-xs text-gray-500 font-semibold mb-1 uppercase tracking-wider">Your Verification OTP</p>
+                      <p className="text-4xl font-black text-amber-700 tracking-[0.25em]">{pendingCashPayment.cash_otp}</p>
+                      <p className="text-xs text-gray-400 mt-2">Show this code to the shop staff to confirm your payment</p>
+                    </div>
                   )}
                   {!pendingCashPayment.cash_otp && (
-                      <Button variant="outline" className="mt-4 w-full border-amber-300 text-amber-700 hover:bg-amber-100" onClick={() => refetch()}>
-                          <RefreshCw className="w-4 h-4 mr-2" /> Check for OTP
-                      </Button>
+                    <Button variant="outline" className="mt-4 w-full border-amber-300 text-amber-700 hover:bg-amber-100" onClick={() => refetch()}>
+                      <RefreshCw className="w-4 h-4 mr-2" /> Check for OTP
+                    </Button>
                   )}
                 </div>
               ) : (

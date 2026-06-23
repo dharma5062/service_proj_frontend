@@ -15,7 +15,7 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
     const { useGetReopenRequests, useApproveReopenRequest, useRejectReopenRequest } = useServiceReopenApi();
     const { data: requestsData, isLoading, refetch } = useGetReopenRequests();
     const requests = requestsData?.data || [];
-    
+
     const approveMutation = useApproveReopenRequest();
     const rejectMutation = useRejectReopenRequest();
 
@@ -68,19 +68,24 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
             key: 'reopen_number',
             title: 'Cycle #',
             dataIndex: 'reopen_number',
-            render: (val) => <span className="text-xs font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">#{val}</span>
+            render: (val) => <span className="text-[11px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">#{val}</span>
         },
         {
             key: 'service_id',
             title: 'Service Ref',
             dataIndex: 'service_id',
-            render: (val) => <span className="font-semibold text-gray-900 text-xs">SR#{val}</span>
+            render: (val) => <span className="font-semibold text-gray-900 text-[11px]">SR#{val}</span>
         },
         {
             key: 'customer',
-            title: 'Customer',
+            title: 'Customer Info',
             dataIndex: 'customer',
-            render: (val) => <span className="text-xs text-gray-700 font-medium">{val?.name || '-'}</span>
+            render: (val) => (
+                <div className="flex flex-col">
+                    <span className="text-[11px] font-bold text-gray-900">{val?.name || '-'}</span>
+                    <span className="text-[9px] text-gray-500">{val?.phone || val?.mobile || '-'}</span>
+                </div>
+            )
         },
         {
             key: 'technician',
@@ -91,17 +96,22 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                 if (!tech) return <span className="text-xs text-gray-400 italic">Unassigned</span>;
                 return (
                     <div className="flex flex-col">
-                        <span className="text-xs text-gray-700 font-medium">{tech.name}</span>
-                        <span className="text-[10px] text-gray-500">{tech.phone || '-'}</span>
+                        <span className="text-[11px] text-gray-900 font-bold">{tech.name}</span>
+                        <span className="text-[9px] text-gray-500">{tech.phone || '-'}</span>
                     </div>
                 );
             }
         },
         {
-            key: 'reason',
-            title: 'Reason / Issue',
+            key: 'issue',
+            title: 'Issue / Reason',
             dataIndex: 'reason',
-            render: (val) => <span className="text-xs text-gray-600 truncate max-w-[160px] block" title={val}>{val}</span>
+            render: (val, record) => (
+                <div className="flex flex-col">
+                    {record.issue_type && <span className="text-[11px] font-bold text-gray-900 capitalize">{record.issue_type}</span>}
+                    <span className="text-[10px] text-gray-600 truncate max-w-[160px] block" title={val}>{val}</span>
+                </div>
+            )
         },
         {
             key: 'status',
@@ -133,14 +143,12 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
             dataIndex: 'id',
             align: 'center',
             render: (_, record) => (
-                <div className="flex items-center gap-1 justify-center">
-                    <Button size="sm" variant="ghost" onClick={() => handleView(record)} className="h-6 px-2 py-0">
-                        <Eye className="w-3.5 h-3.5 mr-1 text-blue-600" />
-                        <span className="text-xs text-blue-600 font-medium">View</span>
+                <div className="flex items-center gap-1.5 justify-center">
+                    <Button size="icon" variant="ghost" onClick={() => handleView(record)} className="w-6 h-6 rounded-full hover:bg-blue-50" title="View Details">
+                        <Eye className="w-3.5 h-3.5 text-blue-600" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => navigate(`/dashboard/services/view/${record.service_id}`)} className="h-6 px-2 py-0">
-                        <ExternalLink className="w-3.5 h-3.5 mr-1 text-gray-500" />
-                        <span className="text-xs text-gray-500 font-medium">Service</span>
+                    <Button size="icon" variant="ghost" onClick={() => navigate(`/dashboard/services/view/${record.service_id}`)} className="w-6 h-6 rounded-full hover:bg-gray-100" title="View Service">
+                        <ExternalLink className="w-3.5 h-3.5 text-gray-600" />
                     </Button>
                 </div>
             )
@@ -153,7 +161,7 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                 title={
                     <div className="flex gap-4 items-center">
                         {onSwitchBack && (
-                            <button 
+                            <button
                                 className="text-sm font-bold text-muted-foreground hover:text-foreground px-1 pb-1 transition-colors"
                                 onClick={onSwitchBack}
                             >
@@ -175,109 +183,118 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
             />
 
             <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:max-w-[550px] p-3">
                     <DialogHeader>
-                        <DialogTitle>Reopen Request Details</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="text-sm font-bold">Reopen Request Details</DialogTitle>
+                        <DialogDescription className="text-xs text-gray-500">
                             Review the customer's reported issue and approve or reject the request.
                         </DialogDescription>
                     </DialogHeader>
                     {selectedRequest && (
-                        <div className="space-y-4 py-2">
-                            <div className="bg-gray-50 border rounded-lg p-3 space-y-2">
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="font-semibold text-gray-500 uppercase">Service Ref:</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold text-gray-900">SR#{selectedRequest.service_id}</span>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-5 px-1.5 text-[10px] text-blue-600 hover:text-blue-700 hover:bg-blue-50 gap-1"
+                        <div className="space-y-3 py-1">
+                            <div className="bg-gray-50 border rounded-md p-2.5 grid grid-cols-3 gap-y-2.5 gap-x-3">
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Service Ref</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-bold text-gray-900">SR#{selectedRequest.service_id}</span>
+                                        <button
+                                            className="flex items-center gap-1 text-[10px] font-medium text-blue-600 hover:text-blue-800 transition-colors"
                                             onClick={() => { setViewModalOpen(false); navigate(`/dashboard/services/view/${selectedRequest.service_id}`); }}
                                         >
-                                            <ExternalLink className="w-3 h-3" /> View Service
-                                        </Button>
+                                            <ExternalLink className="w-3 h-3" /> View
+                                        </button>
                                     </div>
                                 </div>
                                 {selectedRequest.customer?.name && (
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className="font-semibold text-gray-500 uppercase">Customer:</span>
-                                        <span className="font-bold text-gray-900">{selectedRequest.customer.name}</span>
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Customer</span>
+                                        <span className="text-xs font-bold text-gray-900 truncate" title={selectedRequest.customer.name}>
+                                            {selectedRequest.customer.name}
+                                        </span>
                                     </div>
                                 )}
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="font-semibold text-gray-500 uppercase">Reopen Cycle:</span>
-                                    <span className="font-bold text-gray-900">#{selectedRequest.reopen_number}</span>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Reopen Cycle</span>
+                                    <span className="text-xs font-bold text-gray-900">#{selectedRequest.reopen_number}</span>
                                 </div>
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="font-semibold text-gray-500 uppercase">Requested On:</span>
-                                    <span className="font-bold text-gray-900">{new Date(selectedRequest.created_at).toLocaleString()}</span>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Requested On</span>
+                                    <span className="text-xs font-bold text-gray-900 truncate">
+                                        {new Date(selectedRequest.created_at).toLocaleDateString()} {new Date(selectedRequest.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
                                 </div>
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="font-semibold text-gray-500 uppercase">Status:</span>
-                                    <span className="font-bold text-gray-900 uppercase">{selectedRequest.status}</span>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Issue Type</span>
+                                    <span className="text-xs font-bold text-gray-900 truncate" title={selectedRequest.issue_type || '-'}>{selectedRequest.issue_type || '-'}</span>
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Status</span>
+                                    <span className="text-xs font-bold text-yellow-600 capitalize">{selectedRequest.status}</span>
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Reported Issue</h4>
-                                <p className="text-sm text-gray-800 bg-gray-50 border rounded p-2.5 whitespace-pre-wrap leading-relaxed">
-                                    {selectedRequest.reason}
-                                </p>
-                            </div>
-
-                            {selectedRequest.images && selectedRequest.images.length > 0 && (
-                                <div className="space-y-1.5">
-                                    <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Evidence / Images</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedRequest.images.map((url: string, i: number) => (
-                                            <a key={i} href={url} target="_blank" rel="noreferrer" className="relative w-20 h-20 border rounded overflow-hidden group">
-                                                <img src={url} alt="Evidence" className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
-                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 text-white text-[10px] font-bold">
-                                                    View
-                                                </div>
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {selectedRequest.shop_owner_note && selectedRequest.status !== 'pending' && (
-                                <div className="space-y-1.5">
-                                    <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Shop Owner Note</h4>
-                                    <p className="text-sm text-gray-800 bg-blue-50 border border-blue-100 rounded p-2.5 whitespace-pre-wrap leading-relaxed">
-                                        {selectedRequest.shop_owner_note}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <h4 className="text-[10px] font-semibold text-gray-700 capitalize tracking-wider">Reported Issue</h4>
+                                    <p className="text-xs text-gray-800 bg-gray-50 border rounded p-2 whitespace-pre-wrap leading-relaxed min-h-[46px]">
+                                        {selectedRequest.reason}
                                     </p>
                                 </div>
-                            )}
+
+                                <div className="space-y-1">
+                                    <h4 className="text-[10px] font-semibold text-gray-700 capitalize tracking-wider">Evidence / Images</h4>
+                                    {selectedRequest.images && selectedRequest.images.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2 pt-0.5">
+                                            {selectedRequest.images.map((url: string, i: number) => (
+                                                <a key={i} href={url} target="_blank" rel="noreferrer" className="relative w-10 h-10 border border-gray-200 rounded shadow-sm overflow-hidden group hover:border-blue-300 transition-colors">
+                                                    <img src={url} alt="Evidence" className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] text-gray-400 italic py-1">No images</div>
+                                    )}
+                                </div>
+
+                                {selectedRequest.shop_owner_note && selectedRequest.status !== 'pending' && (
+                                    <div className="space-y-1 col-span-2">
+                                        <h4 className="text-[10px] font-semibold text-gray-700 capitalize tracking-wider">Shop Owner Note</h4>
+                                        <p className="text-xs text-gray-800 bg-blue-50 border border-blue-100 rounded p-2 whitespace-pre-wrap leading-relaxed">
+                                            {selectedRequest.shop_owner_note}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
 
                             {selectedRequest.status === 'pending' && canApprove && (
-                                <div className="space-y-3 pt-4 border-t mt-4">
-                                    <div className="space-y-1.5">
-                                        <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Shop Owner Note</h4>
+                                <div className="space-y-2 pt-2 border-t mt-2">
+                                    <div className="space-y-1">
+                                        <h4 className="text-[10px] font-semibold text-gray-700 capitalize tracking-wider">Shop Owner Note</h4>
                                         <textarea
                                             value={shopOwnerNote}
                                             onChange={(e) => setShopOwnerNote(e.target.value)}
                                             placeholder="Enter a note for the customer... (Required for rejection)"
-                                            className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring focus:ring-primary/20 p-2 border min-h-[80px]"
+                                            className="w-full text-xs border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none p-2 border min-h-[60px] transition-all duration-200"
                                         />
                                     </div>
-                                    <div className="flex justify-end gap-3">
+                                    <div className="flex justify-end gap-2">
                                         <Button
                                             variant="outline"
+                                            size="sm"
                                             onClick={() => handleReject(selectedRequest.id)}
                                             disabled={rejectMutation.isPending || approveMutation.isPending}
-                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
                                         >
-                                            <XCircle className="w-4 h-4 mr-1.5" />
+                                            <XCircle className="w-3.5 h-3.5 mr-1" />
                                             Reject
                                         </Button>
                                         <Button
+                                            size="sm"
                                             onClick={() => handleApprove(selectedRequest.id)}
                                             disabled={rejectMutation.isPending || approveMutation.isPending}
-                                            className="bg-green-600 hover:bg-green-700 text-white"
+                                            className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
                                         >
-                                            <CheckCircle className="w-4 h-4 mr-1.5" />
+                                            <CheckCircle className="w-3.5 h-3.5 mr-1" />
                                             Approve &amp; Reopen
                                         </Button>
                                     </div>

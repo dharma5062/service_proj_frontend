@@ -47,6 +47,7 @@ export interface Invoice {
         product?: { id: number; name: string };
         brand?: { id: number; name: string };
         customer?: { id: number; name: string; email?: string };
+        assigned_technician?: { id: number; name: string };
     };
     shop?: { id: number; name: string };
     customer?: { id: number; name: string; email?: string; phone?: string };

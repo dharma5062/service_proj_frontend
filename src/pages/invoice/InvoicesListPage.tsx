@@ -4,6 +4,7 @@ import { useAuth } from '@/AuthContext';
 import { useInvoiceApi, Invoice } from '@/pages/serviceAPI/InvoiceAPI';
 import { Button } from '@/components/ui/button';
 import { DataTable, Column } from '@/components/ui/table/datatable';
+import ServiceCompletionRatingCard from '@/pages/service-requests/ServiceCompletionRatingCard';
 import {
     FileText,
     Eye,
@@ -19,21 +20,24 @@ import {
     CreditCard,
     TrendingUp,
     Layers,
+    Star,
+    AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SubmitReopenModal } from '@/pages/service-requests/SubmitReopenModal';
+import { useServiceRequestsApi } from '@/pages/serviceAPI/ServiceRequestsAPI';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; className: string; dotColor: string; icon: React.ReactNode }> = {
-    draft:     { label: 'Draft',     className: 'bg-amber-50 text-amber-700 border-amber-200',   dotColor: 'bg-amber-400', icon: <Clock className="w-3 h-3" /> },
-    sent:      { label: 'Sent',      className: 'bg-blue-50 text-blue-700 border-blue-200',       dotColor: 'bg-blue-500',  icon: <MailCheck className="w-3 h-3" /> },
-    paid:      { label: 'Paid',      className: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotColor: 'bg-emerald-500', icon: <CheckCircle2 className="w-3 h-3" /> },
-    cancelled: { label: 'Cancelled', className: 'bg-red-50 text-red-700 border-red-200',           dotColor: 'bg-red-500',   icon: <XCircle className="w-3 h-3" /> },
+    draft: { label: 'Draft', className: 'bg-amber-50 text-amber-700 border-amber-200', dotColor: 'bg-amber-400', icon: <Clock className="w-3 h-3" /> },
+    sent: { label: 'Sent', className: 'bg-blue-50 text-blue-700 border-blue-200', dotColor: 'bg-blue-500', icon: <MailCheck className="w-3 h-3" /> },
+    paid: { label: 'Paid', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotColor: 'bg-emerald-500', icon: <CheckCircle2 className="w-3 h-3" /> },
+    cancelled: { label: 'Cancelled', className: 'bg-red-50 text-red-700 border-red-200', dotColor: 'bg-red-500', icon: <XCircle className="w-3 h-3" /> },
 };
 
 const getStatusConfig = (status: string) =>
     STATUS_CONFIG[status] ?? { label: status, className: 'bg-gray-50 text-gray-600 border-gray-200', dotColor: 'bg-gray-400', icon: null };
-
 
 const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return '—';
@@ -46,11 +50,11 @@ const formatDate = (dateStr?: string | null) => {
 
 // ─── Tab filter config ─────────────────────────────────────────────────────────
 const TAB_FILTERS = [
-    { value: '',          label: 'All',       activeClass: 'border-[#1F80FF] text-[#1F80FF] bg-blue-50/60',  dotClass: 'bg-gray-400' },
-    { value: 'sent',      label: 'Sent',      activeClass: 'border-blue-500 text-blue-700 bg-blue-50/60',    dotClass: 'bg-blue-500' },
-    { value: 'paid',      label: 'Paid',      activeClass: 'border-emerald-500 text-emerald-700 bg-emerald-50/60', dotClass: 'bg-emerald-500' },
-    { value: 'draft',     label: 'Draft',     activeClass: 'border-amber-500 text-amber-700 bg-amber-50/60',  dotClass: 'bg-amber-400' },
-    { value: 'cancelled', label: 'Cancelled', activeClass: 'border-red-500 text-red-700 bg-red-50/60',       dotClass: 'bg-red-500' },
+    { value: '', label: 'All', activeClass: 'border-[#1F80FF] text-[#1F80FF] bg-blue-50/60', dotClass: 'bg-gray-400' },
+    { value: 'sent', label: 'Sent', activeClass: 'border-blue-500 text-blue-700 bg-blue-50/60', dotClass: 'bg-blue-500' },
+    { value: 'paid', label: 'Paid', activeClass: 'border-emerald-500 text-emerald-700 bg-emerald-50/60', dotClass: 'bg-emerald-500' },
+    { value: 'draft', label: 'Draft', activeClass: 'border-amber-500 text-amber-700 bg-amber-50/60', dotClass: 'bg-amber-400' },
+    { value: 'cancelled', label: 'Cancelled', activeClass: 'border-red-500 text-red-700 bg-red-50/60', dotClass: 'bg-red-500' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -63,6 +67,14 @@ const InvoicesListPage = () => {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [statusFilter, setStatusFilter] = useState('');
+
+    const [ratingModalOpen, setRatingModalOpen] = useState(false);
+    const [selectedRatingInvoice, setSelectedRatingInvoice] = useState<Invoice | null>(null);
+
+    const { useGetServiceRequestById } = useServiceRequestsApi();
+    const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+    const [selectedReopenRecord, setSelectedReopenRecord] = useState<any | null>(null);
+    const { data: fullReopenService } = useGetServiceRequestById(selectedReopenRecord?.id);
 
     const { data: paginated, isLoading } = useGetInvoices({
         ...(statusFilter ? { status: statusFilter } : {}),
@@ -249,68 +261,130 @@ const InvoicesListPage = () => {
             {
                 key: 'actions',
                 title: 'Actions',
-                align: 'right' as const,
-                width: '150px',
+                align: 'center' as const,
+                width: '120px',
                 render: (_: any, inv: Invoice) => {
                     const isResending = resendMutation.isPending;
                     const pendingCashPayment = inv.payments?.find((p: any) => p.gateway === 'cash_in_hand' && p.status === 'pending');
-                    return (
-                        <div className="flex items-center gap-1.5 justify-end">
-                            {isCustomer && inv.status === 'sent' && (
-                                <>
-                                    {!inv.otp_approved && (
+
+                    if (isCustomer) {
+                        return (
+                            <div className="grid grid-cols-4 gap-1 w-[90px] mx-auto justify-items-center">
+                                {/* Slot 1: Pay / Awaiting */}
+                                <div className="w-5 h-5 flex items-center justify-center">
+                                    {inv.status === 'sent' && (
                                         <>
-                                            {inv.approval_otp && (
-                                                <div className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800 font-mono tracking-[0.15em]" title="Verification OTP">
-                                                    {inv.approval_otp.slice(0, 3)} {inv.approval_otp.slice(3)}
-                                                </div>
+                                            {!inv.otp_approved && (
+                                                <span className="inline-flex items-center justify-center w-5 h-5 text-blue-500" title={`Awaiting Verification ${inv.approval_otp ? `(OTP: ${inv.approval_otp})` : ''}`}>
+                                                    <Clock className="w-3.5 h-3.5 animate-pulse" />
+                                                </span>
                                             )}
-                                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-blue-200 bg-blue-50 text-blue-700" title="Awaiting Verification">
-                                                <Clock className="w-3.5 h-3.5 animate-pulse" />
-                                            </span>
+                                            {inv.otp_approved && pendingCashPayment?.cash_otp && (
+                                                <span className="inline-flex items-center justify-center w-5 h-5 text-amber-500" title={`Awaiting Cash (OTP: ${pendingCashPayment.cash_otp})`}>
+                                                    <Clock className="w-3.5 h-3.5 animate-pulse" />
+                                                </span>
+                                            )}
+                                            {inv.otp_approved && !pendingCashPayment?.cash_otp && (
+                                                <Button
+                                                    id={`pay-invoice-${inv.id}`}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-5 w-5 p-0 text-indigo-600 hover:bg-indigo-50 transition-all"
+                                                    onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
+                                                    title="Pay Now"
+                                                >
+                                                    <CreditCard className="w-3.5 h-3.5" />
+                                                </Button>
+                                            )}
                                         </>
                                     )}
-                                    {inv.otp_approved && pendingCashPayment?.cash_otp && (
-                                        <div className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800 font-mono tracking-[0.15em]" title="Cash Payment OTP">
-                                            {pendingCashPayment.cash_otp.slice(0, 3)} {pendingCashPayment.cash_otp.slice(3)}
-                                        </div>
-                                    )}
-                                    {inv.otp_approved && !pendingCashPayment?.cash_otp && (
+                                </div>
+
+                                {/* Slot 2: View Details */}
+                                <div className="w-5 h-5 flex items-center justify-center">
+                                    <Button
+                                        id={`view-invoice-${inv.id}`}
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 w-5 p-0 text-blue-600 hover:bg-blue-50 transition-all"
+                                        onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
+                                        title="View Details"
+                                    >
+                                        <Eye className="w-3.5 h-3.5" />
+                                    </Button>
+                                </div>
+
+                                {/* Slot 3: Rate Service */}
+                                <div className="w-5 h-5 flex items-center justify-center">
+                                    {inv.status === 'paid' && inv.service?.assigned_technician?.id ? (
                                         <Button
-                                            id={`pay-invoice-${inv.id}`}
+                                            variant="ghost"
                                             size="sm"
-                                            className="h-7 w-7 p-0 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-sm font-bold transition-all"
-                                            onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
-                                            title="Pay Now"
+                                            className="h-5 w-5 p-0 text-green-600 hover:bg-green-50 transition-all"
+                                            onClick={() => {
+                                                setSelectedRatingInvoice(inv);
+                                                setRatingModalOpen(true);
+                                            }}
+                                            title="Rate Service"
                                         >
-                                            <CreditCard className="w-3.5 h-3.5" />
+                                            <Star className="w-3.5 h-3.5" />
                                         </Button>
-                                    )}
-                                </>
-                            )}
-                            {canResend && inv.status !== 'paid' && (
+                                    ) : null}
+                                </div>
+
+                                {/* Slot 4: Report Issue */}
+                                <div className="w-5 h-5 flex items-center justify-center">
+                                    {inv.status === 'paid' && inv.service?.assigned_technician?.id ? (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                setSelectedReopenRecord(inv.service);
+                                                setReopenDialogOpen(true);
+                                            }}
+                                            className="h-5 w-5 p-0 text-red-500 hover:bg-red-50 transition-all"
+                                            title="Report Issue / Reopen Service"
+                                        >
+                                            <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div className="grid grid-cols-2 gap-1 w-[60px] mx-auto justify-items-center">
+                            {/* Slot 1: Resend */}
+                            <div className="w-5 h-5 flex items-center justify-center">
+                                {canResend && inv.status !== 'paid' ? (
+                                    <Button
+                                        id={`resend-invoice-${inv.id}`}
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 w-5 p-0 text-blue-600 hover:bg-blue-50 transition-all"
+                                        disabled={isResending}
+                                        onClick={() => handleResend(inv)}
+                                        title="Resend Invoice"
+                                    >
+                                        <Send className="w-3.5 h-3.5" />
+                                    </Button>
+                                ) : null}
+                            </div>
+
+                            {/* Slot 2: View Details */}
+                            <div className="w-5 h-5 flex items-center justify-center">
                                 <Button
-                                    id={`resend-invoice-${inv.id}`}
+                                    id={`view-invoice-${inv.id}`}
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 w-7 p-0 rounded-lg text-blue-600 hover:bg-blue-50 font-semibold transition-all"
-                                    disabled={isResending}
-                                    onClick={() => handleResend(inv)}
-                                    title="Resend Invoice"
+                                    className="h-5 w-5 p-0 text-blue-600 hover:bg-blue-50 transition-all"
+                                    onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
+                                    title="View Details"
                                 >
-                                    <Send className="w-3.5 h-3.5" />
+                                    <Eye className="w-3.5 h-3.5" />
                                 </Button>
-                            )}
-                            <Button
-                                id={`view-invoice-${inv.id}`}
-                                variant="outline"
-                                size="sm"
-                                className="h-7 w-7 p-0 rounded-lg border-gray-200 hover:border-[#1F80FF] hover:text-[#1F80FF] hover:bg-blue-50 font-semibold transition-all"
-                                onClick={() => navigate(`/dashboard/invoice/view/${inv.id}`)}
-                                title="View Details"
-                            >
-                                <Eye className="w-3.5 h-3.5" />
-                            </Button>
+                            </div>
                         </div>
                     );
                 }
@@ -376,19 +450,17 @@ const InvoicesListPage = () => {
                             key={tab.value}
                             id={`filter-tab-${tab.value || 'all'}`}
                             onClick={() => { setStatusFilter(tab.value); setPage(1); }}
-                            className={`relative flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border-b-2 transition-all duration-200 ${
-                                isActive
+                            className={`relative flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border-b-2 transition-all duration-200 ${isActive
                                     ? tab.activeClass
                                     : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-                            } rounded-t-lg`}
+                                } rounded-t-lg`}
                         >
                             {isActive && tab.value && (
                                 <span className={`w-1 h-1 rounded-full ${tab.dotClass}`} />
                             )}
                             {tab.label}
-                            <span className={`text-[8px] font-bold px-1 py-0.5 rounded-full ${
-                                isActive ? 'bg-white/80 text-gray-700' : 'bg-gray-100 text-gray-500'
-                            }`}>
+                            <span className={`text-[8px] font-bold px-1 py-0.5 rounded-full ${isActive ? 'bg-white/80 text-gray-700' : 'bg-gray-100 text-gray-500'
+                                }`}>
                                 {count}
                             </span>
                         </button>
@@ -396,7 +468,6 @@ const InvoicesListPage = () => {
                 })}
             </div>
 
-            {/* ── Data Table ── */}
             <DataTable
                 columns={columns}
                 data={mappedInvoices}
@@ -417,6 +488,29 @@ const InvoicesListPage = () => {
                 density="compact"
                 loading={isLoading}
             />
+
+            {/* Rating Modal */}
+            {ratingModalOpen && selectedRatingInvoice && selectedRatingInvoice.service?.assigned_technician && (
+                <ServiceCompletionRatingCard
+                    serviceId={selectedRatingInvoice.service.id}
+                    employeeId={selectedRatingInvoice.service.assigned_technician.id}
+                    employeeName={selectedRatingInvoice.service.assigned_technician.name}
+                    totalAmount={Number(selectedRatingInvoice.total_amount ?? 0)}
+                    currency={selectedRatingInvoice.currency || 'INR'}
+                    closedOn={selectedRatingInvoice.paid_at ?? selectedRatingInvoice.updated_at}
+                    onRated={() => setRatingModalOpen(false)}
+                    onSkip={() => setRatingModalOpen(false)}
+                />
+            )}
+
+            {selectedReopenRecord && (
+                <SubmitReopenModal
+                    open={reopenDialogOpen}
+                    onOpenChange={setReopenDialogOpen}
+                    serviceId={selectedReopenRecord.id}
+                    supportPhone={fullReopenService?.shop?.shop_owner?.phone || fullReopenService?.shop?.user?.phone || undefined}
+                />
+            )}
         </div>
     );
 };

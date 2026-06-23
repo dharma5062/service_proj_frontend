@@ -78,7 +78,18 @@ const Sidebar = () => {
         ...(isCustomer ? [
             { icon: FileText, label: 'Invoices', path: '/dashboard/invoices', reqPerm: null }
         ] : []),
-        { icon: Users, label: 'Staff', path: '/dashboard/staff', reqPerm: 'employee.view' },
+        {
+            icon: Users,
+            label: 'Staff',
+            reqPerm: 'employee.view',
+            isDropdown: true,
+            menuKey: 'staff',
+            path: '/dashboard/staff',
+            subItems: [
+                { label: 'Staff List', path: '/dashboard/staff', reqPerm: 'employee.view' },
+                { label: 'Dashboard', path: '/dashboard/staff/performance', reqPerm: null, adminOnly: true },
+            ]
+        },
         { icon: FolderTree, label: 'Categories', path: '/dashboard/categories', reqPerm: 'category.view' },
         { icon: Package, label: 'Brands', path: '/dashboard/brand', reqPerm: 'brand.view' },
         { icon: ShoppingBag, label: 'Products', path: '/dashboard/product', reqPerm: 'product.view' },
@@ -106,8 +117,10 @@ const Sidebar = () => {
                  (p === '/dashboard/invoices' && location.pathname.startsWith('/dashboard/invoice')) || 
                  (p === '/dashboard/services' && location.pathname.startsWith('/dashboard/services/'))
         );
+        const isStaffActive = location.pathname.startsWith('/dashboard/staff');
         return {
             services: isServicesActive,
+            staff: isStaffActive,
         };
     });
 
@@ -119,6 +132,9 @@ const Sidebar = () => {
         );
         if (isServicesActive) {
             setOpenMenus(prev => ({ ...prev, services: true }));
+        }
+        if (location.pathname.startsWith('/dashboard/staff')) {
+            setOpenMenus(prev => ({ ...prev, staff: true }));
         }
     }, [location.pathname]);
 
@@ -161,6 +177,8 @@ const Sidebar = () => {
         if (location.pathname === path) return true;
         if (path === '/dashboard/invoices' && location.pathname.startsWith('/dashboard/invoice')) return true;
         if (path === '/dashboard/services' && location.pathname.startsWith('/dashboard/services/')) return true;
+        if (path === '/dashboard/staff' && location.pathname === '/dashboard/staff') return true;
+        if (path === '/dashboard/staff/performance' && location.pathname.startsWith('/dashboard/staff/performance')) return true;
         return false;
     };
 

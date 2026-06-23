@@ -19,6 +19,7 @@ import Dashboard from '@/pages/dashboard/Dashboard';
 import InvoiceGenerator from '@/pages/invoice/InvoiceGenerator';
 import InvoicesListPage from '@/pages/invoice/InvoicesListPage';
 import StaffPage from '@/pages/staff/StaffPage';
+import StaffPerformanceDashboard from '@/pages/staff/StaffPerformanceDashboard';
 // import NotificationCenter from '@/pages/notifications/NotificationCenter';
 import AnalyticsPage from '@/pages/analytics/AnalyticsPage';
 // import PromotionsPage from '@/pages/promotions/PromotionsPage';
@@ -63,6 +64,8 @@ const RouterComponent: React.FC = () => {
                     <Route path='table-demo' element={<TableDemoPage />} />
 
                     <Route path='staff' element={<StaffPage />} />
+                    <Route path='staff/performance' element={<StaffPerformanceDashboard />} />
+                    <Route path='staff/performance/:employeeId' element={<StaffPerformanceDashboard />} />
                     {/* <Route path='notifications' element={<NotificationCenter />} /> */}
                     <Route path='analytics' element={<AnalyticsPage />} />
                     {/* <Route path='promotions' element={<PromotionsPage />} /> */}
