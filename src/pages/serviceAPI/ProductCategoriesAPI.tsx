@@ -66,7 +66,10 @@ export const fetchProductCategories = async (
     parentId?: number
 ): Promise<ProductCategory[]> => {
     try {
-        const params = parentId ? { parent_id: parentId } : {};
+
+        //const params = parentId ? { parent_id: parentId } : {};
+
+        const params = { per_page: 1000, ...(parentId ? { parent_id: parentId } : {}) };
 
         const response = await axiosInstance.get<{
             data: ProductCategory[];
@@ -279,7 +282,8 @@ export const useProductCategoriesApi = () => {
             refetchOnWindowFocus: false,
             retry: 2,
             refetchOnMount: true,
-            enabled: !!shopId,
+            // enabled: !!shopId,
+
         });
 
     const useGetProductCategoryById = (id: number | null) =>

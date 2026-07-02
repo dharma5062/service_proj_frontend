@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import { toast } from 'sonner';
-import { Zap, AlertCircle, Eye, Edit, Trash2, CheckCircle, FileEdit, Search, Plus, Timer, FileText, Star } from 'lucide-react';
+import { Zap, AlertCircle, Eye, Edit, Trash2, CheckCircle, FileEdit, Search, Plus, Timer, FileText, Star, X, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProductsApi } from '@/pages/serviceAPI/ProductsAPI';
@@ -39,6 +39,7 @@ import {
     ServiceRequest,
     useServiceRequestsApi,
 } from '@/pages/serviceAPI/ServiceRequestsAPI';
+import { useServiceReopenApi } from '@/pages/serviceAPI/ServiceReopenAPI';
 import { ReopenRequestsTab } from './ReopenRequestsTab';
 import { SubmitReopenModal } from './SubmitReopenModal';
 import ServiceCompletionRatingCard from '@/pages/service-requests/ServiceCompletionRatingCard';
@@ -66,6 +67,11 @@ const ServicesPage = () => {
     const { shopId, hasPermission, user, isShopEmployee, isCustomer, isShopOwner, isSuperAdmin } = useAuth();
     const { useGetServiceRequests, useDeleteServiceRequest, useUpdateServiceRequest, useGetServiceRequestById } = useServiceRequestsApi();
     const { data: rawServiceRequests = [], isLoading: loading } = useGetServiceRequests();
+    
+    const { useGetReopenRequests } = useServiceReopenApi();
+    const { data: reopenRequestsData } = useGetReopenRequests();
+    const reopenCount = reopenRequestsData?.total || reopenRequestsData?.data?.length || 0;
+    
     const deleteServiceRequestMutation = useDeleteServiceRequest();
     const updateServiceRequestMutation = useUpdateServiceRequest();
 
@@ -141,6 +147,7 @@ const ServicesPage = () => {
 
     const [ratingModalOpen, setRatingModalOpen] = useState(false);
     const [selectedRatingService, setSelectedRatingService] = useState<ServiceRequest | null>(null);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     // Fetch products and charges ONLY when the dialog is open
     const { useGetProducts } = useProductsApi();
@@ -170,12 +177,18 @@ const ServicesPage = () => {
                 const images = data?.images || [];
                 if (images.length > 0) {
                     return (
-                        <div className="w-6 h-6 rounded overflow-hidden border border-gray-200 inline-block">
+                        <div 
+                            className="w-8 h-8 rounded overflow-hidden border border-gray-200 inline-block cursor-pointer relative group"
+                            onClick={(e) => { e.stopPropagation(); setPreviewImage(images[0]); }}
+                        >
                             <img src={images[0]} alt="inspection" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Eye className="h-4 w-4 text-white" />
+                            </div>
                         </div>
                     );
                 }
-                return <div className="w-6 h-6 rounded bg-gray-50 border border-gray-100 flex items-center justify-center text-[9px] text-gray-400 inline-flex">No Img</div>;
+                return <div className="w-8 h-8 rounded bg-gray-50 border border-gray-100 flex items-center justify-center text-[9px] text-gray-400 inline-flex">No Img</div>;
             },
         },
         {
@@ -261,33 +274,67 @@ const ServicesPage = () => {
             dataIndex: 'service_status',
             sortable: true,
             render: (_value, record) => {
-                const status = (record.service_status || record.status || 'pending').toLowerCase();
+                const rawStatus = (record.service_status || record.status || 'pending').toLowerCase();
 
+                // The backend includes active_reopen_request when a rework cycle is in progress.
+                // Prefer the reopen_status from that for progress display.
+                const activeReopenStatus: string | undefined = record.active_reopen_request?.reopen_status;
+
+                let status = rawStatus;
+                let displayLabel = '';
                 let progress = 0;
                 let colorClass = 'bg-gray-200';
                 let indicatorClass = 'bg-gray-500';
 
-                if (status === 'pending') { progress = 10; colorClass = 'bg-orange-100'; indicatorClass = 'bg-orange-500'; }
-                else if (status === 'assigned') { progress = 25; colorClass = 'bg-blue-100'; indicatorClass = 'bg-blue-500'; }
-                else if (status === 'accepted') { progress = 40; colorClass = 'bg-indigo-100'; indicatorClass = 'bg-indigo-500'; }
-                else if (status === 'waiting_parts') { progress = 55; colorClass = 'bg-amber-100'; indicatorClass = 'bg-amber-500'; }
-                else if (status === 'in_progress') { progress = 70; colorClass = 'bg-purple-100'; indicatorClass = 'bg-purple-500'; }
-                else if (status === 'ready') { progress = 85; colorClass = 'bg-teal-100'; indicatorClass = 'bg-teal-500'; }
-                else if (status === 'completed') { progress = 100; colorClass = 'bg-green-100'; indicatorClass = 'bg-green-500'; }
-                else if (status === 'paid') { progress = 100; colorClass = 'bg-emerald-100'; indicatorClass = 'bg-emerald-600'; }
-                else if (status === 'cancelled') { progress = 100; colorClass = 'bg-red-100'; indicatorClass = 'bg-red-500'; }
-
-                const displayLabel = formatStatusLabel(status);
+                // If backend sends active_reopen_status, prefer that for display
+                if (activeReopenStatus) {
+                    const reworkLabels: Record<string, { label: string; progress: number; color: string; indicator: string }> = {
+                        reopen_requested:        { label: 'Reopen Requested',   progress: 15, color: 'bg-amber-100',  indicator: 'bg-amber-500' },
+                        reopen_approved:         { label: 'Reopen Approved',    progress: 25, color: 'bg-blue-100',   indicator: 'bg-blue-500' },
+                        reopen_assigned:         { label: 'Reassigned',         progress: 35, color: 'bg-purple-100', indicator: 'bg-purple-500' },
+                        reopen_in_progress:      { label: 'Rework In Progress', progress: 55, color: 'bg-indigo-100', indicator: 'bg-indigo-500' },
+                        reopen_completed:        { label: 'Rework Completed',   progress: 75, color: 'bg-green-100',  indicator: 'bg-green-500' },
+                        reopen_pending_invoice:  { label: 'Pending Invoice',    progress: 82, color: 'bg-orange-100', indicator: 'bg-orange-500' },
+                        reopen_payment_pending:  { label: 'Pending Payment',    progress: 90, color: 'bg-yellow-100', indicator: 'bg-yellow-500' },
+                        reopen_payment_completed:{ label: 'Rework Paid',        progress: 100,color: 'bg-teal-100',   indicator: 'bg-teal-600' },
+                        reopen_closed:           { label: 'Rework Closed',      progress: 100,color: 'bg-gray-100',   indicator: 'bg-gray-500' },
+                        service_closed:          { label: 'Warranty Closed',    progress: 100,color: 'bg-emerald-100',indicator: 'bg-emerald-500' },
+                    };
+                    const r = reworkLabels[activeReopenStatus];
+                    if (r) {
+                        displayLabel = r.label;
+                        progress = r.progress;
+                        colorClass = r.color;
+                        indicatorClass = r.indicator;
+                    } else {
+                        displayLabel = formatStatusLabel(activeReopenStatus);
+                        progress = 30;
+                    }
+                } else {
+                    // Standard service status
+                    if (status === 'pending') { progress = 10; colorClass = 'bg-orange-100'; indicatorClass = 'bg-orange-500'; displayLabel = 'Pending'; }
+                    else if (status === 'assigned') { progress = 25; colorClass = 'bg-blue-100'; indicatorClass = 'bg-blue-500'; displayLabel = 'Assigned'; }
+                    else if (status === 'accepted') { progress = 40; colorClass = 'bg-indigo-100'; indicatorClass = 'bg-indigo-500'; displayLabel = 'Diagnosis Started'; }
+                    else if (status === 'waiting_parts') { progress = 55; colorClass = 'bg-amber-100'; indicatorClass = 'bg-amber-500'; displayLabel = 'Awaiting Parts'; }
+                    else if (status === 'in_progress') { progress = 70; colorClass = 'bg-purple-100'; indicatorClass = 'bg-purple-500'; displayLabel = 'In Progress'; }
+                    else if (status === 'ready') { progress = 85; colorClass = 'bg-teal-100'; indicatorClass = 'bg-teal-500'; displayLabel = 'Quality Check'; }
+                    else if (status === 'completed') { progress = 100; colorClass = 'bg-green-100'; indicatorClass = 'bg-green-500'; displayLabel = 'Completed'; }
+                    else if (status === 'paid') { progress = 100; colorClass = 'bg-emerald-100'; indicatorClass = 'bg-emerald-600'; displayLabel = 'Paid'; }
+                    else if (status === 'cancelled') { progress = 100; colorClass = 'bg-red-100'; indicatorClass = 'bg-red-500'; displayLabel = 'Cancelled'; }
+                    else if (status === 'reopen_requested') { progress = 15; colorClass = 'bg-amber-100'; indicatorClass = 'bg-amber-500'; displayLabel = 'Reopen Requested'; }
+                    else if (status === 'warranty_closed') { progress = 100; colorClass = 'bg-emerald-100'; indicatorClass = 'bg-emerald-500'; displayLabel = 'Warranty Closed'; }
+                    else { displayLabel = formatStatusLabel(status); progress = 0; }
+                }
 
                 const tooltipContent = status === 'assigned' && record.assigned_technician
                     ? `Assigned to ${record.assigned_technician.name}`
-                    : formatStatusLabel(status);
+                    : displayLabel;
 
                 return (
-                    <div className="w-24 group relative" title={tooltipContent}>
+                    <div className="w-28 group relative" title={tooltipContent}>
                         <div className="flex justify-between items-center mb-0.5">
-                            <span className="text-[10px] font-semibold text-gray-700">{displayLabel}</span>
-                            <span className="text-[9px] text-gray-500">{progress}%</span>
+                            <span className="text-[10px] font-semibold text-gray-700 truncate max-w-[80px]" title={displayLabel}>{displayLabel}</span>
+                            <span className="text-[9px] text-gray-500 flex-shrink-0">{progress}%</span>
                         </div>
                         <div className={`h-1 w-full rounded-full ${colorClass} overflow-hidden`}>
                             <div className={`h-full ${indicatorClass} rounded-full transition-all duration-300`} style={{ width: `${progress}%` }}></div>
@@ -295,20 +342,6 @@ const ServicesPage = () => {
                     </div>
                 );
             },
-        },
-        {
-            key: 'service_cost',
-            title: 'Service Cost',
-            dataIndex: 'data',
-            render: (_value, record) => {
-                const data = parseJson(record.data);
-                let cost = 0;
-                if (data?.selectedServiceCharges && Array.isArray(data.selectedServiceCharges)) {
-                    cost = data.selectedServiceCharges.reduce((sum: number, charge: any) => sum + Number(charge.amount || 0), 0);
-                }
-                if (cost === 0) return <span className="text-[11px] text-gray-400">-</span>;
-                return <span className="text-[11px] font-bold text-gray-900">₹{cost.toFixed(2)}</span>;
-            }
         },
 
         {
@@ -347,20 +380,38 @@ const ServicesPage = () => {
                             </div>
 
                             {/* Slot 3: Report */}
-                            <div className="w-5 h-5 flex items-center justify-center">
+                            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                                 {status === 'paid' && record.assigned_technician?.id ? (
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => {
-                                            setSelectedReopenRecord(record);
-                                            setReopenDialogOpen(true);
-                                        }}
-                                        className="h-5 w-5 p-0 hover:bg-red-100"
-                                        title="Report Issue / Reopen Service"
-                                    >
-                                        <AlertCircle className="h-3.5 w-3.5 text-red-500" />
-                                    </Button>
+                                    (() => {
+                                        const hasWarranty = record.warranty_days && record.warranty_days > 0;
+                                        const isExpired = record.warranty_expiry_date ? new Date(record.warranty_expiry_date) < new Date() : false;
+
+                                        let errorMessage = "";
+                                        if (!hasWarranty) {
+                                            errorMessage = "Your product is not set for warranty days";
+                                        } else if (isExpired) {
+                                            errorMessage = "Your warranty days are expired";
+                                        }
+
+                                        return (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    if (errorMessage) {
+                                                        toast.error(errorMessage);
+                                                    } else {
+                                                        setSelectedReopenRecord(record);
+                                                        setReopenDialogOpen(true);
+                                                    }
+                                                }}
+                                                className="h-5 w-5 p-0 text-red-500 hover:bg-red-50 transition-all"
+                                                title="Report Issue / Reopen Service"
+                                            >
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                            </Button>
+                                        );
+                                    })()
                                 ) : null}
                             </div>
 
@@ -379,14 +430,19 @@ const ServicesPage = () => {
                             </Button>
                         </div>
 
-                        {/* Slot 2: Accept / Customize / Edit */}
+                        {/* Slot 2: Accept / Rework / Customize / Edit */}
                         <div className="w-5 h-5 flex items-center justify-center">
-                            {isShopEmployee && status === 'assigned' ? (
+                            {/* Rework service: go to dedicated Rework page (hides Customize modal) */}
+                            {isShopEmployee && record.active_reopen_request ? (
+                                <Button size="sm" variant="ghost" onClick={() => navigate(`/dashboard/services/rework/${record.active_reopen_request!.id}`)} className="h-5 w-5 p-0 hover:bg-orange-100" title="Go to Rework Page">
+                                    <Wrench className="h-3 w-3 text-orange-600" />
+                                </Button>
+                            ) : isShopEmployee && status === 'assigned' && !record.active_reopen_request ? (
                                 <Button size="sm" variant="ghost" onClick={() => handleAcceptClick(record)} className="h-5 w-5 p-0 hover:bg-green-100" title="Accept Service Request">
                                     <CheckCircle className="h-3 w-3 text-green-600" />
                                 </Button>
-                            ) : isShopEmployee && status !== 'assigned' && status !== 'completed' && status !== 'cancelled' && status !== 'paid' ? (
-                                <Button size="sm" variant="ghost" onClick={() => handleCustomize(record)} className="h-5 w-5 p-0 hover:bg-purple-100" title="Customize Defect Form / Update">
+                            ) : isShopEmployee && !['assigned', 'completed', 'cancelled', 'paid', 'warranty_closed', 'reopen_closed'].includes(status) && !record.active_reopen_request ? (
+                                <Button size="sm" variant="ghost" onClick={() => handleCustomize(record)} className="h-5 w-5 p-0 hover:bg-purple-100" title="Update Working Conditions & Parts">
                                     <FileEdit className="h-3 w-3 text-purple-600" />
                                 </Button>
                             ) : hasPermission('service.update') && !isShopEmployee ? (
@@ -524,6 +580,11 @@ const ServicesPage = () => {
             toast.success('Working conditions updated successfully!');
             setIsCustomizeDialogOpen(false);
             setCompleteConfirmOpen(false);
+            
+            // Redirect to invoice generation if completed
+            if (customizeStatus === 'completed') {
+                navigate(`/dashboard/invoice/service/${selectedCustomizeRecord.id}`);
+            }
         } catch (error) {
             toast.error('Failed to update details', {
                 description: error instanceof Error ? error.message : 'Unknown error',
@@ -654,12 +715,22 @@ const ServicesPage = () => {
             density="compact"
             title={(isShopOwner || isSuperAdmin || isShopEmployee) ? (
                 <div className="flex gap-4 items-center">
-                    <button className="text-sm font-bold border-b-2 border-primary text-primary px-1 pb-1">Active Service Requests</button>
+                    <button 
+                        className={`text-sm font-bold px-1 pb-1 transition-colors ${viewMode === 'active' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={() => setViewMode('active')}
+                    >
+                        Active Service Requests
+                    </button>
                     <button
-                        className="text-sm font-bold text-muted-foreground hover:text-foreground px-1 pb-1 transition-colors"
+                        className={`relative text-sm font-bold px-1 pb-1 mr-2 transition-colors ${viewMode === 'reopen' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                         onClick={() => setViewMode('reopen')}
                     >
                         Reopen Requests
+                        {reopenCount > 0 && (
+                            <span className="absolute -top-2 -right-3.5 bg-red-500 text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold px-1 border-2 border-white shadow-sm leading-none">
+                                {reopenCount}
+                            </span>
+                        )}
                     </button>
                 </div>
             ) : "Active Service Requests"}
@@ -717,25 +788,62 @@ const ServicesPage = () => {
             </AlertDialog>
 
             {/* Complete Confirmation Dialog */}
-            <AlertDialog open={completeConfirmOpen} onOpenChange={setCompleteConfirmOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Service Completion</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to mark this service request as Completed? This will finalize the service details, parts list, and charges. Once you complete the service, generate the invoice to customer.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setCompleteConfirmOpen(false)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => handleSaveCustomize(true)}
-                            className="bg-green-600 hover:bg-green-700"
-                        >
-                            Confirm & Save
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <Dialog open={completeConfirmOpen} onOpenChange={setCompleteConfirmOpen}>
+                <DialogContent className="p-0 border-0 max-w-sm rounded-2xl shadow-2xl overflow-hidden gap-0 bg-white">
+                    {/* Header */}
+                    <div className="bg-gradient-to-br from-green-500 to-green-700 px-5 py-4 text-white">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                                    <CheckCircle className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold">Confirm Completion</h3>
+                                    <p className="text-xs text-green-100/90 leading-tight mt-0.5">Finalize service & generate invoice</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Body */}
+                    <div className="p-5 space-y-4">
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center shadow-sm">
+                            <div className="flex justify-center mb-2">
+                                <AlertCircle className="w-6 h-6 text-amber-500" />
+                            </div>
+                            <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                                Are you sure you want to mark this service request as <span className="font-bold">Completed</span>?
+                            </p>
+                        </div>
+
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-3.5 space-y-2">
+                            <p className="text-xs font-semibold text-gray-700">What happens next:</p>
+                            <ul className="text-[11px] text-gray-500 space-y-1.5 list-disc list-inside leading-normal">
+                                <li>Service details, parts, and charges will be finalized</li>
+                                <li>You will be prompted to generate the invoice</li>
+                                <li>The customer will be notified of completion</li>
+                            </ul>
+                        </div>
+                        
+                        {/* Footer Buttons */}
+                        <div className="flex gap-3 pt-1">
+                            <Button
+                                variant="outline"
+                                className="flex-1 h-10 text-sm rounded-xl border-gray-200 text-gray-600 font-medium hover:bg-gray-50"
+                                onClick={() => setCompleteConfirmOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="flex-1 h-10 text-xs font-bold rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                                onClick={() => handleSaveCustomize(true)}
+                            >
+                                Confirm & Save
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Customize / Technician Update Dialog */}
             <Dialog open={isCustomizeDialogOpen} onOpenChange={setIsCustomizeDialogOpen}>
@@ -886,16 +994,17 @@ const ServicesPage = () => {
                             </div>
 
                             {/* Working Conditions & Notes */}
-                            <div className="space-y-1.5 flex-1 flex flex-col">
+                            <div className="border rounded-md p-2.5 bg-purple-50/20 space-y-2 border-purple-100/50">
                                 <div className="flex justify-between items-center">
-                                    <Label className="text-xs font-semibold text-gray-700">Working Conditions & Notes</Label>
+                                    <Label className="text-xs font-semibold text-gray-700">Admin Notes</Label>
                                     <span className="text-[9px] font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100">Internal Only</span>
                                 </div>
                                 <Textarea
-                                    placeholder="Add working conditions & notes (visible to owner & staff)..."
-                                    className="h-28 text-xs resize-none border-gray-200 focus-visible:ring-primary/20 flex-1"
+                                    placeholder="Add admin notes..."
+                                    className="h-20 min-h-[5rem] text-xs resize-none bg-white border-gray-200 focus-visible:ring-purple-300 disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-80 shadow-sm"
                                     value={customizeNotes}
                                     onChange={(e) => setCustomizeNotes(e.target.value)}
+                                    disabled={isShopEmployee}
                                 />
                             </div>
                         </div>
@@ -1064,6 +1173,32 @@ const ServicesPage = () => {
                     supportPhone={fullReopenService?.shop?.shop_owner?.phone || fullReopenService?.shop?.user?.phone || undefined}
                 />
             )}
+
+            {/* Image Preview Dialog */}
+            <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+                <DialogContent className="max-w-4xl w-fit border-0 p-0 bg-transparent shadow-none [&>button]:hidden">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Image Preview</DialogTitle>
+                    </DialogHeader>
+                    <div className="relative flex items-center justify-center w-full h-full group">
+                        {previewImage && (
+                            <>
+                                <img
+                                    src={previewImage}
+                                    alt="Preview"
+                                    className="w-auto h-auto max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                                />
+                                <button
+                                    onClick={() => setPreviewImage(null)}
+                                    className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

@@ -63,6 +63,8 @@ export interface EmployeeInvoiceRecord {
     created_at: string;
     sr_number: string;
     customer_name: string;
+    reopen_request_id?: number | null;
+    reopen_number?: number | null;
 }
 
 export interface EmployeeRatingRecord {

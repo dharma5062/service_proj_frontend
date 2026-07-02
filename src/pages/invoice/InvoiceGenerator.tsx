@@ -34,6 +34,7 @@ import {
     Eye,
     BadgeCheck,
     LockKeyhole,
+    ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -305,6 +306,7 @@ interface GenerateConfirmModalProps {
     isOpen: boolean;
     onConfirm: () => void;
     onCancel: () => void;
+    onNavigateToWarranty?: () => void;
     isLoading: boolean;
     warrantyDays: string;
     warrantyValue: string;
@@ -315,6 +317,7 @@ const GenerateConfirmModal = ({
     isOpen,
     onConfirm,
     onCancel,
+    onNavigateToWarranty,
     isLoading,
     warrantyDays,
     warrantyValue,
@@ -366,15 +369,19 @@ const GenerateConfirmModal = ({
                             <p className="text-[10px] text-gray-400 mt-0.5">({warrantyDays} Days total)</p>
                         </div>
                     ) : (
-                        <div className="text-center py-3 bg-amber-50 rounded-xl border border-amber-200 px-4">
+                        <button 
+                            type="button"
+                            onClick={onNavigateToWarranty}
+                            className="w-full text-center py-3 bg-amber-50 hover:bg-amber-100/80 rounded-xl border border-amber-200 px-4 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50 group"
+                        >
                             <div className="flex items-center justify-center gap-1.5 text-amber-800 font-bold text-xs mb-1">
-                                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 group-hover:scale-110 transition-transform" />
                                 <span>No Warranty Selected</span>
                             </div>
-                            <p className="text-[10px] text-amber-700 leading-normal">
-                                Are you sure you want to proceed without warranty coverage?
+                            <p className="text-[10px] text-amber-700/90 leading-normal">
+                                Are you sure you want to proceed without warranty coverage? <span className="font-semibold underline underline-offset-2 text-amber-800">Click to add warranty</span>
                             </p>
-                        </div>
+                        </button>
                     )}
 
                     {/* How this works info box */}
@@ -473,7 +480,7 @@ const InvoiceGenerator = () => {
     const originalInvoice = (service as any)?.invoice || (service as any)?.invoices?.find((inv: any) => !inv.reopen_request_id);
     const prevWarrantyDays = originalInvoice?.warranty_days;
 
-    const activeReopenRequestId = displayInvoice?.reopen_request_id || latestApprovedReopen?.id;
+    const activeReopenRequestId = displayInvoice?.reopen_request_id || (!displayInvoice ? latestApprovedReopen?.id : null);
     const { data: reworkDetails, isLoading: reworkDetailsLoading } = useGetReworkDetails(activeReopenRequestId);
 
     const generateMutation = useGenerateInvoice();
@@ -546,8 +553,21 @@ const InvoiceGenerator = () => {
 
     const serviceData = (service?.data as any) ?? {};
     const parsedData = typeof serviceData === 'string' ? JSON.parse(serviceData) : serviceData;
-    const parts: any[] = Array.isArray(parsedData.parts) ? parsedData.parts : [];
-    const charges: any[] = Array.isArray(parsedData.selectedServiceCharges) ? parsedData.selectedServiceCharges : [];
+    
+    let parts: any[] = Array.isArray(parsedData.parts) ? parsedData.parts : [];
+    let charges: any[] = Array.isArray(parsedData.selectedServiceCharges) ? parsedData.selectedServiceCharges : [];
+
+    if (!activeReopenRequestId && allReopenRequests?.data && allReopenRequests.data.length > 0) {
+        const firstReopen = allReopenRequests.data.find((req: any) => req.reopen_number === 1) || 
+                            [...allReopenRequests.data].sort((a: any, b: any) => a.id - b.id)[0];
+        if (firstReopen?.original_data) {
+            const origData = typeof firstReopen.original_data === 'string' 
+                ? JSON.parse(firstReopen.original_data) 
+                : firstReopen.original_data;
+            parts = Array.isArray(origData.parts) ? origData.parts : [];
+            charges = Array.isArray(origData.selectedServiceCharges) ? origData.selectedServiceCharges : [];
+        }
+    }
 
     const partsToCalculate = (reworkDetails && reworkDetails.delta) ? reworkDetails.delta.new_parts : parts;
     const chargesToCalculate = (reworkDetails && reworkDetails.delta) ? reworkDetails.delta.new_charges : charges;
@@ -1077,6 +1097,15 @@ const InvoiceGenerator = () => {
                                             {formatDeviceName(service.brand?.name, service.product?.name)}
                                         </p>
                                     )}
+                                    {activeReopenRequestId && originalInvoice && hasInvoice && (
+                                        <button 
+                                            onClick={() => navigate(`/dashboard/invoice/view/${originalInvoice.id}`)}
+                                            className="mt-3 w-full bg-white border border-blue-200 text-blue-700 text-[10px] font-bold py-1.5 rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center gap-1.5 print:hidden shadow-sm"
+                                        >
+                                            <ExternalLink className="w-3 h-3" />
+                                            View Original Invoice
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -1109,7 +1138,7 @@ const InvoiceGenerator = () => {
                                                         <td className="py-3 px-4 print:py-2 print:px-2">
                                                             <div className="flex items-center gap-2">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0 print:hidden" />
-                                                                <span className="font-medium text-gray-600 line-through">{formatPartName(p.name)}</span>
+                                                                <span className="font-medium text-gray-600">{formatPartName(p.name)}</span>
                                                             </div>
                                                         </td>
                                                         <td className="py-3 px-4 text-center print:py-2 print:px-2">
@@ -1117,9 +1146,8 @@ const InvoiceGenerator = () => {
                                                         </td>
                                                         <td className="py-3 px-4 text-center font-medium text-gray-500 print:py-2 print:px-2">{p.quantity || 1}</td>
                                                         <td className="py-3 px-4 text-right text-gray-500 print:py-2 print:px-2">₹{Number(p.price || 0).toFixed(2)}</td>
-                                                        <td className="py-3 px-4 text-right font-bold text-green-600 print:py-2 print:px-2">
-                                                            <span className="line-through text-gray-400 mr-1">₹{(Number(p.price || 0) * (p.quantity || 1)).toFixed(2)}</span>
-                                                            ₹0.00
+                                                        <td className="py-3 px-4 text-right font-bold print:py-2 print:px-2">
+                                                            <span className="text-gray-400">₹{(Number(p.price || 0) * (p.quantity || 1)).toFixed(2)}</span>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -1128,7 +1156,7 @@ const InvoiceGenerator = () => {
                                                         <td className="py-3 px-4 print:py-2 print:px-2">
                                                             <div className="flex items-center gap-2">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0 print:hidden" />
-                                                                <span className="font-medium text-gray-600 line-through">{formatPartName(c.name)}</span>
+                                                                <span className="font-medium text-gray-600">{formatPartName(c.name)}</span>
                                                             </div>
                                                         </td>
                                                         <td className="py-3 px-4 text-center print:py-2 print:px-2">
@@ -1136,9 +1164,8 @@ const InvoiceGenerator = () => {
                                                         </td>
                                                         <td className="py-3 px-4 text-center font-medium text-gray-500 print:py-2 print:px-2">1</td>
                                                         <td className="py-3 px-4 text-right text-gray-500 print:py-2 print:px-2">₹{Number(c.amount || 0).toFixed(2)}</td>
-                                                        <td className="py-3 px-4 text-right font-bold text-green-600 print:py-2 print:px-2">
-                                                            <span className="line-through text-gray-400 mr-1">₹{Number(c.amount || 0).toFixed(2)}</span>
-                                                            ₹0.00
+                                                        <td className="py-3 px-4 text-right font-bold print:py-2 print:px-2">
+                                                            <span className="text-gray-400">₹{Number(c.amount || 0).toFixed(2)}</span>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -1260,7 +1287,7 @@ const InvoiceGenerator = () => {
                                 {/* Notes Section */}
                                 <div className="flex-1 space-y-3">
                                     {!hasInvoice && canGenerate && isCompleted && (
-                                        <div className="print:hidden bg-gray-50 rounded-xl p-3.5 border border-gray-100 max-w-xs">
+                                        <div id="warranty-section" className="print:hidden bg-gray-50 rounded-xl p-3.5 border border-gray-100 max-w-xs scroll-mt-24 transition-all duration-500">
                                             <div className="space-y-1.5">
                                                 <Label className="text-[10px] font-bold text-gray-500 capitalize tracking-wider block">
                                                     Warranty Period (Days)
@@ -1272,9 +1299,10 @@ const InvoiceGenerator = () => {
                                                 ) : (
                                                     <div className="flex gap-1.5 items-center">
                                                         <Input
+                                                            id="warranty-input-field"
                                                             type="number"
                                                             min="0"
-                                                            placeholder="E.g. 3"
+                                                            placeholder="E.g. 30"
                                                             value={warrantyValue}
                                                             onChange={e => setWarrantyValue(e.target.value)}
                                                             className="bg-white border-gray-200 shadow-sm h-8 text-xs flex-1"
@@ -1312,7 +1340,7 @@ const InvoiceGenerator = () => {
                                                         {displayInvoice.is_warranty_invoice
                                                             ? 'Warranty Coverage'
                                                             : (successfulPayment?.gateway === 'cash_in_hand'
-                                                                ? 'Cash at Shop'
+                                                                ? 'Cash'
                                                                 : (successfulPayment?.gateway === 'upi'
                                                                     ? 'UPI'
                                                                     : (successfulPayment?.gateway === 'razorpay'
@@ -1352,34 +1380,44 @@ const InvoiceGenerator = () => {
                                 {/* Totals Summary */}
                                 <div className="w-full md:w-72 space-y-2">
                                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2 print:bg-transparent print:border-none print:p-0 print:rounded-none">
-                                        {/* Subtotal */}
-                                        <div className="flex justify-between text-xs text-gray-600">
-                                            <span className="font-medium">Subtotal</span>
-                                            <span className="font-semibold text-gray-800">₹{subtotal.toFixed(2)}</span>
-                                        </div>
-
-                                        {tax > 0 && (
-                                            <div className="flex justify-between text-xs text-gray-600">
-                                                <span>Tax</span>
-                                                <span className="text-indigo-600 font-medium">+₹{tax.toFixed(2)}</span>
+                                        {total === 0 ? (
+                                            <div className="flex flex-col items-center justify-center p-4 bg-emerald-50 border border-emerald-100 rounded-xl print:border-none print:bg-transparent print:p-0">
+                                                <ShieldCheck className="w-6 h-6 text-emerald-600 mb-1.5 print:hidden" />
+                                                <span className="font-black text-emerald-700 text-sm uppercase tracking-wide print:text-gray-900 print:text-xs print:font-bold">Covered Under Warranty</span>
+                                                <span className="text-[10px] text-emerald-600/80 font-bold mt-1 print:text-gray-500">No additional charges applied</span>
                                             </div>
+                                        ) : (
+                                            <>
+                                                {/* Subtotal */}
+                                                <div className="flex justify-between text-xs text-gray-600">
+                                                    <span className="font-medium">Subtotal</span>
+                                                    <span className="font-semibold text-gray-800">₹{subtotal.toFixed(2)}</span>
+                                                </div>
+
+                                                {tax > 0 && (
+                                                    <div className="flex justify-between text-xs text-gray-600">
+                                                        <span>Tax</span>
+                                                        <span className="text-indigo-600 font-medium">+₹{tax.toFixed(2)}</span>
+                                                    </div>
+                                                )}
+
+                                                {discount > 0 && (
+                                                    <div className="flex justify-between text-xs text-gray-600">
+                                                        <span>Discount</span>
+                                                        <span className="text-red-500 font-medium">-₹{discount.toFixed(2)}</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Divider */}
+                                                <div className="border-t border-gray-200 pt-2 print:border-gray-200 print:pt-1.5" />
+
+                                                {/* TOTAL */}
+                                                <div className="flex justify-between items-center bg-gradient-to-r from-[#1F80FF] to-[#0055cc] text-white px-4 py-3 rounded-xl print:bg-transparent print:rounded-none print:border-t print:border-gray-200 print:px-0 print:text-gray-900 print:py-1.5">
+                                                    <span className="font-bold text-xs uppercase tracking-widest print:text-gray-800">Total</span>
+                                                    <span className="font-black text-xl print:text-gray-900">{formatCurrency(total, currency)}</span>
+                                                </div>
+                                            </>
                                         )}
-
-                                        {discount > 0 && (
-                                            <div className="flex justify-between text-xs text-gray-600">
-                                                <span>Discount</span>
-                                                <span className="text-red-500 font-medium">-₹{discount.toFixed(2)}</span>
-                                            </div>
-                                        )}
-
-                                        {/* Divider */}
-                                        <div className="border-t border-gray-200 pt-2 print:border-gray-200 print:pt-1.5" />
-
-                                        {/* TOTAL */}
-                                        <div className="flex justify-between items-center bg-gradient-to-r from-[#1F80FF] to-[#0055cc] text-white px-4 py-3 rounded-xl print:bg-transparent print:rounded-none print:border-t print:border-gray-200 print:px-0 print:text-gray-900 print:py-1.5">
-                                            <span className="font-bold text-xs uppercase tracking-widest print:text-gray-800">Total</span>
-                                            <span className="font-black text-xl print:text-gray-900">{formatCurrency(total, currency)}</span>
-                                        </div>
                                     </div>
 
                                     {/* Payment status badge */}
@@ -1403,7 +1441,7 @@ const InvoiceGenerator = () => {
                 )}
 
                 {/* ── Reopen / Rework History ── */}
-                {allReopenRequests?.data && allReopenRequests.data.length > 0 && (
+                {activeReopenRequestId && allReopenRequests?.data && allReopenRequests.data.length > 0 && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6 print:hidden animate-in fade-in slide-in-from-top-4 duration-355">
                         <div className="flex items-center gap-3 px-5 py-4 bg-gray-50 border-b border-gray-100">
                             <div className="w-9 h-9 bg-gray-200 rounded-xl flex items-center justify-center text-gray-700">
@@ -1924,6 +1962,18 @@ const InvoiceGenerator = () => {
                     handleGenerate();
                 }}
                 onCancel={() => setGenerateConfirmOpen(false)}
+                onNavigateToWarranty={() => {
+                    setGenerateConfirmOpen(false);
+                    setTimeout(() => {
+                        const inputEl = document.getElementById('warranty-input-field');
+                        if (inputEl) {
+                            inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setTimeout(() => {
+                                inputEl.focus();
+                            }, 100);
+                        }
+                    }, 300);
+                }}
                 isLoading={generateMutation.isPending}
                 warrantyDays={warrantyDays}
                 warrantyValue={warrantyValue}

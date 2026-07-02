@@ -11,6 +11,8 @@ import {
     Users,
     Phone,
     MapPin,
+    Eye,
+    X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,43 +62,65 @@ interface PartItem {
 
 
 
-// Helper: Compress and convert image to WEBP File
-const compressImageToWebP = (file: File, maxWidth: number = 1000, quality: number = 0.7): Promise<{ preview: string; file: File }> => {
+// Helper: Format bytes to human readable size
+const formatBytes = (bytes: number): string => {
+    if (bytes >= 1024 * 1024) {
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    } else if (bytes >= 1024) {
+        return (bytes / 1024).toFixed(0) + ' KB';
+    } else {
+        return bytes + ' B';
+    }
+};
+
+// Helper: Compress and convert image to WEBP File, ensuring file size is under 1MB
+const compressImageToWebP = (file: File, initialMaxWidth: number = 1000, initialQuality: number = 0.7, maxSizeMB: number = 1): Promise<{ preview: string; file: File, originalSize: number, newSize: number }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
+                const maxSizeBytes = maxSizeMB * 1024 * 1024; // Convert MB to Bytes
 
-                if (width > maxWidth) {
-                    height = Math.round((height * maxWidth) / width);
-                    width = maxWidth;
-                }
+                const attemptCompression = (quality: number, maxWidth: number) => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
 
-                canvas.width = width;
-                canvas.height = height;
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
 
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Canvas context not available'));
-                    return;
-                }
-                ctx.drawImage(img, 0, 0, width, height);
+                    canvas.width = width;
+                    canvas.height = height;
 
-                const dataUrl = canvas.toDataURL('image/webp', quality);
-
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        reject(new Error('Canvas to Blob failed'));
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('Canvas context not available'));
                         return;
                     }
-                    const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-                    const webpFile = new File([blob], newFileName, { type: 'image/webp' });
-                    resolve({ preview: dataUrl, file: webpFile });
-                }, 'image/webp', quality);
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            reject(new Error('Canvas to Blob failed'));
+                            return;
+                        }
+                        
+                        // If file is > max size and we can still reduce quality/size, try again
+                        if (blob.size > maxSizeBytes && quality > 0.1) {
+                            attemptCompression(quality - 0.15, maxWidth * 0.8);
+                        } else {
+                            const dataUrl = canvas.toDataURL('image/webp', quality);
+                            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                            const webpFile = new File([blob], newFileName, { type: 'image/webp' });
+                            resolve({ preview: dataUrl, file: webpFile, originalSize: file.size, newSize: blob.size });
+                        }
+                    }, 'image/webp', quality);
+                };
+
+                attemptCompression(initialQuality, initialMaxWidth);
             };
             img.onerror = (err) => reject(err);
             img.src = event.target?.result as string;
@@ -168,6 +192,7 @@ const CreateServiceRequest = () => {
 
     const [uploadedImages, setUploadedImages] = useState<string[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     // Customer search and management state
     const [phoneSearchQuery, setPhoneSearchQuery] = useState('');
@@ -710,17 +735,23 @@ const CreateServiceRequest = () => {
         try {
             const promises = Array.from(files).map(file => {
                 // Compress and resize defect photos specifically
-                return compressImageToWebP(file, 800, 0.7).then(res => res.preview);
+                return compressImageToWebP(file, 800, 0.7);
             });
 
-            const compressedImages = await Promise.all(promises);
+            const compressedResults = await Promise.all(promises);
+            const compressedImages = compressedResults.map(res => res.preview);
+
+            const totalOriginal = compressedResults.reduce((sum, res) => sum + res.originalSize, 0);
+            const totalNew = compressedResults.reduce((sum, res) => sum + res.newSize, 0);
+            const origStr = formatBytes(totalOriginal);
+            const newStr = formatBytes(totalNew);
 
             setDefectFormValues(prev => ({
                 ...prev,
                 [fieldId]: [...(prev[fieldId] || []), ...compressedImages]
             }));
 
-            toast.success('Photos compressed and added successfully', { id: loadingToastId });
+            toast.success(`Photos compressed from ${origStr} to ${newStr}`, { id: loadingToastId });
         } catch (error) {
             console.error('Error compressing defect photos:', error);
             toast.error('Failed to process photos', { id: loadingToastId });
@@ -778,12 +809,17 @@ const CreateServiceRequest = () => {
             const base64Images = compressedResults.map(r => r.preview);
             const webpFiles = compressedResults.map(r => r.file);
 
+            const totalOriginal = compressedResults.reduce((sum, res) => sum + res.originalSize, 0);
+            const totalNew = compressedResults.reduce((sum, res) => sum + res.newSize, 0);
+            const origStr = formatBytes(totalOriginal);
+            const newStr = formatBytes(totalNew);
+
             const updatedImages = [...uploadedImages, ...base64Images];
             setUploadedImages(updatedImages);
             setImageFiles(prev => [...prev, ...webpFiles]);
             if (IMAGE_DRAFT_KEY) localStorage.setItem(IMAGE_DRAFT_KEY, JSON.stringify(updatedImages));
 
-            toast.success(`${files.length} image(s) processed to WebP correctly`, { id: loadingToastId });
+            toast.success(`Processed from ${origStr} to ${newStr} correctly`, { id: loadingToastId });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to upload images';
             toast.error(errorMessage);
@@ -1736,7 +1772,7 @@ const CreateServiceRequest = () => {
                                                                 <label className="flex items-center justify-center w-full h-14 border border-dashed border-gray-300 rounded-md cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
                                                                     <div className="flex items-center gap-2">
                                                                         <CloudUpload className="h-4 w-4 text-gray-400" />
-                                                                        <span className="text-xs text-gray-500">Upload photos</span>
+                                                                        <span className="text-xs text-gray-500">Upload photos (Auto compressed)</span>
                                                                     </div>
                                                                     <input
                                                                         type="file"
@@ -1886,7 +1922,7 @@ const CreateServiceRequest = () => {
                                     <div className="flex flex-col items-center justify-center">
                                         <CloudUpload className="h-6 w-6 text-gray-500 mb-0.5" />
                                         <p className="text-xs text-gray-500">
-                                            <span className="font-semibold">Click to upload</span> or drag and drop
+                                            <span className="font-semibold">Click to upload</span> or drag and drop (Auto compressed)
                                         </p>
                                     </div>
                                     <input
@@ -1907,7 +1943,14 @@ const CreateServiceRequest = () => {
                                                 alt={`Inspection ${index + 1}`}
                                                 className="w-full h-full object-contain bg-gray-50 rounded-md border"
                                             />
-                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
+                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setPreviewImage(img)}
+                                                    className="text-white hover:text-blue-400"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => handleRemoveImage(index)}
@@ -1919,6 +1962,32 @@ const CreateServiceRequest = () => {
                                         </div>
                                     ))}
                                 </div>
+
+                                {/* Image Preview Dialog */}
+                                <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+                                    <DialogContent className="max-w-4xl w-fit border-0 p-0 bg-transparent shadow-none [&>button]:hidden">
+                                        <DialogHeader className="sr-only">
+                                            <DialogTitle>Image Preview</DialogTitle>
+                                        </DialogHeader>
+                                        <div className="relative flex items-center justify-center w-full h-full group">
+                                            {previewImage && (
+                                                <>
+                                                    <img
+                                                        src={previewImage}
+                                                        alt="Preview"
+                                                        className="w-auto h-auto max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                                                    />
+                                                    <button
+                                                        onClick={() => setPreviewImage(null)}
+                                                        className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                                                    >
+                                                        <X className="w-5 h-5" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
                             </CardContent>
                         </Card>
 

@@ -57,7 +57,9 @@ export interface ApiResponse<T> {
  */
 export const fetchBusinessTypes = async (): Promise<BusinessType[]> => {
     try {
-        const response = await axiosInstance.get<any>('/business-types-index');
+
+        // changed the allow for sa , { params: { per_page: 1000 } }
+        const response = await axiosInstance.get<any>('/business-types-index', { params: { per_page: 1000 } });
 
         const responseData = response.data;
         console.log('Business Types Index Response:', responseData);
@@ -234,7 +236,8 @@ export const useBusinessTypesApi = () => {
             refetchOnWindowFocus: false,
             retry: 2,
             refetchOnMount: true,
-            enabled: !!shopId,
+            //enabled: !!shopId,
+
         });
 
     const useGetBusinessTypeById = (id: number | null) =>

@@ -42,6 +42,7 @@ export interface Invoice {
     updated_at: string;
     // Relationships
     service?: {
+        reopen_requests: boolean;
         id: number;
         service_status: string;
         product?: { id: number; name: string };

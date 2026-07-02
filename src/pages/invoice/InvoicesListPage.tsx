@@ -172,10 +172,17 @@ const InvoicesListPage = () => {
                             <FileText className="w-3.5 h-3.5 text-white" />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-900 text-xs font-mono tracking-tight">
+                            <p className="font-bold text-gray-900 text-xs">
                                 {inv.invoice_number}
                             </p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">SR #{inv.service_id}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <p className="text-[10px] text-gray-400">SR #{inv.service_id}</p>
+                                {inv.reopen_request_id && (
+                                    <span className="inline-flex items-center px-1.5 py-[1px] rounded bg-indigo-50 text-indigo-700 text-[8px] font-bold uppercase tracking-wider border border-indigo-100">
+                                        Rework {(inv.reopenRequest?.reopen_number || inv.reopen_request?.reopen_number) ? `#${inv.reopenRequest?.reopen_number || inv.reopen_request?.reopen_number}` : ''}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )
@@ -234,14 +241,26 @@ const InvoicesListPage = () => {
                 title: 'Amount',
                 align: 'right' as const,
                 width: '110px',
-                render: (_: any, inv: Invoice) => (
-                    <div className="flex items-center gap-1 justify-end">
-                        <IndianRupee className="w-3 h-3 text-gray-400" />
-                        <span className="font-black text-gray-900 text-xs">
-                            {parseFloat(String(inv.total_amount)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                    </div>
-                )
+                render: (_: any, inv: Invoice) => {
+                    const amount = parseFloat(String(inv.total_amount));
+                    if (amount === 0) {
+                        return (
+                            <div className="flex justify-end">
+                                <span className="inline-flex items-center px-1.5 py-[1.5px] rounded bg-emerald-50 text-emerald-700 text-[8px] font-bold capitalize tracking-wider border border-emerald-100 whitespace-nowrap">
+                                    Covered Warranty
+                                </span>
+                            </div>
+                        );
+                    }
+                    return (
+                        <div className="flex items-center gap-1 justify-end">
+                            <IndianRupee className="w-3 h-3 text-gray-400" />
+                            <span className="font-black text-gray-900 text-xs">
+                                {amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    );
+                }
             },
             {
                 key: 'status',
@@ -262,27 +281,33 @@ const InvoicesListPage = () => {
                 key: 'actions',
                 title: 'Actions',
                 align: 'center' as const,
-                width: '120px',
+                width: '140px',
                 render: (_: any, inv: Invoice) => {
                     const isResending = resendMutation.isPending;
                     const pendingCashPayment = inv.payments?.find((p: any) => p.gateway === 'cash_in_hand' && p.status === 'pending');
 
                     if (isCustomer) {
                         return (
-                            <div className="grid grid-cols-4 gap-1 w-[90px] mx-auto justify-items-center">
+                            <div className="flex items-center justify-center gap-1.5">
                                 {/* Slot 1: Pay / Awaiting */}
-                                <div className="w-5 h-5 flex items-center justify-center">
+                                <div className="flex items-center justify-center min-w-[20px]">
                                     {inv.status === 'sent' && (
                                         <>
                                             {!inv.otp_approved && (
-                                                <span className="inline-flex items-center justify-center w-5 h-5 text-blue-500" title={`Awaiting Verification ${inv.approval_otp ? `(OTP: ${inv.approval_otp})` : ''}`}>
-                                                    <Clock className="w-3.5 h-3.5 animate-pulse" />
-                                                </span>
+                                                inv.approval_otp ? (
+                                                    <div className="flex items-center justify-center bg-blue-50 border border-blue-200 text-blue-700 rounded px-1.5 py-0.5 shadow-sm" title="Share this OTP with Shop Owner">
+                                                        <span className="text-[10px] font-mono font-bold tracking-widest">{inv.approval_otp}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="inline-flex items-center justify-center w-5 h-5 text-blue-500" title="Awaiting Verification">
+                                                        <Clock className="w-3.5 h-3.5 animate-pulse" />
+                                                    </span>
+                                                )
                                             )}
                                             {inv.otp_approved && pendingCashPayment?.cash_otp && (
-                                                <span className="inline-flex items-center justify-center w-5 h-5 text-amber-500" title={`Awaiting Cash (OTP: ${pendingCashPayment.cash_otp})`}>
-                                                    <Clock className="w-3.5 h-3.5 animate-pulse" />
-                                                </span>
+                                                <div className="flex items-center justify-center bg-amber-50 border border-amber-200 text-amber-700 rounded px-1.5 py-0.5 shadow-sm" title="Share this OTP for Cash Payment">
+                                                    <span className="text-[10px] font-mono font-bold tracking-widest">{pendingCashPayment.cash_otp}</span>
+                                                </div>
                                             )}
                                             {inv.otp_approved && !pendingCashPayment?.cash_otp && (
                                                 <Button
@@ -301,7 +326,7 @@ const InvoicesListPage = () => {
                                 </div>
 
                                 {/* Slot 2: View Details */}
-                                <div className="w-5 h-5 flex items-center justify-center">
+                                <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                                     <Button
                                         id={`view-invoice-${inv.id}`}
                                         variant="ghost"
@@ -315,7 +340,7 @@ const InvoicesListPage = () => {
                                 </div>
 
                                 {/* Slot 3: Rate Service */}
-                                <div className="w-5 h-5 flex items-center justify-center">
+                                <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                                     {inv.status === 'paid' && inv.service?.assigned_technician?.id ? (
                                         <Button
                                             variant="ghost"
@@ -333,20 +358,38 @@ const InvoicesListPage = () => {
                                 </div>
 
                                 {/* Slot 4: Report Issue */}
-                                <div className="w-5 h-5 flex items-center justify-center">
+                                <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                                     {inv.status === 'paid' && inv.service?.assigned_technician?.id ? (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setSelectedReopenRecord(inv.service);
-                                                setReopenDialogOpen(true);
-                                            }}
-                                            className="h-5 w-5 p-0 text-red-500 hover:bg-red-50 transition-all"
-                                            title="Report Issue / Reopen Service"
-                                        >
-                                            <AlertCircle className="w-3.5 h-3.5 text-red-500" />
-                                        </Button>
+                                        (() => {
+                                            const hasWarranty = inv.warranty_days && inv.warranty_days > 0;
+                                            const isExpired = inv.warranty_expiry_date ? new Date(inv.warranty_expiry_date) < new Date() : false;
+
+                                            let errorMessage = "";
+                                            if (!hasWarranty) {
+                                                errorMessage = "Your product is not set for warranty days";
+                                            } else if (isExpired) {
+                                                errorMessage = "Your warranty days are expired";
+                                            }
+
+                                            return (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        if (errorMessage) {
+                                                            toast.error(errorMessage);
+                                                        } else {
+                                                            setSelectedReopenRecord(inv.service);
+                                                            setReopenDialogOpen(true);
+                                                        }
+                                                    }}
+                                                    className="h-5 w-5 p-0 text-red-500 hover:bg-red-50 transition-all"
+                                                    title="Report Issue / Reopen Service"
+                                                >
+                                                    <AlertCircle className="w-3.5 h-3.5" />
+                                                </Button>
+                                            );
+                                        })()
                                     ) : null}
                                 </div>
                             </div>
@@ -451,8 +494,8 @@ const InvoicesListPage = () => {
                             id={`filter-tab-${tab.value || 'all'}`}
                             onClick={() => { setStatusFilter(tab.value); setPage(1); }}
                             className={`relative flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border-b-2 transition-all duration-200 ${isActive
-                                    ? tab.activeClass
-                                    : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                                ? tab.activeClass
+                                : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                                 } rounded-t-lg`}
                         >
                             {isActive && tab.value && (

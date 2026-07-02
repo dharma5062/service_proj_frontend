@@ -312,12 +312,19 @@ const EmployeeHistoryView: React.FC<{ employeeId: number; onBack: () => void }> 
         {
             key: 'invoice_number', title: 'Invoice #', dataIndex: 'invoice_number', sortable: true,
             render: (v, r) => (
-                <button 
-                    onClick={() => navigate(`/dashboard/invoice/view/${r.id}`)}
-                    className="text-[11px] font-mono font-bold text-primary hover:underline hover:text-primary/80 transition-colors"
-                >
-                    {v || '—'}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => navigate(`/dashboard/invoice/view/${r.id}`)}
+                        className="text-[11px] font-bold text-primary hover:underline hover:text-primary/80 transition-colors"
+                    >
+                        {v || '—'}
+                    </button>
+                    {r.reopen_request_id && (
+                        <span className="inline-flex items-center px-1.5 py-[1px] rounded bg-indigo-50 text-indigo-700 text-[8px] font-bold uppercase tracking-wider border border-indigo-100 whitespace-nowrap">
+                            Rework {r.reopen_number ? `#${r.reopen_number}` : ''}
+                        </span>
+                    )}
+                </div>
             ),
         },
         {
@@ -330,7 +337,19 @@ const EmployeeHistoryView: React.FC<{ employeeId: number; onBack: () => void }> 
         },
         {
             key: 'total_amount', title: 'Amount', dataIndex: 'total_amount', sortable: true, align: 'right' as const,
-            render: (v) => <span className="text-[11px] font-bold text-gray-900">{formatCurrency(v)}</span>,
+            render: (v) => {
+                const amount = parseFloat(String(v));
+                if (amount === 0) {
+                    return (
+                        <div className="flex justify-end">
+                            <span className="inline-flex items-center px-1.5 py-[1.5px] rounded bg-emerald-50 text-emerald-700 text-[8px] font-bold capitalize tracking-wider border border-emerald-100 whitespace-nowrap">
+                                Covered Warranty
+                            </span>
+                        </div>
+                    );
+                }
+                return <span className="text-[11px] font-bold text-gray-900">{formatCurrency(v)}</span>;
+            },
         },
         {
             key: 'status', title: 'Status', dataIndex: 'status', sortable: true,

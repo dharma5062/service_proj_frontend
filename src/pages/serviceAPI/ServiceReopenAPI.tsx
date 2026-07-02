@@ -5,18 +5,36 @@ import { Invoice } from './InvoiceAPI';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type ReopenStatus =
+    | 'reopen_requested'
+    | 'reopen_rejected'
+    | 'reopen_approved'
+    | 'reopen_assigned'
+    | 'reopen_in_progress'
+    | 'reopen_completed'
+    | 'reopen_pending_invoice'
+    | 'reopen_payment_pending'
+    | 'reopen_payment_completed'
+    | 'reopen_closed'
+    | 'service_closed';
+
 export interface ServiceReopenRequest {
     id: number;
     service_id: number;
     invoice_id: number | null;
     customer_id: number;
     reopen_number: number;
+    issue_type?: string;
     reason: string;
     images: string[] | null;
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected';       // Simple shop-owner decision
+    reopen_status: ReopenStatus;                         // Full 8-phase lifecycle
     shop_owner_note: string | null;
+    admin_note?: string | null;
     reviewed_by: number | null;
     reviewed_at: string | null;
+    assigned_technician_id: number | null;
+    technician_notes: string | null;
     created_at: string;
     updated_at: string;
     // Relationships
@@ -48,10 +66,22 @@ export interface ReworkDetails {
     };
 }
 
+export interface EmployeeHistory {
+    previous_employee: any | null;
+    previous_parts: Array<{ name: string; quantity: number; price: number; total: number }>;
+    previous_charges: Array<{ name: string; amount: number }>;
+    original_invoice: Invoice | null;
+    original_data: any;
+    service_notes: string | null;
+    technician_assignments: any[];
+    all_invoices: Invoice[];
+}
+
 export interface ReopenApiResponse<T = any> {
     status: boolean;
     message: string;
     data?: T;
+    delta?: ReworkDetails['delta'];
 }
 
 export interface PaginatedReopenRequests {
@@ -87,13 +117,14 @@ export const submitReopenRequest = async (
 /** Fetch paginated list of reopen requests */
 export const fetchReopenRequests = async (params?: {
     status?: string;
+    reopen_status?: string;
     service_id?: number | string;
     per_page?: number;
     page?: number;
 }): Promise<PaginatedReopenRequests> => {
     try {
-        const response = await axiosInstance.get('/service-reopen-requests', { 
-            params: { per_page: 1000, ...params } 
+        const response = await axiosInstance.get('/service-reopen-requests', {
+            params: { per_page: 1000, ...params }
         });
         const raw = response.data;
         if (raw?.data?.data && Array.isArray(raw.data.data)) {
@@ -159,6 +190,112 @@ export const rejectReopenRequest = async (
     }
 };
 
+/** Assign employee to reopen cycle (Shop Owner / Admin) */
+export const assignReopenEmployee = async (
+    reopenId: number | string,
+    employeeId: number,
+    note?: string
+): Promise<ReopenApiResponse<ServiceReopenRequest>> => {
+    try {
+        const response = await axiosInstance.post(`/service-reopen-assign/${reopenId}`, {
+            employee_id: employeeId,
+            note,
+        });
+        return response.data;
+    } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to assign employee');
+        }
+        throw new Error('An unexpected error occurred while assigning employee');
+    }
+};
+
+/** Fetch previous employee history for a reopen request */
+export const fetchEmployeeHistory = async (
+    reopenId: number | string
+): Promise<ReopenApiResponse<EmployeeHistory>> => {
+    try {
+        const response = await axiosInstance.get(`/service-reopen-request/${reopenId}/employee-history`);
+        return response.data;
+    } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to fetch employee history');
+        }
+        throw new Error('An unexpected error occurred');
+    }
+};
+
+/** Employee starts rework */
+export const startReopenWork = async (
+    reopenId: number | string
+): Promise<ReopenApiResponse<ServiceReopenRequest>> => {
+    try {
+        const response = await axiosInstance.post(`/service-reopen-start/${reopenId}`);
+        return response.data;
+    } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to start rework');
+        }
+        throw new Error('An unexpected error occurred');
+    }
+};
+
+/** Employee adds parts / labor to rework */
+export const addReopenParts = async (
+    reopenId: number | string,
+    payload: {
+        parts?: Array<{ name: string; quantity: number; price: number }>;
+        labor_charge?: number;
+        labor_charge_name?: string;
+    }
+): Promise<ReopenApiResponse<ServiceReopenRequest>> => {
+    try {
+        const response = await axiosInstance.post(`/service-reopen-add-parts/${reopenId}`, payload);
+        return response.data;
+    } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to add parts');
+        }
+        throw new Error('An unexpected error occurred');
+    }
+};
+
+/** Employee completes rework inspection */
+export const completeReopenWork = async (
+    reopenId: number | string,
+    technicianNotes?: string
+): Promise<ReopenApiResponse<ServiceReopenRequest>> => {
+    try {
+        const response = await axiosInstance.post(`/service-reopen-complete/${reopenId}`, {
+            technician_notes: technicianNotes,
+        });
+        return response.data;
+    } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to complete rework');
+        }
+        throw new Error('An unexpected error occurred');
+    }
+};
+
+/** Shop Owner final close of reopen cycle */
+export const closeReopenService = async (
+    reopenId: number | string,
+    closingNote?: string
+): Promise<ReopenApiResponse<ServiceReopenRequest>> => {
+    try {
+        const response = await axiosInstance.post(`/service-reopen-close/${reopenId}`, {
+            closing_note: closingNote,
+        });
+        return response.data;
+    } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+            throw new Error(error.response.data.message || 'Failed to close reopen service');
+        }
+        throw new Error('An unexpected error occurred');
+    }
+};
+
 /** Get rework details (Technician context) */
 export const fetchReworkDetails = async (
     id: number | string
@@ -194,7 +331,7 @@ export const closeWarrantyCycle = async (
 export const useServiceReopenApi = () => {
     const queryClient = useQueryClient();
 
-    const useGetReopenRequests = (params?: { status?: string; service_id?: number | string; per_page?: number; page?: number }) =>
+    const useGetReopenRequests = (params?: { status?: string; reopen_status?: string; service_id?: number | string; per_page?: number; page?: number }) =>
         useQuery<PaginatedReopenRequests, Error>({
             queryKey: ['reopen-requests', params],
             queryFn: () => fetchReopenRequests(params),
@@ -222,7 +359,7 @@ export const useServiceReopenApi = () => {
             onSuccess: (_data, variables) => {
                 queryClient.invalidateQueries({ queryKey: ['reopen-requests'] });
                 queryClient.invalidateQueries({ queryKey: ['reopen-request', variables.id] });
-                queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false }); // to update list
+                queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
             },
         });
 
@@ -232,6 +369,71 @@ export const useServiceReopenApi = () => {
             onSuccess: (_data, variables) => {
                 queryClient.invalidateQueries({ queryKey: ['reopen-requests'] });
                 queryClient.invalidateQueries({ queryKey: ['reopen-request', variables.id] });
+                queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
+            },
+        });
+
+    const useAssignReopenEmployee = () =>
+        useMutation<ReopenApiResponse<ServiceReopenRequest>, Error, { reopenId: number | string; employeeId: number; note?: string }>({
+            mutationFn: ({ reopenId, employeeId, note }) => assignReopenEmployee(reopenId, employeeId, note),
+            onSuccess: (_data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['reopen-requests'] });
+                queryClient.invalidateQueries({ queryKey: ['reopen-request', variables.reopenId] });
+                queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
+            },
+        });
+
+    const useGetEmployeeHistory = (reopenId: number | string | undefined) =>
+        useQuery<EmployeeHistory, Error>({
+            queryKey: ['reopen-employee-history', reopenId],
+            queryFn: async () => {
+                const res = await fetchEmployeeHistory(reopenId!);
+                return res.data!;
+            },
+            enabled: !!reopenId && reopenId !== 'undefined',
+        });
+
+    const useStartReopenWork = () =>
+        useMutation<ReopenApiResponse<ServiceReopenRequest>, Error, number | string>({
+            mutationFn: (id) => startReopenWork(id),
+            onSuccess: (_data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['rework-details', variables] });
+                queryClient.invalidateQueries({ queryKey: ['reopen-request', variables] });
+                queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
+            },
+        });
+
+    const useAddReopenParts = () =>
+        useMutation<ReopenApiResponse<ServiceReopenRequest>, Error, {
+            reopenId: number | string;
+            parts?: Array<{ name: string; quantity: number; price: number }>;
+            labor_charge?: number;
+            labor_charge_name?: string;
+        }>({
+            mutationFn: ({ reopenId, ...payload }) => addReopenParts(reopenId, payload),
+            onSuccess: (_data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['rework-details', variables.reopenId] });
+                queryClient.invalidateQueries({ queryKey: ['reopen-request', variables.reopenId] });
+                queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
+            },
+        });
+
+    const useCompleteReopenWork = () =>
+        useMutation<ReopenApiResponse<ServiceReopenRequest>, Error, { reopenId: number | string; notes?: string }>({
+            mutationFn: ({ reopenId, notes }) => completeReopenWork(reopenId, notes),
+            onSuccess: (_data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['rework-details', variables.reopenId] });
+                queryClient.invalidateQueries({ queryKey: ['reopen-request', variables.reopenId] });
+                queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
+            },
+        });
+
+    const useCloseReopenService = () =>
+        useMutation<ReopenApiResponse<ServiceReopenRequest>, Error, { reopenId: number | string; note?: string }>({
+            mutationFn: ({ reopenId, note }) => closeReopenService(reopenId, note),
+            onSuccess: (_data, variables) => {
+                queryClient.invalidateQueries({ queryKey: ['rework-details', variables.reopenId] });
+                queryClient.invalidateQueries({ queryKey: ['reopen-requests'] });
                 queryClient.invalidateQueries({ queryKey: ['service-requests'], exact: false });
             },
         });
@@ -262,6 +464,12 @@ export const useServiceReopenApi = () => {
         useSubmitReopenRequest,
         useApproveReopenRequest,
         useRejectReopenRequest,
+        useAssignReopenEmployee,
+        useGetEmployeeHistory,
+        useStartReopenWork,
+        useAddReopenParts,
+        useCompleteReopenWork,
+        useCloseReopenService,
         useGetReworkDetails,
         useCloseWarrantyCycle,
     };

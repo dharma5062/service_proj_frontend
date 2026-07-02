@@ -40,6 +40,8 @@ export interface ServiceRequestForm {
 }
 
 export interface ServiceRequest {
+    warranty_expiry_date: any;
+    warranty_days?: number | null;
     shop: any;
     id: number;
     shop_id?: number;
@@ -58,6 +60,8 @@ export interface ServiceRequest {
     service_status?: string; // Backend field: pending, in_progress, completed, cancelled
     assigned_technician?: ShopEmployee | null;
     reopen_requests?: any[];
+    /** Active reopen request (if any reopen cycle is in progress). Used for rework progress display. */
+    active_reopen_request?: { reopen_status: string; id: number; reopen_number: number } | null;
     created_at?: string;
     updated_at?: string;
 }

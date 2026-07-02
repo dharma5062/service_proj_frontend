@@ -21,7 +21,8 @@ import {
     Cpu,
     Smartphone,
     FileText,
-    HelpCircle
+    HelpCircle,
+    Eye
 } from 'lucide-react';
 import { useServiceReopenApi } from '@/pages/serviceAPI/ServiceReopenAPI';
 import { toast } from 'sonner';
@@ -45,6 +46,72 @@ const ISSUE_TYPES = [
     { id: 'Other Issues', label: 'Other Issues', icon: HelpCircle },
 ];
 
+// Helper: Format bytes
+export const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Helper: Compress and convert image to WEBP File, ensuring file size is under 1MB
+const compressImageToWebP = (file: File, initialMaxWidth: number = 1000, initialQuality: number = 0.7, maxSizeMB: number = 1): Promise<{ preview: string; file: File, originalSize: number, newSize: number }> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const maxSizeBytes = maxSizeMB * 1024 * 1024; // Convert MB to Bytes
+
+                const attemptCompression = (quality: number, maxWidth: number) => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('Canvas context not available'));
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            reject(new Error('Canvas to Blob failed'));
+                            return;
+                        }
+                        
+                        // If file is > max size and we can still reduce quality/size, try again
+                        if (blob.size > maxSizeBytes && quality > 0.1) {
+                            attemptCompression(quality - 0.15, maxWidth * 0.8);
+                        } else {
+                            const dataUrl = canvas.toDataURL('image/webp', quality);
+                            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                            const webpFile = new File([blob], newFileName, { type: 'image/webp' });
+                            resolve({ preview: dataUrl, file: webpFile, originalSize: file.size, newSize: blob.size });
+                        }
+                    }, 'image/webp', quality);
+                };
+
+                attemptCompression(initialQuality, initialMaxWidth);
+            };
+            img.onerror = (err) => reject(err);
+            img.src = event.target?.result as string;
+        };
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+    });
+};
+
 export const SubmitReopenModal: React.FC<SubmitReopenModalProps> = ({
     open,
     onOpenChange,
@@ -58,15 +125,35 @@ export const SubmitReopenModal: React.FC<SubmitReopenModalProps> = ({
     const [reason, setReason] = useState('');
     const [images, setImages] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
             const filesArray = Array.from(e.target.files);
-            setImages(prev => [...prev, ...filesArray]);
+            
+            const loadingToastId = toast.loading('Compressing photos...');
+            try {
+                const promises = filesArray.map(file => {
+                    return compressImageToWebP(file, 800, 0.7);
+                });
 
-            // Generate previews
-            const newPreviews = filesArray.map(file => URL.createObjectURL(file));
-            setPreviewUrls(prev => [...prev, ...newPreviews]);
+                const compressedResults = await Promise.all(promises);
+                const compressedFiles = compressedResults.map(res => res.file);
+                const compressedPreviews = compressedResults.map(res => res.preview);
+
+                const totalOriginal = compressedResults.reduce((sum, res) => sum + res.originalSize, 0);
+                const totalNew = compressedResults.reduce((sum, res) => sum + res.newSize, 0);
+
+                setImages(prev => [...prev, ...compressedFiles]);
+                setPreviewUrls(prev => [...prev, ...compressedPreviews]);
+
+                const origStr = formatBytes(totalOriginal);
+                const newStr = formatBytes(totalNew);
+                toast.success(`Photos compressed from ${origStr} to ${newStr}`, { id: loadingToastId });
+            } catch (error) {
+                console.error('Error compressing photos:', error);
+                toast.error('Failed to compress some photos.', { id: loadingToastId });
+            }
         }
     };
 
@@ -182,15 +269,23 @@ export const SubmitReopenModal: React.FC<SubmitReopenModalProps> = ({
                     </div>
 
                     <div className="space-y-1">
-                        <Label className="text-[11px] font-semibold">Images</Label>
+                        <Label className="text-[11px] font-semibold">Proff Images</Label>
                         <div className="flex flex-wrap gap-1.5">
                             {previewUrls.map((url, idx) => (
-                                <div key={idx} className="relative w-11 h-11 rounded-md border overflow-hidden">
+                                <div key={idx} className="relative group w-11 h-11 rounded-md border overflow-hidden flex-shrink-0">
                                     <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                                    
+                                    <div 
+                                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                        onClick={() => setPreviewImage(url)}
+                                    >
+                                        <Eye className="w-3.5 h-3.5 text-white" />
+                                    </div>
+
                                     <button
                                         type="button"
-                                        onClick={() => removeImage(idx)}
-                                        className="absolute top-0.5 right-0.5 bg-black/50 text-white rounded-full p-0.5 hover:bg-black/70"
+                                        onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                                        className="absolute top-0.5 right-0.5 bg-black/50 text-white rounded-full p-0.5 hover:bg-black/70 z-10"
                                     >
                                         <X className="w-2.5 h-2.5" />
                                     </button>
@@ -220,6 +315,32 @@ export const SubmitReopenModal: React.FC<SubmitReopenModalProps> = ({
                     </DialogFooter>
                 </form>
             </DialogContent>
+
+            {/* Image Preview Dialog */}
+            <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+                <DialogContent className="max-w-4xl w-fit border-0 p-0 bg-transparent shadow-none [&>button]:hidden">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Image Preview</DialogTitle>
+                    </DialogHeader>
+                    <div className="relative flex items-center justify-center w-full h-full group">
+                        {previewImage && (
+                            <>
+                                <img
+                                    src={previewImage}
+                                    alt="Preview"
+                                    className="w-auto h-auto max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                                />
+                                <button
+                                    onClick={() => setPreviewImage(null)}
+                                    className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 };

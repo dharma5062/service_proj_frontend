@@ -4,6 +4,7 @@ import { useAuth } from '@/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
     ArrowLeft,
     Pencil,
@@ -21,8 +22,6 @@ import {
     Timer,
     Send,
     Eye,
-    AlertTriangle,
-    Wrench,
 } from 'lucide-react';
 import { useInvoiceApi } from '@/pages/serviceAPI/InvoiceAPI';
 import {
@@ -35,6 +34,7 @@ import {
 import { useShopEmployeesApi } from '@/pages/serviceAPI/ShopEmployeesAPI';
 import { useServiceReopenApi } from '@/pages/serviceAPI/ServiceReopenAPI';
 import { SubmitReopenModal } from './SubmitReopenModal';
+import { ReopenAssignTechnicianModal } from './ReopenAssignTechnicianModal';
 
 import { toast } from 'sonner';
 
@@ -181,15 +181,34 @@ const ViewServiceRequest = () => {
     
 
     const { useGetReopenRequests } = useServiceReopenApi();
-    const { data: reopenHistoryData } = useGetReopenRequests({ service_id: numericId });
+    const { data: reopenHistoryData, refetch: refetchReopen } = useGetReopenRequests({ service_id: numericId });
     const hasPendingReopen = reopenHistoryData?.data?.some((req: any) => req.status === 'pending') || false;
-    const hasReopenHistory = reopenHistoryData?.data && reopenHistoryData.data.length > 0;
     const [reopenModalOpen, setReopenModalOpen] = useState(false);
     const [isChangingTech] = useState(false);
+    const [rereopenAssignModalOpen, setRereopenAssignModalOpen] = useState(false);
+
+    // Find the active reopen request (approved but not closed)
+    const activeReopenRequest = reopenHistoryData?.data?.find((req: any) =>
+        req.status === 'approved' &&
+        !['reopen_rejected', 'reopen_closed', 'service_closed'].includes(req.reopen_status)
+    ) as any | undefined;
+
+    // Find the latest approved reopen request (even if closed) for displaying technician assignment history
+    const latestApprovedReopenRequest = reopenHistoryData?.data?.find((req: any) =>
+        req.status === 'approved' && req.reopen_status !== 'reopen_rejected'
+    ) as any | undefined;
+
+    // The original assignment is the one before any reopens
+    const originalAssignment = ((service as any)?.technician_assignments || []).find((a: any) => !a.reopen_request_id) || ((service as any)?.technician_assignments || [])[((service as any)?.technician_assignments || []).length - 1];
+    const displayTechnician = (latestApprovedReopenRequest && originalAssignment?.user) 
+        ? originalAssignment.user 
+        : service?.assigned_technician;
 
     const currentStatus = (service?.service_status || service?.status || 'pending').toLowerCase();
     const isAcceptedOrBeyond = !['pending', 'assigned'].includes(currentStatus);
     const canChangeTechnician = (isSuperAdmin || isShopOwner) && !isAcceptedOrBeyond;
+    const canChangeReopenTechnician = (isSuperAdmin || isShopOwner) && !!activeReopenRequest &&
+        ['reopen_assigned'].includes(activeReopenRequest?.reopen_status ?? '');
 
     const handleAccept = async () => {
         if (!service) return;
@@ -379,7 +398,7 @@ const ViewServiceRequest = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {isShopEmployee && status === 'assigned' && (
+                    {isShopEmployee && status === 'assigned' && !activeReopenRequest && (
                         <Button
                             size="sm"
                             onClick={handleAccept}
@@ -505,39 +524,6 @@ const ViewServiceRequest = () => {
                 </div>
             )}
 
-            {/* ── Reopened Banner — shown to staff ── */}
-            {hasReopenHistory && !isCustomer && (
-                <div className="mb-4 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50 to-orange-50/50 p-3.5 flex items-start gap-3 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-200/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
-                    <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
-                    <div className="flex-1 relative z-10">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-bold text-amber-900 text-sm">Reopened Service</span>
-                            <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] h-5 px-1.5 uppercase tracking-wider font-bold border-amber-200">Attention Required</Badge>
-                        </div>
-                        <p className="text-xs text-amber-800/90 leading-relaxed max-w-3xl mb-3">
-                            This device has been returned for a rework/warranty claim. The parts and charges shown below may include items from previous service cycles. Please carefully review the <strong>Tracking Timeline (Activity Log)</strong> and previous <strong>Invoice</strong> to understand the work completed by the previous technician before diagnosing the new issue.
-                        </p>
-                        
-                        {/* Go to Rework Dashboard Button */}
-                        {(service.reopen_requests || []).filter((r: any) => r.status === 'approved').length > 0 && (
-                            <Button
-                                size="sm"
-                                onClick={() => {
-                                    const latestReopen = [...(service.reopen_requests || [])].filter((r: any) => r.status === 'approved').pop();
-                                    if (latestReopen) {
-                                        navigate(`/dashboard/services/rework/${latestReopen.id}`);
-                                    }
-                                }}
-                                className="h-8 bg-amber-600 hover:bg-amber-700 text-white"
-                            >
-                                <Wrench className="w-4 h-4 mr-2" />
-                                Go to Rework Dashboard
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -711,13 +697,15 @@ const ViewServiceRequest = () => {
                                                     /* Device photos */
                                                     <div className="flex flex-wrap gap-2 mt-1">
                                                         {field.value.map((img: string, idx: number) => (
-                                                            <div key={idx} className="relative group w-20 h-20 flex-shrink-0">
+                                                            <div key={idx} className="relative group w-20 h-20 flex-shrink-0 border rounded-md overflow-hidden cursor-pointer bg-gray-50" onClick={() => setLightboxImage(img)}>
                                                                 <img
                                                                     src={img}
                                                                     alt={`${field.label} ${idx + 1}`}
-                                                                    className="w-full h-full object-contain bg-gray-50 rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
-                                                                    onClick={() => setLightboxImage(img)}
+                                                                    className="w-full h-full object-contain transition-opacity"
                                                                 />
+                                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <Eye className="w-6 h-6 text-white" />
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -735,22 +723,62 @@ const ViewServiceRequest = () => {
                         </Card>
                     )}
 
-                    {/* Admin Notes */}
-                    {parsedInternalNotes && !isCustomer && (
-                        <Card>
-                            <CardHeader className="pb-2 pt-3 px-4">
-                                <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                    <FileText className="w-4 h-4 text-purple-500" />
-                                    Internal Notes
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="px-4 pb-4">
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3 border">
-                                    {parsedInternalNotes}
-                                </p>
-                            </CardContent>
-                        </Card>
-                    )}
+                    {/* Admin Instructions & Tags Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Admin & Customer Notes */}
+                        {((parsedInternalNotes && !isCustomer) || data?.customer_note) && (
+                            <Card className="h-full">
+                                <CardHeader className="pb-2 pt-3 px-4">
+                                    <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                        <FileText className="w-4 h-4 text-purple-500" />
+                                        {isCustomer ? 'Message from Shop' : 'Admin Notes'}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4 space-y-3">
+                                    {parsedInternalNotes && !isCustomer && (
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3 border">
+                                            {parsedInternalNotes}
+                                        </p>
+                                    )}
+                                    {data?.customer_note && (
+                                        <div className="bg-blue-50 border border-blue-100 rounded-md p-2.5">
+                                            <p className="text-[10px] capitalize font-bold text-blue-600 tracking-wider mb-1">
+                                                Technician Notes
+                                            </p>
+                                            <p className="text-xs text-blue-900 italic">
+                                                "{data.customer_note}"
+                                            </p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Tags */}
+                        {tags && (
+                            <Card className="h-full">
+                                <CardHeader className="pb-2 pt-3 px-4">
+                                    <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                                        <Tag className="w-4 h-4 text-indigo-500" />
+                                        Tags
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {tags
+                                            .split(',')
+                                            .map((t: string) => t.trim())
+                                            .filter(Boolean)
+                                            .map((tag: string, i: number) => (
+                                                <Badge key={i} variant="outline" className="text-xs capitalize">
+                                                    {tag}
+                                                </Badge>
+                                            ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
                     {(() => {
                         const reopenRequests = reopenHistoryData?.data || [];
                         if (reopenRequests.length === 0) return null;
@@ -787,15 +815,18 @@ const ViewServiceRequest = () => {
                                                     {req.images && req.images.length > 0 && (
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {req.images.map((url: string, i: number) => (
-                                                                <a key={i} href={url} target="_blank" rel="noreferrer" className="w-12 h-12 border rounded overflow-hidden block hover:opacity-80">
-                                                                    <img src={url} alt="Evidence" className="w-full h-full object-cover" />
-                                                                </a>
+                                                                <div key={i} className="relative group w-12 h-12 border rounded overflow-hidden flex-shrink-0 cursor-pointer" onClick={() => setLightboxImage(url)}>
+                                                                    <img src={url} alt="Evidence" className="w-full h-full object-cover transition-opacity" />
+                                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <Eye className="w-4 h-4 text-white" />
+                                                                    </div>
+                                                                </div>
                                                             ))}
                                                         </div>
                                                     )}
                                                     {req.shop_owner_note && (
                                                         <div className="bg-blue-50 border border-blue-100 rounded p-2">
-                                                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Shop Owner Note</p>
+                                                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5">Admin Note</p>
                                                             <p className="text-xs text-blue-800">{req.shop_owner_note}</p>
                                                         </div>
                                                     )}
@@ -820,19 +851,67 @@ const ViewServiceRequest = () => {
                                 Technician Assignment
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="px-4 pb-4">
-                            {service.assigned_technician && !isChangingTech ? (
+                        <CardContent className="px-4 pb-4 space-y-3">
+                            {/* Rework Cycle Technician — shown when an active reopen exists */}
+                            {latestApprovedReopenRequest && (
+                                <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-3 space-y-2">
+                                    <p className="text-[10px] font-bold text-orange-600 capitalize tracking-wider flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
+                                        Rework Cycle #{latestApprovedReopenRequest.reopen_number} Technician
+                                    </p>
+                                    {latestApprovedReopenRequest.assigned_technician ? (
+                                        <div className="flex items-start gap-2">
+                                            <div className="w-8 h-8 bg-orange-200 rounded-full flex items-center justify-center text-orange-700 font-bold text-xs flex-shrink-0">
+                                                {latestApprovedReopenRequest.assigned_technician.name?.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-bold text-gray-900 truncate">{latestApprovedReopenRequest.assigned_technician.name}</p>
+                                                <Badge className="bg-orange-100 text-orange-700 text-[9px] h-4 px-1.5 border border-orange-200 mt-0.5">Rework Assigned</Badge>
+                                                <div className="mt-1.5 space-y-1">
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                                                        <Phone className="w-3 h-3 text-gray-400" />
+                                                        {latestApprovedReopenRequest.assigned_technician.phone || 'No phone'}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                                                        <Mail className="w-3 h-3 text-gray-400" />
+                                                        {latestApprovedReopenRequest.assigned_technician.email || 'No email'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-orange-600 italic">No technician assigned to this rework cycle yet.</p>
+                                    )}
+                                    {canChangeReopenTechnician && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full text-xs h-7 border-orange-300 text-orange-700 hover:bg-orange-100 hover:border-orange-400 mt-1"
+                                            onClick={() => setRereopenAssignModalOpen(true)}
+                                        >
+                                            Change Rework Technician
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Original / Current Service Technician */}
+                            {displayTechnician && !isChangingTech ? (
                                 <div className="space-y-4">
+                                    {latestApprovedReopenRequest && (
+                                        <p className="text-[10px] font-bold text-gray-400 capitalize tracking-wider">Previous Technician</p>
+                                    )}
                                     <div className="flex items-start gap-3">
                                         <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-sm flex-shrink-0 border border-primary/20">
-                                            {service.assigned_technician.name?.charAt(0).toUpperCase()}
+                                            {displayTechnician.name?.charAt(0).toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-gray-900 truncate">
-                                                {service.assigned_technician.name}
+                                            <p className="text-sm font-bold text-gray-900 flex items-center gap-2 truncate">
+                                                {displayTechnician.name}
+                                                {!latestApprovedReopenRequest && <Badge className="bg-primary text-white text-[9px] h-4 px-1.5 uppercase tracking-wider">Current</Badge>}
                                             </p>
                                             <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px] mt-1 h-5">
-                                                {service.assigned_technician.role}
+                                                {displayTechnician.role || 'employee'}
                                             </Badge>
                                         </div>
                                     </div>
@@ -840,42 +919,67 @@ const ViewServiceRequest = () => {
                                     <div className="grid grid-cols-1 gap-2 border-t pt-4">
                                         <div className="flex items-center gap-2 text-xs text-gray-600">
                                             <Phone className="w-3.5 h-3.5 text-gray-400" />
-                                            {service.assigned_technician.phone || 'No phone'}
+                                            {displayTechnician.phone || 'No phone'}
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-gray-600">
                                             <Mail className="w-3.5 h-3.5 text-gray-400" />
-                                            {service.assigned_technician.email || 'No email'}
+                                            {displayTechnician.email || 'No email'}
                                         </div>
-                                        {!isCustomer && service.admin_note && typeof service.admin_note === 'string' && !service.admin_note.startsWith('[') && !service.admin_note.startsWith('{') && (
-                                            <div className="bg-amber-50/50 border border-amber-100/50 rounded-lg p-3 space-y-1.5 mt-2">
-                                                <p className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Assignment Instructions</p>
-                                                <p className="text-xs text-amber-900 leading-relaxed italic">
-                                                    "{service.admin_note}"
-                                                </p>
-                                            </div>
-                                        )}
-                                        {data?.customer_note && (
-                                            <div className="bg-blue-50/50 border border-blue-100/50 rounded-lg p-3 space-y-1.5 mt-2">
-                                                <div className="flex justify-between items-center">
-                                                    <p className="text-[10px] uppercase font-bold text-blue-600 tracking-wider">
-                                                        {isCustomer ? 'Technician Notes' : 'Message for Customer'}
-                                                    </p>
-                                                    {!isCustomer && (
-                                                        <span className="text-[9px] font-semibold text-blue-500 bg-blue-100/50 px-1.5 py-0.5 rounded-full border border-blue-200/50">Visible to Customer</span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-blue-900 leading-relaxed italic">
-                                                    "{data.customer_note}"
-                                                </p>
-                                            </div>
-                                        )}
+                                        {/* Removed duplicate assignment instructions */}
                                     </div>
 
-                                    {canChangeTechnician && (
+                                    {/* Previous Technicians (History) */}
+                                    {(() => {
+                                        const assignments = (service as any).technician_assignments || [];
+                                        // Filter out the current technician's latest assignment to avoid duplication,
+                                        // or just show all assignments sorted by date.
+                                        if (assignments.length <= 1) return null;
+                                        
+                                        // Exclude the most recent one (which is the current)
+                                        const previousAssignments = [...assignments].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(1);
+                                        
+                                        return (
+                                            <div className="mt-4 pt-3 border-t">
+                                                <p className="text-[10px] capitalize font-bold text-gray-500 tracking-wider mb-2">Previous Technicians</p>
+                                                <div className="space-y-2">
+                                                    {previousAssignments.map((assignment: any, index: number) => (
+                                                        <div key={index} className="flex flex-col p-2 bg-gray-50 rounded border text-xs gap-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold text-[10px] shrink-0">
+                                                                    {assignment.user?.name?.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0 flex items-center justify-between">
+                                                                    <div>
+                                                                        <p className="font-medium text-gray-700 truncate">{assignment.user?.name}</p>
+                                                                        <p className="text-[9px] text-gray-500">{new Date(assignment.created_at).toLocaleDateString()}</p>
+                                                                    </div>
+                                                                    {assignment.reopen_request_id && (
+                                                                        <Badge variant="outline" className="text-[9px] bg-pink-50 text-pink-700 border-pink-200">Reopen</Badge>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-1 border-t border-gray-100 pt-1.5 mt-0.5">
+                                                                <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                                                    <Phone className="w-3 h-3 text-gray-400" />
+                                                                    {assignment.user?.phone || 'No phone'}
+                                                                </div>
+                                                                <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                                                                    <Mail className="w-3 h-3 text-gray-400" />
+                                                                    {assignment.user?.email || 'No email'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {canChangeTechnician && !activeReopenRequest && (
                                         <Button 
                                             variant="outline" 
                                             size="sm" 
-                                            className="w-full text-xs h-8 border-dashed hover:border-primary/40 hover:text-primary"
+                                            className="w-full text-xs h-8 border-dashed hover:border-primary/40 hover:text-primary mt-2"
                                             onClick={() => navigate(`/dashboard/services/assign-technician/${service.id}`)}
                                         >
                                             Change Technician
@@ -914,9 +1018,63 @@ const ViewServiceRequest = () => {
                         </CardHeader>
                         <CardContent className="px-4 pb-4">
                             {parts.length > 0 || parsedServiceCharges.length > 0 ? (
-                                <div className="space-y-3">
-                                    {/* Parts and Service Charges list */}
-                                    <div className="border rounded-lg overflow-hidden">
+                                (() => {
+                                    const originalItems: any[] = [];
+                                    const reopenItems: any[] = [];
+
+                                    parts.forEach(part => {
+                                        let addedInReopen = null;
+                                        const reopenReqs = reopenHistoryData?.data || [];
+                                        if (reopenReqs.length > 0) {
+                                            const sortedReopens = [...reopenReqs].sort((a: any, b: any) => a.reopen_number - b.reopen_number);
+                                            for (const req of sortedReopens) {
+                                                // Only approved/completed reopen requests can have new additions
+                                                if (req.status === 'pending' || req.status === 'rejected') {
+                                                    continue;
+                                                }
+                                                const originalData = typeof req.original_data === 'string' ? parseJson(req.original_data) : req.original_data;
+                                                const origParts = originalData?.parts || [];
+                                                const inOrig = origParts.find((p: any) => (p.sku && p.sku === part.sku) || (p.id && p.id === part.id) || (p.name === part.name));
+                                                if (!inOrig) {
+                                                    addedInReopen = req.reopen_number;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if (addedInReopen) {
+                                            reopenItems.push({ ...part, itemType: 'part', addedInReopen });
+                                        } else {
+                                            originalItems.push({ ...part, itemType: 'part' });
+                                        }
+                                    });
+
+                                    parsedServiceCharges.forEach(charge => {
+                                        let addedInReopen = null;
+                                        const reopenReqs = reopenHistoryData?.data || [];
+                                        if (reopenReqs.length > 0) {
+                                            const sortedReopens = [...reopenReqs].sort((a: any, b: any) => a.reopen_number - b.reopen_number);
+                                            for (const req of sortedReopens) {
+                                                // Only approved/completed reopen requests can have new additions
+                                                if (req.status === 'pending' || req.status === 'rejected') {
+                                                    continue;
+                                                }
+                                                const originalData = typeof req.original_data === 'string' ? parseJson(req.original_data) : req.original_data;
+                                                const origCharges = originalData?.selectedServiceCharges || [];
+                                                const inOrig = origCharges.find((c: any) => c.name === charge.name);
+                                                if (!inOrig) {
+                                                    addedInReopen = req.reopen_number;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if (addedInReopen) {
+                                            reopenItems.push({ ...charge, itemType: 'charge', addedInReopen });
+                                        } else {
+                                            originalItems.push({ ...charge, itemType: 'charge' });
+                                        }
+                                    });
+
+                                    const renderTable = (items: any[]) => (
                                         <table className="w-full text-sm">
                                             <thead>
                                                 <tr className="bg-gray-50 border-b">
@@ -928,21 +1086,35 @@ const ViewServiceRequest = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {parts.map((part, i) => {
-                                                    const price = parseFloat(part.price) || 0;
-                                                    const qty = part.quantity || 1;
+                                                {items.map((item, i) => {
+                                                    const isPart = item.itemType === 'part';
+                                                    const price = parseFloat(isPart ? item.price : item.amount) || 0;
+                                                    const qty = isPart ? (item.quantity || 1) : 1;
+                                                    const addedInReopen = item.addedInReopen;
+                                                    
                                                     return (
-                                                        <tr key={`part-${i}`} className="border-b last:border-0">
+                                                        <tr key={`${item.itemType}-${i}`} className={`border-b last:border-0 ${!isPart ? 'bg-gray-50/50' : ''}`}>
                                                             <td className="px-3 py-2">
-                                                                <p className="font-medium text-gray-900 text-xs">{part.name}</p>
-                                                                <p className="text-xs text-gray-500">SKU: {part.sku}</p>
+                                                                <div className="flex items-center flex-wrap gap-1">
+                                                                    <p className="font-medium text-gray-900 text-xs">{item.name}</p>
+                                                                    {addedInReopen && (
+                                                                        <Badge variant="secondary" className="bg-pink-100 text-pink-700 text-[9px] h-4 px-1 border-pink-200 uppercase tracking-wider">Reopen #{addedInReopen}</Badge>
+                                                                    )}
+                                                                </div>
+                                                                {isPart && <p className="text-xs text-gray-500">SKU: {item.sku}</p>}
                                                             </td>
                                                             <td className="px-3 py-2 text-center">
-                                                                <Badge variant="outline" className="text-xs text-green-600 border-green-200 bg-green-50">
-                                                                    {part.status}
-                                                                </Badge>
+                                                                {isPart ? (
+                                                                    <Badge variant="outline" className="text-xs text-green-600 border-green-200 bg-green-50">
+                                                                        {item.status}
+                                                                    </Badge>
+                                                                ) : (
+                                                                    <Badge variant="outline" className="text-xs text-primary border-primary/20 bg-primary/10">
+                                                                        Service Charge
+                                                                    </Badge>
+                                                                )}
                                                             </td>
-                                                            <td className="px-3 py-2 text-center text-xs text-gray-700">{qty}</td>
+                                                            <td className="px-3 py-2 text-center text-xs text-gray-700">{isPart ? qty : '-'}</td>
                                                             <td className="px-3 py-2 text-right text-xs text-gray-700">₹{price.toFixed(2)}</td>
                                                             <td className="px-3 py-2 text-right text-xs font-medium text-gray-900">
                                                                 ₹{(price * qty).toFixed(2)}
@@ -950,80 +1122,64 @@ const ViewServiceRequest = () => {
                                                         </tr>
                                                     );
                                                 })}
-                                                {parsedServiceCharges.map((charge, i) => {
-                                                    const amount = parseFloat(charge.amount) || 0;
-                                                    return (
-                                                        <tr key={`sc-${i}`} className="border-b last:border-0 bg-gray-50/50">
-                                                            <td className="px-3 py-2">
-                                                                <p className="font-medium text-gray-900 text-xs">{charge.name}</p>
-                                                            </td>
-                                                            <td className="px-3 py-2 text-center">
-                                                                <Badge variant="outline" className="text-xs text-primary border-primary/20 bg-primary/10">
-                                                                    Service Charge
-                                                                </Badge>
-                                                            </td>
-                                                            <td className="px-3 py-2 text-center text-xs text-gray-700">-</td>
-                                                            <td className="px-3 py-2 text-right text-xs text-gray-700">₹{amount.toFixed(2)}</td>
-                                                            <td className="px-3 py-2 text-right text-xs font-medium text-gray-900">
-                                                                ₹{amount.toFixed(2)}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
                                             </tbody>
                                         </table>
-                                    </div>
+                                    );
 
-                                    {/* Totals */}
-                                    <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
-                                        <div className="flex justify-between text-xs">
-                                            <span className="text-gray-600">Subtotal</span>
-                                            <span className="font-medium text-gray-800">₹{Number(subtotal).toFixed(2)}</span>
+                                    return (
+                                        <div className="space-y-4">
+                                            {/* Original Items */}
+                                            {originalItems.length > 0 && (
+                                                <div className="border rounded-lg overflow-hidden">
+                                                    {renderTable(originalItems)}
+                                                </div>
+                                            )}
+
+                                            {/* Reopen Additions */}
+                                            {reopenItems.length > 0 && (
+                                                <div className="border border-pink-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                                                    <div className="bg-pink-50/80 px-3 py-2.5 border-b border-pink-100 flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-pink-800 capitalize tracking-wider flex items-center gap-1.5">
+                                                            <Package className="w-3.5 h-3.5 text-pink-600" />
+                                                            New Additions (Billable)
+                                                        </span>
+                                                        <Badge variant="secondary" className="bg-pink-100 text-pink-700 text-[10px] capitalize tracking-wider border-pink-200">
+                                                            {reopenItems.length} {reopenItems.length === 1 ? 'Item' : 'Items'}
+                                                        </Badge>
+                                                    </div>
+                                                    {renderTable(reopenItems)}
+                                                </div>
+                                            )}
+
+                                            {/* Totals */}
+                                            <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-gray-600">Subtotal</span>
+                                                    <span className="font-medium text-gray-800">₹{Number(subtotal).toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-gray-600">Discount</span>
+                                                    <span className="font-medium text-gray-800">₹{Number(discount).toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-gray-600">Tax</span>
+                                                    <span className="font-medium text-gray-800">₹{Number(tax).toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm border-t pt-1.5 mt-1.5">
+                                                    <span className="font-bold text-gray-900">Grand Total</span>
+                                                    <span className="font-bold text-gray-900">₹{Number(grandTotal).toFixed(2)}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex justify-between text-xs">
-                                            <span className="text-gray-600">Discount</span>
-                                            <span className="font-medium text-gray-800">₹{Number(discount).toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-xs">
-                                            <span className="text-gray-600">Tax</span>
-                                            <span className="font-medium text-gray-800">₹{Number(tax).toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm border-t pt-1.5 mt-1.5">
-                                            <span className="font-bold text-gray-900">Grand Total</span>
-                                            <span className="font-bold text-gray-900">₹{Number(grandTotal).toFixed(2)}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                    );
+                                })()
                             ) : (
                                 <p className="text-xs text-gray-500 text-center py-4">No parts or service charges added</p>
                             )}
                         </CardContent>
                     </Card>
 
-                    {/* Tags */}
-                    {tags && (
-                        <Card>
-                            <CardHeader className="pb-2 pt-3 px-4">
-                                <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                                    <Tag className="w-4 h-4 text-indigo-500" />
-                                    Tags
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="px-4 pb-4">
-                                <div className="flex flex-wrap gap-1.5">
-                                    {tags
-                                        .split(',')
-                                        .map((t: string) => t.trim())
-                                        .filter(Boolean)
-                                        .map((tag: string, i: number) => (
-                                            <Badge key={i} variant="outline" className="text-xs capitalize">
-                                                {tag}
-                                            </Badge>
-                                        ))}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                    {/* Tags moved to left column */}
 
                     {/* Inspection Images */}
                     {images.length > 0 && (
@@ -1198,26 +1354,31 @@ const ViewServiceRequest = () => {
                 </div>
             </div>
 
-            {/* Lightbox */}
-            {lightboxImage && (
-                <div
-                    className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-                    onClick={() => setLightboxImage(null)}
-                >
-                    <button
-                        className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
-                        onClick={() => setLightboxImage(null)}
-                    >
-                        <X className="w-6 h-6" />
-                    </button>
-                    <img
-                        src={lightboxImage}
-                        alt="Full size"
-                        className="max-w-full max-h-[90vh] object-contain rounded-lg"
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                </div>
-            )}
+            {/* Image Preview Dialog */}
+            <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
+                <DialogContent className="max-w-4xl w-fit border-0 p-0 bg-transparent shadow-none [&>button]:hidden">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Image Preview</DialogTitle>
+                    </DialogHeader>
+                    <div className="relative flex items-center justify-center w-full h-full group">
+                        {lightboxImage && (
+                            <>
+                                <img
+                                    src={lightboxImage}
+                                    alt="Preview"
+                                    className="w-auto h-auto max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                                />
+                                <button
+                                    onClick={() => setLightboxImage(null)}
+                                    className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
             <SubmitReopenModal
                 open={reopenModalOpen}
                 onOpenChange={setReopenModalOpen}
@@ -1225,6 +1386,17 @@ const ViewServiceRequest = () => {
                 warrantyExpiryDate={existingInv?.warranty_expiry_date}
                 supportPhone={service.shop?.shop_owner?.phone || service.shop?.user?.phone || '0'}
             />
+            {activeReopenRequest && (
+                <ReopenAssignTechnicianModal
+                    open={rereopenAssignModalOpen}
+                    onOpenChange={setRereopenAssignModalOpen}
+                    reopenRequest={activeReopenRequest}
+                    onAssigned={() => {
+                        setRereopenAssignModalOpen(false);
+                        refetchReopen();
+                    }}
+                />
+            )}
         </div>
     );
 };

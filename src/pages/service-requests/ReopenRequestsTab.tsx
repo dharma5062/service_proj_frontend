@@ -1,29 +1,41 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useServiceReopenApi } from '@/pages/serviceAPI/ServiceReopenAPI';
+import { useServiceReopenApi, ServiceReopenRequest } from '@/pages/serviceAPI/ServiceReopenAPI';
 import { Button } from '@/components/ui/button';
-import { Eye, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, ExternalLink, UserCheck, Wrench, BadgeCheck, PlayCircle } from 'lucide-react';
 import { DataTable, Column } from '@/components/ui/table/datatable';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/AuthContext';
+import { ReopenStatusBadge } from '@/components/reopen/ReopenStatusBadge';
+import { ReopenAssignTechnicianModal } from '@/pages/service-requests/ReopenAssignTechnicianModal';
 
 export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void }) => {
     const navigate = useNavigate();
-    const { isShopOwner, isSuperAdmin } = useAuth();
+    const { isShopOwner, isSuperAdmin, isShopEmployee } = useAuth();
     const canApprove = isShopOwner || isSuperAdmin;
-    const { useGetReopenRequests, useApproveReopenRequest, useRejectReopenRequest } = useServiceReopenApi();
+    const {
+        useGetReopenRequests,
+        useApproveReopenRequest,
+        useRejectReopenRequest,
+        useCloseReopenService,
+        useStartReopenWork,
+    } = useServiceReopenApi();
     const { data: requestsData, isLoading, refetch } = useGetReopenRequests();
     const requests = requestsData?.data || [];
 
     const approveMutation = useApproveReopenRequest();
     const rejectMutation = useRejectReopenRequest();
+    const closeMutation = useCloseReopenService();
+    const startWorkMutation = useStartReopenWork();
 
     const [viewModalOpen, setViewModalOpen] = useState(false);
-    const [selectedRequest, setSelectedRequest] = useState<any>(null);
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState<ServiceReopenRequest | null>(null);
     const [shopOwnerNote, setShopOwnerNote] = useState('');
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-    const handleView = (record: any) => {
+    const handleView = (record: ServiceReopenRequest) => {
         setSelectedRequest(record);
         setShopOwnerNote('');
         setViewModalOpen(true);
@@ -33,9 +45,13 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
         try {
             const res = await approveMutation.mutateAsync({ id, note: shopOwnerNote });
             if (res.status) {
-                toast.success('Reopen request approved.');
+                toast.success('Reopen request approved. Please assign an employee.');
+                if (selectedRequest) {
+                    setSelectedRequest({ ...selectedRequest, reopen_status: 'reopen_approved' });
+                }
                 refetch();
                 setViewModalOpen(false);
+                setAssignModalOpen(true);
             } else {
                 toast.error(res.message || 'Failed to approve.');
             }
@@ -63,7 +79,35 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
         }
     };
 
-    const columns: Column<any>[] = [
+    const handleCloseService = async (request: ServiceReopenRequest) => {
+        try {
+            const res = await closeMutation.mutateAsync({ reopenId: request.id });
+            if (res.status) {
+                toast.success('Reopen service closed successfully!');
+                refetch();
+            } else {
+                toast.error(res.message || 'Failed to close service.');
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Error closing service.');
+        }
+    };
+
+    const handleAcceptAssignment = async (record: ServiceReopenRequest) => {
+        try {
+            const res = await startWorkMutation.mutateAsync(record.id);
+            if (res.status) {
+                toast.success('Assignment accepted! Rework is now in progress.');
+                refetch();
+            } else {
+                toast.error(res.message || 'Failed to accept assignment.');
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Error accepting assignment.');
+        }
+    };
+
+    const columns: Column<ServiceReopenRequest>[] = [
         {
             key: 'reopen_number',
             title: 'Cycle #',
@@ -78,7 +122,7 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
         },
         {
             key: 'customer',
-            title: 'Customer Info',
+            title: 'Customer',
             dataIndex: 'customer',
             render: (val) => (
                 <div className="flex flex-col">
@@ -88,16 +132,53 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
             )
         },
         {
-            key: 'technician',
-            title: 'Technician',
+            key: 'previous_technician',
+            title: 'Previous Technician',
             dataIndex: 'service',
-            render: (service) => {
-                const tech = service?.assigned_technician || service?.assignedTechnician;
-                if (!tech) return <span className="text-xs text-gray-400 italic">Unassigned</span>;
+            render: (service: any, record: any) => {
+                const assignments = service?.technician_assignments || service?.technicianAssignments || [];
+                let prevTech = null;
+
+                // Try to find the previous technician from assignments history
+                if (assignments && assignments.length > 0) {
+                    // The original technician is usually the first assignment
+                    prevTech = assignments[0]?.user;
+                }
+
+                // Fallback if not found in history, and it hasn't been reassigned yet
+                if (!prevTech && ['reopen_requested', 'pending', 'reopen_rejected'].includes(record.reopen_status)) {
+                    prevTech = service?.assigned_technician || service?.assignedTechnician;
+                }
+
+                if (!prevTech) return <span className="text-xs text-gray-400 italic">Unknown</span>;
+
                 return (
-                    <div className="flex flex-col">
-                        <span className="text-[11px] text-gray-900 font-bold">{tech.name}</span>
-                        <span className="text-[9px] text-gray-500">{tech.phone || '-'}</span>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[9px]">
+                            {prevTech.name?.[0]}
+                        </div>
+                        <div>
+                            <p className="text-[11px] font-bold text-gray-900">{prevTech.name}</p>
+                        </div>
+                    </div>
+                );
+            }
+        },
+        {
+            key: 'reassigned_technician',
+            title: 'Reassigned To',
+            dataIndex: 'assignedTechnician',
+            render: (tech, record) => {
+                const t = tech || (record as any).assigned_technician || (record as any).assignedTechnician;
+                if (!t) return <span className="text-xs text-amber-500 italic font-medium">Unassigned</span>;
+                return (
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-[9px]">
+                            {t.name?.[0]}
+                        </div>
+                        <div>
+                            <p className="text-[11px] font-bold text-gray-900">{t.name}</p>
+                        </div>
                     </div>
                 );
             }
@@ -108,32 +189,20 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
             dataIndex: 'reason',
             render: (val, record) => (
                 <div className="flex flex-col">
-                    {record.issue_type && <span className="text-[11px] font-bold text-gray-900 capitalize">{record.issue_type}</span>}
-                    <span className="text-[10px] text-gray-600 truncate max-w-[160px] block" title={val}>{val}</span>
+                    {record.issue_type && <span className="text-[10px] font-bold text-gray-700 capitalize">{record.issue_type}</span>}
+                    <span className="text-[10px] text-gray-500 truncate max-w-[140px] block" title={val}>{val}</span>
                 </div>
             )
         },
         {
-            key: 'status',
+            key: 'reopen_status',
             title: 'Status',
-            dataIndex: 'status',
-            render: (val, record) => {
-                const isReworkInvoicePaid = (record.newInvoice?.status === 'paid') || ((record as any).new_invoice?.status === 'paid');
-                const isCompleted = val === 'approved' && isReworkInvoicePaid;
-                const displayVal = isCompleted ? 'completed' : val;
-                const styles: Record<string, string> = {
-                    pending: 'bg-amber-100 text-amber-700 border-amber-200',
-                    approved: 'bg-green-50 text-green-700 border-green-200',
-                    completed: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-                    rejected: 'bg-red-100 text-red-700 border-red-200',
-                };
-                const style = styles[displayVal] || 'bg-gray-100 text-gray-700';
-                return <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${style}`}>{displayVal}</span>;
-            }
+            dataIndex: 'reopen_status',
+            render: (val) => <ReopenStatusBadge status={val} size="xs" showPulseDot />
         },
         {
             key: 'created_at',
-            title: 'Requested On',
+            title: 'Requested',
             dataIndex: 'created_at',
             render: (val) => <span className="text-xs text-gray-500">{new Date(val).toLocaleDateString()}</span>
         },
@@ -141,13 +210,81 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
             key: 'actions',
             title: 'Actions',
             dataIndex: 'id',
-            align: 'center',
+            align: 'center' as const,
             render: (_, record) => (
-                <div className="flex items-center gap-1.5 justify-center">
-                    <Button size="icon" variant="ghost" onClick={() => handleView(record)} className="w-6 h-6 rounded-full hover:bg-blue-50" title="View Details">
+                <div className="flex items-center gap-1 justify-center">
+                    {/* View Details */}
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleView(record)}
+                        className="w-6 h-6 rounded-full hover:bg-blue-50"
+                        title="View Details"
+                    >
                         <Eye className="w-3.5 h-3.5 text-blue-600" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => navigate(`/dashboard/services/view/${record.service_id}`)} className="w-6 h-6 rounded-full hover:bg-gray-100" title="View Service">
+
+                    {/* Accept Assignment (technician only, for reopen_assigned) */}
+                    {/* {isShopEmployee && !canApprove && record.reopen_status === 'reopen_assigned' && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleAcceptAssignment(record)}
+                            className="h-6 text-[10px] font-semibold bg-green-50 text-green-700 hover:bg-green-100 px-2 rounded"
+                            disabled={startWorkMutation.isPending}
+                        >
+                            Accept & Start Work
+                        </Button>
+                    )} */}
+
+                    {/* Assign Technician (only for approved but unassigned) */}
+                    {canApprove && record.reopen_status === 'reopen_approved' && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => { setSelectedRequest(record); setAssignModalOpen(true); }}
+                            className="w-6 h-6 rounded-full hover:bg-purple-50"
+                            title="Assign Employee"
+                        >
+                            <UserCheck className="w-3.5 h-3.5 text-purple-600" />
+                        </Button>
+                    )}
+
+                    {/* View Rework page (for in-progress or assigned) */}
+                    {['reopen_assigned', 'reopen_in_progress', 'reopen_completed', 'reopen_pending_invoice'].includes(record.reopen_status) && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => navigate(`/dashboard/services/rework/${record.id}`)}
+                            className="w-6 h-6 rounded-full hover:bg-indigo-50"
+                            title="View Rework"
+                        >
+                            <Wrench className="w-3.5 h-3.5 text-indigo-600" />
+                        </Button>
+                    )}
+
+                    {/* Close Service (SO only, for completed warranty or paid) */}
+                    {canApprove && ['reopen_completed', 'reopen_payment_completed'].includes(record.reopen_status) && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleCloseService(record)}
+                            className="w-6 h-6 rounded-full hover:bg-green-50"
+                            title="Close Service"
+                            disabled={closeMutation.isPending}
+                        >
+                            <BadgeCheck className="w-3.5 h-3.5 text-green-600" />
+                        </Button>
+                    )}
+
+                    {/* View Service */}
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => navigate(`/dashboard/services/view/${record.service_id}`)}
+                        className="w-6 h-6 rounded-full hover:bg-gray-100"
+                        title="View Service"
+                    >
                         <ExternalLink className="w-3.5 h-3.5 text-gray-600" />
                     </Button>
                 </div>
@@ -168,7 +305,14 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                                 Active Service Requests
                             </button>
                         )}
-                        <button className="text-sm font-bold border-b-2 border-primary text-primary px-1 pb-1">Reopen Requests</button>
+                        <button className="relative text-sm font-bold border-b-2 border-primary text-primary px-1 pb-1 mr-2">
+                            Reopen Requests
+                            {requests.length > 0 && (
+                                <span className="absolute -top-2 -right-3.5 bg-red-500 text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold px-1 border-2 border-white shadow-sm leading-none">
+                                    {requestsData?.total || requests.length}
+                                </span>
+                            )}
+                        </button>
                     </div>
                 }
                 columns={columns}
@@ -182,6 +326,7 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                 hoverable
             />
 
+            {/* View / Review Modal */}
             <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
                 <DialogContent className="sm:max-w-[550px] p-3">
                     <DialogHeader>
@@ -208,9 +353,7 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                                 {selectedRequest.customer?.name && (
                                     <div className="flex flex-col gap-0.5">
                                         <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Customer</span>
-                                        <span className="text-xs font-bold text-gray-900 truncate" title={selectedRequest.customer.name}>
-                                            {selectedRequest.customer.name}
-                                        </span>
+                                        <span className="text-xs font-bold text-gray-900 truncate">{selectedRequest.customer.name}</span>
                                     </div>
                                 )}
                                 <div className="flex flex-col gap-0.5">
@@ -220,16 +363,17 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                                 <div className="flex flex-col gap-0.5">
                                     <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Requested On</span>
                                     <span className="text-xs font-bold text-gray-900 truncate">
-                                        {new Date(selectedRequest.created_at).toLocaleDateString()} {new Date(selectedRequest.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(selectedRequest.created_at).toLocaleDateString()}{' '}
+                                        {new Date(selectedRequest.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-0.5">
                                     <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Issue Type</span>
-                                    <span className="text-xs font-bold text-gray-900 truncate" title={selectedRequest.issue_type || '-'}>{selectedRequest.issue_type || '-'}</span>
+                                    <span className="text-xs font-bold text-gray-900 truncate">{selectedRequest.issue_type || '-'}</span>
                                 </div>
-                                <div className="flex flex-col gap-0.5">
+                                <div className="flex flex-col gap-0.5 col-span-1">
                                     <span className="text-[10px] font-semibold text-gray-500 capitalize tracking-wider">Status</span>
-                                    <span className="text-xs font-bold text-yellow-600 capitalize">{selectedRequest.status}</span>
+                                    <ReopenStatusBadge status={selectedRequest.reopen_status} size="xs" showPulseDot />
                                 </div>
                             </div>
 
@@ -246,9 +390,12 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                                     {selectedRequest.images && selectedRequest.images.length > 0 ? (
                                         <div className="flex flex-wrap gap-2 pt-0.5">
                                             {selectedRequest.images.map((url: string, i: number) => (
-                                                <a key={i} href={url} target="_blank" rel="noreferrer" className="relative w-10 h-10 border border-gray-200 rounded shadow-sm overflow-hidden group hover:border-blue-300 transition-colors">
-                                                    <img src={url} alt="Evidence" className="w-full h-full object-cover group-hover:opacity-80 transition-opacity" />
-                                                </a>
+                                                <div key={i} className="relative group w-10 h-10 border border-gray-200 rounded shadow-sm overflow-hidden flex-shrink-0 cursor-pointer" onClick={() => setPreviewImage(url)}>
+                                                    <img src={url} alt="Evidence" className="w-full h-full object-cover transition-opacity" />
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Eye className="w-4 h-4 text-white" />
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
                                     ) : (
@@ -258,7 +405,7 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
 
                                 {selectedRequest.shop_owner_note && selectedRequest.status !== 'pending' && (
                                     <div className="space-y-1 col-span-2">
-                                        <h4 className="text-[10px] font-semibold text-gray-700 capitalize tracking-wider">Shop Owner Note</h4>
+                                        <h4 className="text-[10px] font-semibold text-gray-700 capitalize tracking-wider">Admin Note</h4>
                                         <p className="text-xs text-gray-800 bg-blue-50 border border-blue-100 rounded p-2 whitespace-pre-wrap leading-relaxed">
                                             {selectedRequest.shop_owner_note}
                                         </p>
@@ -266,10 +413,11 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                                 )}
                             </div>
 
+                            {/* Approve/Reject actions — only for pending requests */}
                             {selectedRequest.status === 'pending' && canApprove && (
                                 <div className="space-y-2 pt-2 border-t mt-2">
                                     <div className="space-y-1">
-                                        <h4 className="text-[10px] font-semibold text-gray-700 capitalize tracking-wider">Shop Owner Note</h4>
+                                        <h4 className="text-[10px] font-semibold text-gray-700 capitalize tracking-wider">Admin Note</h4>
                                         <textarea
                                             value={shopOwnerNote}
                                             onChange={(e) => setShopOwnerNote(e.target.value)}
@@ -295,14 +443,62 @@ export const ReopenRequestsTab = ({ onSwitchBack }: { onSwitchBack?: () => void 
                                             className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
                                         >
                                             <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                                            Approve &amp; Reopen
+                                            Approve
                                         </Button>
                                     </div>
                                 </div>
                             )}
 
+                            {/* Assign button for already-approved requests */}
+                            {selectedRequest.reopen_status === 'reopen_approved' && canApprove && (
+                                <div className="pt-2 border-t flex justify-end">
+                                    <Button
+                                        size="sm"
+                                        className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+                                        onClick={() => { setViewModalOpen(false); setAssignModalOpen(true); }}
+                                    >
+                                        <UserCheck className="w-3.5 h-3.5 mr-1" />
+                                        Assign Employee
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Assign Technician Modal */}
+            {selectedRequest && (
+                <ReopenAssignTechnicianModal
+                    open={assignModalOpen}
+                    onOpenChange={setAssignModalOpen}
+                    reopenRequest={selectedRequest}
+                    onAssigned={() => refetch()}
+                />
+            )}
+            {/* Image Preview Dialog */}
+            <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+                <DialogContent className="max-w-4xl w-fit border-0 p-0 bg-transparent shadow-none [&>button]:hidden">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Image Preview</DialogTitle>
+                    </DialogHeader>
+                    <div className="relative flex items-center justify-center w-full h-full group">
+                        {previewImage && (
+                            <>
+                                <img
+                                    src={previewImage}
+                                    alt="Preview"
+                                    className="w-auto h-auto max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                                />
+                                <button
+                                    onClick={() => setPreviewImage(null)}
+                                    className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 transition-colors opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                                >
+                                    <XCircle className="w-5 h-5" />
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

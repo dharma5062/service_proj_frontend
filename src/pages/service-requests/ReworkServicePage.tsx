@@ -1,30 +1,62 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useServiceReopenApi } from '../serviceAPI/ServiceReopenAPI';
+import { useProductsApi } from '../serviceAPI/ProductsAPI';
+import { useServiceChargesApi } from '../serviceAPI/ServiceChargesAPI';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-    AlertCircle, 
-    ArrowLeft, 
-    Wrench, 
-    ShieldCheck, 
-    FileText, 
-    CheckCircle2
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    AlertCircle,
+    ArrowLeft,
+    ShieldCheck,
+    FileText,
+    CheckCircle2,
+    Plus,
+    Trash2,
+    Loader2,
+    BadgeCheck,
+    ClipboardList,
+    Search,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/AuthContext';
 import { STATUS_STYLES, STATUS_LABELS } from './ViewServiceRequest';
+import { ReopenStatusBadge } from '@/components/reopen/ReopenStatusBadge';
+import { toast } from 'sonner';
 
 const ReworkServicePage: React.FC = () => {
     const { reopenId } = useParams<{ reopenId: string }>();
     const navigate = useNavigate();
-    const { hasPermission } = useAuth();
-    const { useGetReworkDetails, useCloseWarrantyCycle } = useServiceReopenApi();
+    const { isShopOwner, isSuperAdmin, isShopEmployee } = useAuth();
+    const canOwnerAction = isShopOwner || isSuperAdmin;
+    const { useGetReworkDetails, useCloseWarrantyCycle, useStartReopenWork, useAddReopenParts, useCompleteReopenWork, useCloseReopenService } = useServiceReopenApi();
 
     const { data: details, isLoading, isError, error, refetch } = useGetReworkDetails(reopenId);
     const closeWarrantyMutation = useCloseWarrantyCycle();
+    const startWorkMutation = useStartReopenWork();
+    const addPartsMutation = useAddReopenParts();
+    const completeWorkMutation = useCompleteReopenWork();
+    const closeServiceMutation = useCloseReopenService();
+
+    // API calls for dropdowns
+    const { useGetProducts } = useProductsApi();
+    const { useGetServiceCharges } = useServiceChargesApi();
+    const { data: productsData } = useGetProducts({ per_page: 100 });
+    const { data: serviceChargesData } = useGetServiceCharges();
+    const productsList = productsData?.data || [];
+    const serviceChargesList = serviceChargesData || [];
+
+    // Add Parts form state
+    const [partSearchQuery, setPartSearchQuery] = useState('');
+    const [customizeParts, setCustomizeParts] = useState<Array<{ id: string; name: string; quantity: number; price: number, status: string }>>([]);
+    const [chargeSearchQuery, setChargeSearchQuery] = useState('');
+    const [customizeServiceCharges, setCustomizeServiceCharges] = useState<Array<{ id: string; name: string; amount: number }>>([]);
+    const [techNotes, setTechNotes] = useState('');
+    const [showAddPartsForm, setShowAddPartsForm] = useState(false);
 
     if (isLoading) {
         return <div className="p-8 text-center">Loading Rework Details...</div>;
@@ -46,22 +78,91 @@ const ReworkServicePage: React.FC = () => {
     const { reopen_request, original_data, delta, warranty_info, original_invoice, rework_invoice } = details;
     const service = reopen_request.service;
     
-    const canUpdateService = hasPermission('service.update');
+    const reopenStatus = reopen_request.reopen_status;
     const isServiceClosed = ['completed', 'cancelled', 'paid', 'warranty_closed'].includes(service.service_status);
-    const isReadyForInvoice = service.service_status === 'completed' && !rework_invoice;
+    // Show invoice generation section when technician has marked complete (reopen_pending_invoice)
+    // OR when there are no billable items (reopen_completed = warranty path).
+    // Do NOT show if invoice already exists.
+    const isReadyForInvoice = ['reopen_pending_invoice', 'reopen_completed'].includes(reopenStatus) && !rework_invoice;
     const hasWarrantyClosed = service.service_status === 'warranty_closed' || (rework_invoice && rework_invoice.is_warranty_invoice && rework_invoice.status === 'paid');
 
     const handleCloseWarranty = () => {
         if (!confirm('Are you sure you want to close this service under warranty? No payment will be collected.')) return;
         closeWarrantyMutation.mutate(reopenId!, {
             onSuccess: () => {
-                alert('Warranty Service Closed Successfully!');
+                toast.success('Warranty Service Closed Successfully!');
                 refetch();
             },
             onError: (err) => {
-                alert(err.message);
+                toast.error(err.message);
             }
         });
+    };
+
+    const handleStartWork = async () => {
+        try {
+            const res = await startWorkMutation.mutateAsync(reopenId!);
+            if (res.status) {
+                toast.success('Rework started! You are now in progress.');
+                refetch();
+            } else {
+                toast.error(res.message || 'Failed to start work.');
+            }
+        } catch (e: any) { toast.error(e.message); }
+    };
+
+    const handleSaveParts = async () => {
+        const validParts = customizeParts.map(p => ({ name: p.name, quantity: p.quantity, price: p.price }));
+        const totalLaborCharge = customizeServiceCharges.reduce((acc, c) => acc + (c.amount || 0), 0);
+        const combinedLaborChargeName = customizeServiceCharges.map(c => c.name).join(', ');
+        
+        if (!validParts.length && !totalLaborCharge) {
+            toast.error('Add at least one part or a labor charge.');
+            return;
+        }
+        try {
+            const res = await addPartsMutation.mutateAsync({
+                reopenId: reopenId!,
+                parts: validParts.length ? validParts : undefined,
+                labor_charge: totalLaborCharge || undefined,
+                labor_charge_name: combinedLaborChargeName || undefined,
+            });
+            if (res.status) {
+                toast.success('Parts/labor added successfully!');
+                setCustomizeParts([]);
+                setCustomizeServiceCharges([]);
+                setShowAddPartsForm(false);
+                refetch();
+            } else {
+                toast.error(res.message || 'Failed to add parts.');
+            }
+        } catch (e: any) { toast.error(e.message); }
+    };
+
+    const handleCompleteWork = async () => {
+        if (!techNotes.trim() && !confirm('Submit rework completion without technician notes?')) return;
+        try {
+            const res = await completeWorkMutation.mutateAsync({ reopenId: reopenId!, notes: techNotes || undefined });
+            if (res.status) {
+                toast.success(res.message || 'Rework completed!');
+                setTechNotes('');
+                refetch();
+            } else {
+                toast.error(res.message || 'Failed to complete rework.');
+            }
+        } catch (e: any) { toast.error(e.message); }
+    };
+
+    const handleCloseService = async () => {
+        try {
+            const res = await closeServiceMutation.mutateAsync({ reopenId: reopenId! });
+            if (res.status) {
+                toast.success(res.message || 'Service closed!');
+                refetch();
+            } else {
+                toast.error(res.message || 'Failed to close service.');
+            }
+        } catch (e: any) { toast.error(e.message); }
     };
 
     const imageUrls = reopen_request.images?.map(img => 
@@ -78,7 +179,7 @@ const ReworkServicePage: React.FC = () => {
                     </Button>
                     <div>
                         <h1 className="text-lg font-bold flex items-center gap-2">
-                            <Wrench className="h-5 w-5 text-blue-600" />
+                            {/* <Wrench className="h-5 w-5 text-blue-600" /> */}
                             Rework Cycle #{reopen_request.reopen_number}
                         </h1>
                         <p className="text-xs text-gray-500">
@@ -87,11 +188,12 @@ const ReworkServicePage: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="flex flex-col items-end gap-2">
-                    <Badge className={STATUS_STYLES[service.service_status as keyof typeof STATUS_STYLES] || 'bg-gray-100'}>
-                        {STATUS_LABELS[service.service_status as keyof typeof STATUS_LABELS] || service.service_status}
-                    </Badge>
-                </div>
+                    <div className="flex flex-col items-end gap-2">
+                        <Badge className={STATUS_STYLES[service.service_status as keyof typeof STATUS_STYLES] || 'bg-gray-100'}>
+                            {STATUS_LABELS[service.service_status as keyof typeof STATUS_LABELS] || service.service_status}
+                        </Badge>
+                        <ReopenStatusBadge status={reopenStatus} size="sm" showPulseDot />
+                    </div>
             </div>
 
             {hasWarrantyClosed && (
@@ -142,8 +244,8 @@ const ReworkServicePage: React.FC = () => {
 
                             <Separator className="my-2" />
                             <div>
-                                <p className="text-xs font-medium text-gray-500 mb-1">Shop Owner Note</p>
-                                <p className="text-gray-700 italic leading-tight">{reopen_request.shop_owner_note || 'No note provided'}</p>
+                                <p className="text-xs font-medium text-gray-500 mb-1">Admin Note</p>
+                                <p className="text-gray-700 italic leading-tight">{reopen_request.technician_notes || reopen_request.shop_owner_note || 'No note provided'}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -182,25 +284,70 @@ const ReworkServicePage: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Actions Panel */}
+                    {/* Employee Action Panel */}
                     {!isServiceClosed && (
                         <Card className="shadow-sm">
                             <CardHeader className="p-3 pb-2">
                                 <CardTitle className="text-sm">Technician Actions</CardTitle>
                             </CardHeader>
                             <CardContent className="p-3 pt-0 space-y-2">
-                                {canUpdateService && (
-                                    <Button 
+                                {/* Accept & Start Rework */}
+                                {reopenStatus === 'reopen_assigned' && isShopEmployee && !isShopOwner && !isSuperAdmin && (
+                                    <Button
                                         size="sm"
-                                        className="w-full justify-start h-8 text-xs" 
-                                        onClick={() => navigate(`/dashboard/services/edit/${service.id}`)}
+                                        className="w-full justify-start h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
+                                        onClick={handleStartWork}
+                                        disabled={startWorkMutation.isPending}
                                     >
-                                        <Wrench className="h-3 w-3 mr-2" />
-                                        Update Work / Add Parts
+                                        {startWorkMutation.isPending
+                                            ? <><Loader2 className="h-3 w-3 mr-2 animate-spin" />Starting...</>
+                                            : <><CheckCircle2 className="h-3 w-3 mr-2" />Accept & Start Rework</>}
                                     </Button>
                                 )}
-                                <Button 
-                                    variant="outline" 
+
+                                {/* Add Parts / Labor — only while actively in-progress */}
+                                {reopenStatus === 'reopen_in_progress' && isShopEmployee && !isShopOwner && !isSuperAdmin && (
+                                    <Button
+                                        size="sm"
+                                        className="w-full justify-start h-8 text-xs"
+                                        onClick={() => setShowAddPartsForm(v => !v)}
+                                    >
+                                        <Plus className="h-3 w-3 mr-2" />
+                                        {showAddPartsForm ? 'Hide Parts Form' : 'Add Parts / Labor'}
+                                    </Button>
+                                )}
+
+                                {/* Mark Rework Complete — only shown while in_progress, disappears after clicking */}
+                                {reopenStatus === 'reopen_in_progress' && isShopEmployee && !isShopOwner && !isSuperAdmin && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full justify-start h-8 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                                        onClick={handleCompleteWork}
+                                        disabled={completeWorkMutation.isPending}
+                                    >
+                                        {completeWorkMutation.isPending
+                                            ? <><Loader2 className="h-3 w-3 mr-2 animate-spin" /> Completing...</>
+                                            : <><CheckCircle2 className="h-3 w-3 mr-2" /> Mark Rework Done</>}
+                                    </Button>
+                                )}
+
+                                {/* Shop Owner: Close Service (after completion or warranty) */}
+                                {canOwnerAction && ['reopen_completed', 'reopen_payment_completed'].includes(reopenStatus) && (
+                                    <Button
+                                        size="sm"
+                                        className="w-full justify-start h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
+                                        onClick={handleCloseService}
+                                        disabled={closeServiceMutation.isPending}
+                                    >
+                                        {closeServiceMutation.isPending
+                                            ? <><Loader2 className="h-3 w-3 mr-2 animate-spin" /> Closing...</>
+                                            : <><BadgeCheck className="h-3 w-3 mr-2" /> Close Service</>}
+                                    </Button>
+                                )}
+
+                                <Button
+                                    variant="outline"
                                     size="sm"
                                     className="w-full justify-start h-8 text-xs"
                                     onClick={() => navigate(`/dashboard/services/view/${service.id}`)}
@@ -322,6 +469,169 @@ const ReworkServicePage: React.FC = () => {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Inline Add Parts / Labor Form — only while in_progress */}
+                    {showAddPartsForm && reopenStatus === 'reopen_in_progress' && (
+                        <Card className="border-indigo-200 shadow-sm">
+                            <CardHeader className="bg-indigo-50/50 border-b border-indigo-100 p-3">
+                                <CardTitle className="text-sm text-indigo-900 flex items-center gap-2">
+                                    <Plus className="h-4 w-4" /> Add New Parts / Labor
+                                </CardTitle>
+                                <CardDescription className="text-xs">Only new items will be billed. Original parts are warranty-covered.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-3">
+                                {/* Parts & Materials */}
+                                <div className="border rounded-md p-2.5 bg-gray-50/50 space-y-2">
+                                    <Label className="text-xs font-semibold text-gray-700">Parts & Materials</Label>
+                                    <div className="relative">
+                                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                                        <Input
+                                            className="h-7 pl-6 text-xs"
+                                            placeholder="Search parts..."
+                                            value={partSearchQuery}
+                                            onChange={(e) => setPartSearchQuery(e.target.value)}
+                                        />
+                                    </div>
+                                    {partSearchQuery && (
+                                        <div className="border rounded bg-white max-h-32 overflow-y-auto shadow-sm">
+                                            {productsList
+                                                .filter((p: any) => p.name.toLowerCase().includes(partSearchQuery.toLowerCase()))
+                                                .slice(0, 10)
+                                                .map((p: any) => (
+                                                    <div key={p.id} className="flex justify-between items-center p-1.5 text-xs hover:bg-gray-50 cursor-pointer border-b last:border-b-0" onClick={() => {
+                                                        const exists = customizeParts.find(cp => cp.id === p.id.toString());
+                                                        if (exists) {
+                                                            setCustomizeParts(customizeParts.map(cp => cp.id === p.id.toString() ? { ...cp, quantity: cp.quantity + 1 } : cp));
+                                                        } else {
+                                                            setCustomizeParts([...customizeParts, { id: p.id.toString(), name: p.name, price: Number(p.price) || 0, quantity: 1, status: 'In Stock' }]);
+                                                        }
+                                                        setPartSearchQuery('');
+                                                    }}>
+                                                        <span className="truncate pr-2">{p.name}</span>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <span className="font-semibold text-gray-600">₹{p.price}</span>
+                                                            <Plus className="h-3 w-3 text-primary" />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+                                    <div className="space-y-1.5 mt-2 max-h-[120px] overflow-y-auto pr-1">
+                                        {customizeParts.length === 0 && <p className="text-[10px] text-gray-400 text-center py-2">No parts added</p>}
+                                        {customizeParts.map((part, i) => (
+                                            <div key={i} className="flex items-center justify-between bg-white border rounded p-1 text-xs">
+                                                <span className="font-medium truncate flex-1 px-1">{part.name}</span>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <input type="number" min="1" className="w-9 h-5 border rounded text-center text-[10px]" value={part.quantity} onChange={(e) => {
+                                                        const val = parseInt(e.target.value) || 1;
+                                                        setCustomizeParts(customizeParts.map(cp => cp.id === part.id ? { ...cp, quantity: val } : cp));
+                                                    }} />
+                                                    <span className="font-semibold w-10 text-right text-gray-700">₹{part.price * part.quantity}</span>
+                                                    <button onClick={() => setCustomizeParts(customizeParts.filter(cp => cp.id !== part.id))} className="p-0.5 hover:bg-red-50 rounded"><Trash2 className="h-3 w-3 text-red-500" /></button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Service Charges */}
+                                <div className="border rounded-md p-2.5 bg-gray-50/50 space-y-2">
+                                    <Label className="text-xs font-semibold text-gray-700">Service Charges</Label>
+                                    <div className="relative">
+                                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                                        <Input
+                                            className="h-7 pl-6 text-xs"
+                                            placeholder="Search or add manual charge..."
+                                            value={chargeSearchQuery}
+                                            onChange={(e) => setChargeSearchQuery(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && chargeSearchQuery.trim()) {
+                                                    const newCharge = { id: Date.now().toString(), name: chargeSearchQuery.trim(), amount: 0 };
+                                                    setCustomizeServiceCharges([...customizeServiceCharges, newCharge]);
+                                                    setChargeSearchQuery('');
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    {chargeSearchQuery && (
+                                        <div className="border rounded bg-white max-h-32 overflow-y-auto shadow-sm">
+                                            <div className="p-1.5 text-[10px] text-gray-500 border-b bg-gray-50 flex items-center gap-1">Press <kbd className="bg-gray-200 px-1 rounded">Enter</kbd> to add custom</div>
+                                            {serviceChargesList
+                                                .filter((c: any) => c.name.toLowerCase().includes(chargeSearchQuery.toLowerCase()))
+                                                .map((c: any) => (
+                                                    <div key={c.id} className="flex justify-between items-center p-1.5 text-xs hover:bg-gray-50 cursor-pointer border-b last:border-b-0" onClick={() => {
+                                                        if (!customizeServiceCharges.find(sc => sc.id === c.id.toString())) {
+                                                            setCustomizeServiceCharges([...customizeServiceCharges, { id: c.id.toString(), name: c.name, amount: Number(c.amount) }]);
+                                                        }
+                                                        setChargeSearchQuery('');
+                                                    }}>
+                                                        <span className="truncate pr-2">{c.name}</span>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <span className="font-semibold text-gray-600">₹{c.amount}</span>
+                                                            <Plus className="h-3 w-3 text-primary" />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+                                    <div className="space-y-1.5 mt-2 max-h-[120px] overflow-y-auto pr-1">
+                                        {customizeServiceCharges.length === 0 && <p className="text-[10px] text-gray-400 text-center py-2">No charges added</p>}
+                                        {customizeServiceCharges.map((charge, i) => (
+                                            <div key={i} className="flex items-center justify-between bg-white border rounded p-1 text-xs">
+                                                <span className="font-medium truncate flex-1 px-1">{charge.name}</span>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <input type="number" min="0" placeholder="₹" className="w-12 h-5 border rounded text-center text-[10px]" value={charge.amount === 0 ? '' : charge.amount} onChange={(e) => {
+                                                        const val = parseFloat(e.target.value) || 0;
+                                                        setCustomizeServiceCharges(customizeServiceCharges.map(sc => sc.id === charge.id ? { ...sc, amount: val } : sc));
+                                                    }} />
+                                                    <button onClick={() => setCustomizeServiceCharges(customizeServiceCharges.filter(sc => sc.id !== charge.id))} className="p-0.5 hover:bg-red-50 rounded"><Trash2 className="h-3 w-3 text-red-500" /></button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-2 pt-1">
+                                    <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setShowAddPartsForm(false)}>Cancel</Button>
+                                    <Button size="sm" className="text-xs h-7 bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveParts} disabled={addPartsMutation.isPending}>
+                                        {addPartsMutation.isPending ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Saving...</> : 'Save Parts'}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Technician Work Notes — only while actively working (disappears after Mark Complete) */}
+                    {reopenStatus === 'reopen_in_progress' && isShopEmployee && !isShopOwner && !isSuperAdmin && (
+                        <Card className="border-green-200 shadow-sm">
+                            <CardHeader className="bg-green-50/50 border-b border-green-100 p-3">
+                                <CardTitle className="text-sm text-green-900 flex items-center gap-2">
+                                    <ClipboardList className="h-4 w-4" /> Technician Work Notes
+                                </CardTitle>
+                                <CardDescription className="text-xs">Add notes before marking work as done.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-2">
+                                <textarea
+                                    value={techNotes}
+                                    onChange={e => setTechNotes(e.target.value)}
+                                    placeholder="Describe what was done, what was found, what parts were replaced..."
+                                    className="w-full border border-gray-200 rounded-lg p-2.5 text-xs min-h-[80px] resize-none outline-none focus:border-green-400 focus:ring-1 focus:ring-green-200"
+                                />
+                                <div className="flex justify-end">
+                                    <Button
+                                        size="sm"
+                                        className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white px-5"
+                                        onClick={handleCompleteWork}
+                                        disabled={completeWorkMutation.isPending}
+                                    >
+                                        {completeWorkMutation.isPending
+                                            ? <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Processing...</>
+                                            : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Mark Rework Complete</>}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Invoice Generation / Closure Section */}
                     {isReadyForInvoice && (
